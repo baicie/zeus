@@ -189,6 +189,75 @@ export function checkRemoteCommit(
 }
 
 /**
+ * What the UI tree at a commit actually says its version is.
+ *
+ * `uiVersion` in the record is a claim; this is the check. A record can name a
+ * commit that exists and still be wrong about it — measured here: after the UI
+ * version bump was split out, the record named a commit whose tree was still
+ * at `0.1.0-beta.35` while claiming `0.2.0-rc.0`.
+ *
+ * Existence and content are different questions, and the second is the one a
+ * release depends on.
+ */
+export interface UiVersionMismatch {
+  readonly file: string
+  readonly expected: string
+  readonly actual: string
+}
+
+/**
+ * Compares each record's `uiVersion` with the UI manifest at `uiCommit`.
+ *
+ * `undefined` from the reader means the file could not be fetched, which is
+ * reported rather than treated as agreement.
+ */
+export function checkUiVersions(
+  records: readonly (ReleasePairing & { readonly file: string })[],
+  readUiManifest: (commit: string) => string | undefined,
+): {
+  readonly mismatches: readonly UiVersionMismatch[]
+  readonly problems: readonly PairingProblem[]
+} {
+  const mismatches: UiVersionMismatch[] = []
+  const problems: PairingProblem[] = []
+  for (const record of records) {
+    const raw = readUiManifest(record.uiCommit)
+    if (raw === undefined) {
+      problems.push({
+        file: record.file,
+        message: `cannot read the UI manifest at ${record.uiCommit}; the recorded uiVersion ${record.uiVersion} is unverified`,
+      })
+      continue
+    }
+    let version: unknown
+    try {
+      version = (JSON.parse(raw) as { version?: unknown }).version
+    } catch {
+      problems.push({
+        file: record.file,
+        message: `the UI manifest at ${record.uiCommit} is not valid JSON`,
+      })
+      continue
+    }
+    if (typeof version !== 'string') {
+      problems.push({
+        file: record.file,
+        message: `the UI manifest at ${record.uiCommit} has no version`,
+      })
+      continue
+    }
+    if (version !== record.uiVersion) {
+      mismatches.push({
+        file: record.file,
+        expected: record.uiVersion,
+        actual: version,
+      })
+    }
+  }
+  return { mismatches, problems }
+}
+
+/**
  * Validates every record in a directory.
  *
  * The README is skipped, and anything else that is not a `.json` file is a

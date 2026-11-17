@@ -25,6 +25,7 @@ import { parseArgs } from 'node:util'
 
 import {
   checkRemoteCommit,
+  checkUiVersions,
   readPairingDirectory,
   validatePairingDirectory,
 } from '../release/release-pairing'
@@ -70,6 +71,23 @@ if (values.online) {
           : `uiCommit ${record.uiCommit} could not be verified on ${values.repository}: ${result.detail}`,
     })
   }
+
+  /*
+   * Existence is not content. A commit can be reachable and still carry a
+   * different version than the record claims — which is what happened when
+   * the UI version bump was split out of the protocol PR.
+   */
+  const records = readPairingDirectory(directory)
+  const versionCheck = checkUiVersions(records, commit =>
+    readFileAtCommit(values.repository, commit, 'package.json', gh),
+  )
+  problems.push(...versionCheck.problems)
+  for (const mismatch of versionCheck.mismatches) {
+    problems.push({
+      file: mismatch.file,
+      message: `record says the UI is at ${mismatch.expected}, but the tree at that commit is ${mismatch.actual}`,
+    })
+  }
 }
 
 if (problems.length === 0) {
@@ -84,4 +102,27 @@ if (problems.length === 0) {
   }
   console.error(`\n${problems.length} pairing problem(s).`)
   process.exitCode = 1
+}
+
+/**
+ * A file at a commit on a repository, or `undefined`.
+ *
+ * Uses the raw media type so the response is the file, not a base64 envelope.
+ */
+function readFileAtCommit(
+  repository: string,
+  commit: string,
+  file: string,
+  gh: (args: readonly string[]) => string,
+): string | undefined {
+  try {
+    return gh([
+      'api',
+      `repos/${repository}/contents/${file}?ref=${commit}`,
+      '-H',
+      'Accept: application/vnd.github.raw',
+    ])
+  } catch {
+    return undefined
+  }
 }
