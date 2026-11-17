@@ -1,0 +1,13 @@
+{
+  "schema": "zeus.release-pairing/v1",
+  "coreVersion": "0.2.0-rc.0",
+  "uiCommit": null,
+  "uiVersion": "0.2.0-rc.0",
+  "verifiedAt": "2026-11-17T12:00:00.000Z",
+  "bootstrap": true,
+  "firstPublish": [
+    "@zeus-js/i18n",
+    "@zeus-js/eslint-plugin",
+    "@zeus-js/playground-engine"
+  ]
+}
