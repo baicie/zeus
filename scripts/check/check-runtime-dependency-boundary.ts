@@ -120,31 +120,65 @@ try {
    * weakening it: the assertion is about what a consumer's tree contains, and
    * a local tarball is the same artifact the release would publish.
    */
+  /*
+   * Workspace packages are siblings, not nested under each other's
+   * `node_modules`. Resolving a dependency by looking inside the dependent's
+   * directory therefore finds only what pnpm happened to hoist, and missed the
+   * seven `compiler-native-*` platform packages that way — which is why the
+   * plugin entry could not find its native binding once the wrapper was
+   * installed from tarballs.
+   */
+  const workspaceDirectories = new Map<string, string>()
+  const indexWorkspace = (directory: string): void => {
+    if (!fs.existsSync(directory)) return
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name === 'node_modules') continue
+      const absolute = path.join(directory, entry.name)
+      const manifestPath = path.join(absolute, 'package.json')
+      if (fs.existsSync(manifestPath)) {
+        try {
+          const manifest = JSON.parse(
+            fs.readFileSync(manifestPath, 'utf8'),
+          ) as { name?: string }
+          if (manifest.name?.startsWith('@zeus-js/')) {
+            workspaceDirectories.set(manifest.name, absolute)
+          }
+        } catch {
+          /* A malformed manifest is not part of the closure question. */
+        }
+      }
+      indexWorkspace(absolute)
+    }
+  }
+  indexWorkspace(path.join(root, 'packages'))
+
   const closureNames = new Set<string>()
-  const collect = (directory: string): void => {
+  const collect = (name: string): void => {
+    if (closureNames.has(name)) return
+    const directory = workspaceDirectories.get(name)
+    if (!directory) return
+    closureNames.add(name)
     const manifest = JSON.parse(
       fs.readFileSync(path.join(directory, 'package.json'), 'utf8'),
     ) as {
-      name?: string
       dependencies?: Record<string, string>
       optionalDependencies?: Record<string, string>
     }
-    if (manifest.name?.startsWith('@zeus-js/')) closureNames.add(manifest.name)
     for (const block of [
       manifest.dependencies,
       manifest.optionalDependencies,
     ]) {
       for (const dependency of Object.keys(block ?? {})) {
         if (!dependency.startsWith('@zeus-js/')) continue
-        if (closureNames.has(dependency)) continue
-        closureNames.add(dependency)
-        const nested = path.join(directory, 'node_modules', dependency)
-        if (fs.existsSync(nested)) collect(nested)
+        collect(dependency)
       }
     }
   }
-  for (const name of ['output-react-wrapper', 'output-vue-wrapper']) {
-    collect(path.join(root, 'packages/web-c', name))
+  for (const name of [
+    '@zeus-js/output-react-wrapper',
+    '@zeus-js/output-vue-wrapper',
+  ]) {
+    collect(name)
   }
 
   const overrides: Record<string, string> = {}
