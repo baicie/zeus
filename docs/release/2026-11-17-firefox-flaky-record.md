@@ -138,7 +138,7 @@ for (let index = 0; index < 20; index += 1) {
 ## 6. 建议的下一步
 
 静态排查到此为止，没有找到能解释第 9 次的确切路径。已排除的比剩下的多，
-这本身是有用的——它把范围压到了三段代码。
+这本身是有用的——它把范围压到了两段代码。
 
 ### 6.1 已排除（不要重复排查）
 
@@ -151,26 +151,27 @@ for (let index = 0; index < 20; index += 1) {
 | `syncConversation`                      | `chat-view.ts:338`           | 不碰 `input.value`                                                                 |
 | `conversationStore.load()` 的 emit 竞态 | `conversations.ts:92-113`    | 确实存在（`emit()` 早于 `.then()` 赋值），但只在挂载时发生一次，测试已等过首屏     |
 
-### 6.2 剩下的三段代码
+### 6.2 剩下的两段代码
 
-只有这三处能清空 `input.value`，或让它看起来被清空：
+只有这两处会清空 `input.value`：
 
 1. **`chat-view.ts:366`** `newConversation()` — 需要被间接触发
 2. **`chat-view.ts:450`** 提交后 — 需要被间接触发
-3. **`workbench-ui.ts:46` `visibleComposers`** — 如果 BYOK 的 textarea 在某个瞬间
-   尺寸为 0 或被隐藏，它会从结果里消失；剩余节点被归类为 byok 也可能因为别的原因
 
-第 3 条此前没被认真考虑过：`kind` 是靠 `node.closest('zw-ai-composer')` 判定的。
-如果 Host 的 `zw-ai-composer` 在切换瞬间被 detach，它内部的 textarea 仍可能被算作
-byok。`length === 1` 和 `kind === 'byok'` 同时成立，但那是**另一个** textarea。
+「测试看错节点」这条已经排除：`visibleComposers` 用
+`document.querySelectorAll('textarea')` 遍历**文档内**节点，被 detach 的
+Host composer 及其内部 textarea 不在文档里，不会出现在结果中。
+`closest('zw-ai-composer')` 匹配的是仍挂载的祖先，所以 `kind` 不会错判。
+
+剩下唯一能解释 `value: ''` 的，是两处清空之一被间接调用。
 
 ### 6.3 具体动作
 
-1. 在 `visibleComposers` 的返回值里加上 `testid`（已有）与 `closest('zw-ai-composer')`
-   的存在性，并在失败信息里输出。当前的错误串只有 `kind/value/focused`，
-   分不清是同一个 textarea 被清空，还是换了一个。
-2. 在 `chat-view.ts` 的两处 `input.value = ''` 前打印 `new Error().stack` 与
-   `conversationStore.activeIdValue()`。
+1. 在 `chat-view.ts` 的两处 `input.value = ''` 前打印 `new Error().stack` 与
+   `conversationStore.activeIdValue()`。这是唯一能区分两条路径的手段。
+2. 在失败断言里输出 `testid`（`visibleComposers` 已返回它，但 `record()` 序列化的
+   `ComposerSnapshot` 没有这个字段）。它不能定位根因，但能确认节点身份没变——
+   把「换了一个节点」这个残余可能彻底关掉。
 3. 给 gate 加 `--trace retain-on-failure`。当前 artifact 里没有 trace，
    这是排查困难的直接原因。
 
