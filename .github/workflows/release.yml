@@ -289,14 +289,41 @@ jobs:
       # `check:latest-tags` runs in the precheck, which is *before* anything is
       # published. For a package whose RC is its first publication, `latest`
       # only starts pointing at the prerelease once this job publishes — so the
-      # precheck cannot see it, and the pollution would be discovered by the
-      # next release or by a user.
+      # precheck cannot see it, and this is the post-publish half.
       #
-      # This is the post-publish half. It does not block the publish (which has
-      # already happened), it makes the state visible in the run that caused it,
-      # with the repair command in the message.
+      # Two different questions, kept apart:
+      #
+      # - **publication integrity** — did the packages publish correctly? A
+      #   failure here is a broken release.
+      # - **latest policy** — is every `latest` tag compliant? An approved
+      #   first publication makes npm bind `latest` to the RC, which is a
+      #   recorded deviation rather than a broken release.
+      #
+      # The verdict decides the exit code, not the raw error count. Only
+      # packages the immutable pairing record approved, and only when their
+      # `latest` points at exactly this version, become ACCEPTED_DEVIATION.
+      # Anything else — an unapproved package, an approved package whose tag
+      # moved, or a registry that could not be read — still fails.
       - name: Check npm latest after publishing
-        run: pnpm check:latest-tags --version "${{ steps.release-version.outputs.version }}"
+        run: >-
+          pnpm check:latest-tags
+          --version "${{ steps.release-version.outputs.version }}"
+          --pairing-record "release-pairing/v${{ steps.release-version.outputs.version }}.json"
+          --out temp/release/latest-tags.json
+          --policy-out temp/release/latest-policy.json
+
+      # The verdict is recorded as an artifact, not only in the log: the
+      # deviation is an accepted risk that a later audit has to be able to
+      # re-read, together with which packages it applied to and why.
+      - name: Preserve the latest-tag verdict
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-latest-policy
+          path: |
+            temp/release/latest-tags.json
+            temp/release/latest-policy.json
+          if-no-files-found: warn
 
   compiler-registry-smoke:
     if: github.repository == 'baicie/zeus'
