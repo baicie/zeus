@@ -107,6 +107,67 @@ try {
     return path.join(archive, found)
   }
 
+  /*
+   * Every Core package the wrapper can reach is packed locally.
+   *
+   * The wrapper's dependencies resolve through the registry, and during a
+   * version-line bump the version under test is not published yet —
+   * `ERR_PNPM_NO_MATCHING_VERSION` for a package that exists perfectly well in
+   * this checkout. A gate that only works after the release has happened
+   * cannot gate the release.
+   *
+   * Packing the closure makes the probe independent of the registry without
+   * weakening it: the assertion is about what a consumer's tree contains, and
+   * a local tarball is the same artifact the release would publish.
+   */
+  const closureNames = new Set<string>()
+  const collect = (directory: string): void => {
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(directory, 'package.json'), 'utf8'),
+    ) as {
+      name?: string
+      dependencies?: Record<string, string>
+      optionalDependencies?: Record<string, string>
+    }
+    if (manifest.name?.startsWith('@zeus-js/')) closureNames.add(manifest.name)
+    for (const block of [
+      manifest.dependencies,
+      manifest.optionalDependencies,
+    ]) {
+      for (const dependency of Object.keys(block ?? {})) {
+        if (!dependency.startsWith('@zeus-js/')) continue
+        if (closureNames.has(dependency)) continue
+        closureNames.add(dependency)
+        const nested = path.join(directory, 'node_modules', dependency)
+        if (fs.existsSync(nested)) collect(nested)
+      }
+    }
+  }
+  for (const name of ['output-react-wrapper', 'output-vue-wrapper']) {
+    collect(path.join(root, 'packages/web-c', name))
+  }
+
+  const overrides: Record<string, string> = {}
+  for (const name of closureNames) {
+    /* The workspace package's own directory, not a nested copy. */
+    const short = name.replace('@zeus-js/', '')
+    const candidates = [
+      path.join(root, 'packages/core', short),
+      path.join(root, 'packages/web-c', short),
+      path.join(root, 'packages/devtools', short),
+    ]
+    const directory = candidates.find(candidate =>
+      fs.existsSync(path.join(candidate, 'package.json')),
+    )
+    if (!directory) continue
+    const before = new Set(fs.readdirSync(archive))
+    run('pnpm', ['pack', '--pack-destination', archive], directory)
+    const created = fs
+      .readdirSync(archive)
+      .find(entry => entry.endsWith('.tgz') && !before.has(entry))
+    if (created) overrides[name] = `file:${path.join(archive, created)}`
+  }
+
   const project = path.join(work, 'app')
   fs.mkdirSync(project)
   fs.writeFileSync(
@@ -131,6 +192,7 @@ try {
            */
           vite: '^8.0.0',
         },
+        pnpm: { overrides },
       },
       null,
       2,
