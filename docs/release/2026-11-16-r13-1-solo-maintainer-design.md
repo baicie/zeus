@@ -149,10 +149,36 @@ flag: an override that exists is an override that gets used at 3am.
 
 Exactly one thing:
 
-**A tag ruleset** blocking deletion and non-fast-forward on `v*`,
-`create-zeus@*`, `vite-plugin@*`. This is the only mechanism that makes a tag
-immutable, and it is the only piece this code cannot read. `tag-unmoved`
-notices a move after the fact; the ruleset prevents it.
+**A tag ruleset** blocking deletion and update on `v*`, `create-zeus@*`,
+`vite-plugin@*`. This is the only mechanism that makes a tag immutable, and it
+is the only piece this code cannot read. `tag-unmoved` notices a move after the
+fact; the ruleset prevents it.
+
+Configured on 2026-11-17 as `release tag immutability` (ruleset `27438539`):
+
+| Field        | Value                                                                |
+| ------------ | -------------------------------------------------------------------- |
+| target       | `tag`                                                                |
+| ref patterns | `refs/tags/v*`, `refs/tags/create-zeus@*`, `refs/tags/vite-plugin@*` |
+| rules        | `deletion`, `update`                                                 |
+| bypass       | none — `bypass_actors: []`, `current_user_can_bypass: "never"`       |
+
+Verified by attempting all three operations against a throwaway
+`v0.0.0-ruleset-enforcement-test` ref: create succeeded, update was refused
+with `Cannot update this protected ref.`, delete was refused with `Cannot
+delete this tag`. The test ref needed the ruleset briefly disabled to remove,
+which is itself a demonstration that no bypass path exists.
+
+`update` rather than `non_fast_forward`: a fast-forward check would permit a
+tag to move from commit A to a descendant of A, which is exactly the move this
+rule exists to stop — a release tag re-pointed at a later commit publishes a
+different tree under a version number that was already released. `update`
+blocks every re-point, so there is no gap to reason about.
+
+The policy that gates publishing (`tag-immutability`) still reports
+`POLICY_LIMITATION`, because no workflow token can read a ruleset. That report
+is not a gap in this configuration; it records that the configuration is
+verified out of band, by the table above, rather than at release time.
 
 Everything else already exists and needs no action:
 
