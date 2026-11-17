@@ -11,7 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@zeus-js/zeus": "0.1.1-beta.20"
+    "@zeus-js/zeus": "0.2.0-rc.0"
   },
   "devDependencies": {
     "@zeus-js/vite-plugin": "0.0.5",

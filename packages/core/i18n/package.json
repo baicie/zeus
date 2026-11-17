@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/i18n",
   "type": "module",
-  "version": "0.1.1-beta.20",
+  "version": "0.2.0-rc.0",
   "description": "Typed, reactive, ICU-based internationalization for Zeus applications",
   "license": "MIT",
   "repository": {
