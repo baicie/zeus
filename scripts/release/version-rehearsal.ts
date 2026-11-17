@@ -772,8 +772,28 @@ export function reviewApplyGuard(
   if (status === undefined) {
     return `cannot read the worktree status of ${root}`
   }
-  if (status.length > 0) {
-    return `the worktree at ${root} has uncommitted changes; a version switch on top of them could not be attributed or reverted`
+  /*
+   * Untracked files do not affect revertibility.
+   *
+   * The guard exists so a version switch can be attributed and undone. A
+   * modified tracked file breaks that: `git checkout -- .` would silently
+   * discard it along with the bump. An untracked file does not — the rehearsal
+   * never writes to it, and reverting the bump leaves it exactly where it was.
+   *
+   * Refusing on any porcelain output made the guard fail on files the run
+   * cannot touch, which trains the operator to work around it.
+   */
+  const modified = status
+    .split('\n')
+    .filter(Boolean)
+    .filter(line => !line.startsWith('??'))
+  if (modified.length > 0) {
+    return `the worktree at ${root} has uncommitted changes to tracked files (${modified
+      .slice(0, 3)
+      .map(line => line.slice(2).trimStart())
+      .join(
+        ', ',
+      )}); a version switch on top of them could not be attributed or reverted`
   }
   return undefined
 }
