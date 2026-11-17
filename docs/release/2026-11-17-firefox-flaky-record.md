@@ -93,6 +93,33 @@ for (let index = 0; index < 20; index += 1) {
 
 `focused: false` 是补充线索：BYOK composer 在切换后本应保持焦点，而它没有。这与「按一个全新 conversation 重建了 composer」一致。
 
+## 3.1 设计包对草稿的立场
+
+查过 `Zeus-Admin-AI-Workbench-设计包-v1`（2026-11-11），它对草稿的要求是分散的：
+
+| 来源                                 | 原文                                              | 覆盖什么           |
+| ------------------------------------ | ------------------------------------------------- | ------------------ |
+| `02-AI-Workbench-逐页规格.md:54`     | 「两个模式必须分开标识/隔离，切模式时不混合消息」 | 消息，不是草稿     |
+| `03-BYOK-真实调用与浏览器安全.md:82` | 「stream 期间切换不得串消息」                     | 流式期间的会话切换 |
+| `04-视觉测试与验收矩阵.md`           | 无草稿相关条目                                    | —                  |
+
+设计包**没有直接规定「切模式后未发送的草稿应否保留」**。
+
+但 UI 仓库内的产品故事规定了同一性质的要求（`docs/ai-headless-v2/product-stories.md`）：
+
+| 场景                    | 要求                                                 |
+| ----------------------- | ---------------------------------------------------- |
+| 网络中断，`send` 无 Ack | `submitState:'failed'` + `lastError`，**草稿不清空** |
+| 附件上传失败            | 草稿保留                                             |
+| 生成失败                | 草稿保留                                             |
+
+`legacy-decision.md:55` 把「提交时立即清空输入」列为**被否定的旧行为**，理由正是违反这条。
+
+所以「切模式丢草稿」与本仓库自己的产品要求冲突，不是测试加严。**但要注意反向的坑**：
+`newConversation()` 处（366 行）的清空有明确注释——新建对话必须从空 composer 开始，
+否则上一个会话未发送的草稿会串过来。这两条要求方向相反，修复时必须区分
+「切模式」与「切会话」。
+
 ## 4. 为什么只在 firefox 上出现
 
 三个引擎跑同一段测试，chromium 和 webkit 通过。可能是：
@@ -110,12 +137,48 @@ for (let index = 0; index < 20; index += 1) {
 
 ## 6. 建议的下一步
 
-1. 在 `chat-view.ts` 的 `input.value = ''` 两处临时加日志，记录调用栈与当时的
-   `conversationStore.activeIdValue()`，跑 CI 看哪条路径被触发。
-2. 给这个 gate 加 Playwright trace（`--trace retain-on-failure`），失败时能直接看到
-   DOM 事件序列。当前 artifact 里没有 trace。
-3. 如果确认是 store 异步回调导致的 conversation 重建，修复方向是让「切换模式」不影响
-   conversation 身份——而不是在 composer 上加保护。
+静态排查到此为止，没有找到能解释第 9 次的确切路径。已排除的比剩下的多，
+这本身是有用的——它把范围压到了三段代码。
+
+### 6.1 已排除（不要重复排查）
+
+| 位置                                    | 查过什么                     | 为何排除                                                                           |
+| --------------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------- |
+| `byokView` 生命周期                     | `main.ts:1840`               | 单例，`if (byokView) return byokView`，不会重建                                    |
+| `composer-dock.claim`                   | `composer-dock.ts:14-19`     | 注释明确「never re-parents anything inside an owner's element」；claim 只移动 zone |
+| `insertComposer` / 节点身份             | `chat-view.ts:138`           | `document.createElement('textarea')` 在 `mountByokChat` 内创建一次                 |
+| `setMode` → `renderConversationList`    | `main.ts:1856`, `844`, `908` | 只读 `conversationStore.list()`，不调 `setActive`/`add`                            |
+| `syncConversation`                      | `chat-view.ts:338`           | 不碰 `input.value`                                                                 |
+| `conversationStore.load()` 的 emit 竞态 | `conversations.ts:92-113`    | 确实存在（`emit()` 早于 `.then()` 赋值），但只在挂载时发生一次，测试已等过首屏     |
+
+### 6.2 剩下的三段代码
+
+只有这三处能清空 `input.value`，或让它看起来被清空：
+
+1. **`chat-view.ts:366`** `newConversation()` — 需要被间接触发
+2. **`chat-view.ts:450`** 提交后 — 需要被间接触发
+3. **`workbench-ui.ts:46` `visibleComposers`** — 如果 BYOK 的 textarea 在某个瞬间
+   尺寸为 0 或被隐藏，它会从结果里消失；剩余节点被归类为 byok 也可能因为别的原因
+
+第 3 条此前没被认真考虑过：`kind` 是靠 `node.closest('zw-ai-composer')` 判定的。
+如果 Host 的 `zw-ai-composer` 在切换瞬间被 detach，它内部的 textarea 仍可能被算作
+byok。`length === 1` 和 `kind === 'byok'` 同时成立，但那是**另一个** textarea。
+
+### 6.3 具体动作
+
+1. 在 `visibleComposers` 的返回值里加上 `testid`（已有）与 `closest('zw-ai-composer')`
+   的存在性，并在失败信息里输出。当前的错误串只有 `kind/value/focused`，
+   分不清是同一个 textarea 被清空，还是换了一个。
+2. 在 `chat-view.ts` 的两处 `input.value = ''` 前打印 `new Error().stack` 与
+   `conversationStore.activeIdValue()`。
+3. 给 gate 加 `--trace retain-on-failure`。当前 artifact 里没有 trace，
+   这是排查困难的直接原因。
+
+### 6.4 不要做的
+
+- 不要因为「重跑通过」就认为修好了
+- 不要在 composer 上加防清空保护——那会破坏 `newConversation()` 必须清空的语义
+- 不要在没有确定是哪个 textarea 之前改产品代码
 
 ## 7. 对发布的影响
 
