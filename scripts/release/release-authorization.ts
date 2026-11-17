@@ -118,6 +118,13 @@ export interface AuthorizationInput {
   readonly uiVersions?: Readonly<Record<string, string>>
   /** The UI commit the pairing record names. */
   readonly uiCommit?: string
+  /**
+   * The record declared `bootstrap: true`: a new version line's first release,
+   * published with no UI pair because none can exist yet.
+   *
+   * Passing this with a `uiCommit` is a refusal, not a precedence question.
+   */
+  readonly bootstrap?: boolean
   /** Required CI runs, already narrowed to this commit by the caller. */
   readonly supportingRuns?: readonly SupportingRun[]
   /** The workflows that must have run, at minimum. */
@@ -409,6 +416,34 @@ export function evaluateReleaseAuthorization(
         `Core manifests are at ${coreDistinct[0]}, but the tag names ${version}`,
       ),
     )
+  } else if (input.bootstrap === true) {
+    /*
+     * A bootstrap release publishes a new version line with no UI pair. It is
+     * reported as a limitation rather than an authorisation because that is
+     * what it is: the Core manifests are at the right version and the UI half
+     * was not verified, and saying so is the entire content of the flag.
+     *
+     * It deliberately does NOT authorise — `core-ui-pairing` never reports
+     * AUTHORIZED on this path, so an audit reading the record sees an
+     * unverified pair rather than a passed check.
+     */
+    if ((input.uiCommit ?? '') !== '') {
+      findings.push(
+        finding(
+          AUTHORIZATION_RULES.coreUiPairing,
+          'REFUSED',
+          'bootstrap was declared but a UI commit was supplied; a release is paired or unpaired, never both',
+        ),
+      )
+    } else {
+      findings.push(
+        finding(
+          AUTHORIZATION_RULES.coreUiPairing,
+          'POLICY_LIMITATION',
+          `bootstrap release: Core is at ${version}, and no UI pair was verified because none can exist before these packages are published`,
+        ),
+      )
+    }
   } else if (!/^[0-9a-f]{40}$/i.test(input.uiCommit ?? '')) {
     findings.push(
       finding(

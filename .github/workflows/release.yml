@@ -87,6 +87,14 @@ jobs:
       # The UI commit this release pairs with. A tag names a Core commit; the
       # UI half of the pair is a separate immutable SHA, recorded in the
       # repository so it is reviewable rather than typed at release time.
+      #
+      # A record may instead declare `bootstrap: true` with `uiCommit: null`.
+      # That is legal only for the first release of a new version line, where
+      # the UI lockfile cannot resolve until these packages are published and
+      # the record has to be inside the tagged commit — a genuine cycle. The
+      # bootstrap path waives the pair and nothing else: the record still has
+      # to exist, the version still has to match the tag, and the run is marked
+      # `bootstrap` so the missing pair is visible rather than implied.
       - name: Read the paired UI commit
         id: pairing
         run: |
@@ -95,16 +103,30 @@ jobs:
             echo "::error::no pairing record at $FILE; a release needs the UI commit it was verified against"
             exit 1
           fi
-          UI_COMMIT=$(node -p "require('./$FILE').uiCommit")
+          BOOTSTRAP=$(node -p "String(require('./$FILE').bootstrap === true)")
+          UI_COMMIT=$(node -p "String(require('./$FILE').uiCommit ?? '')")
           UI_VERSION=$(node -p "require('./$FILE').uiVersion")
-          if ! [[ "$UI_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+
+          if [ "$BOOTSTRAP" = "true" ]; then
+            if [ -n "$UI_COMMIT" ] && [ "$UI_COMMIT" != "null" ]; then
+              echo "::error::$FILE declares bootstrap but also names a UI commit; a release is paired or unpaired, never both"
+              exit 1
+            fi
+            echo "::warning::$FILE is a bootstrap record: this release publishes without a verified UI pair"
+            UI_COMMIT=""
+          elif ! [[ "$UI_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
             echo "::error::pairing uiCommit is not a full SHA"
             exit 1
           fi
-          echo "ui-commit=$UI_COMMIT" >> "$GITHUB_OUTPUT"
-          echo "ui-version=$UI_VERSION" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "bootstrap=$BOOTSTRAP"
+            echo "ui-commit=$UI_COMMIT"
+            echo "ui-version=$UI_VERSION"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Checkout the paired UI commit
+        if: steps.pairing.outputs.bootstrap != 'true'
         uses: actions/checkout@v5
         with:
           repository: baicie/zeus-ui
@@ -114,6 +136,7 @@ jobs:
           persist-credentials: false
 
       - name: Verify Core/UI exact pairing
+        if: steps.pairing.outputs.bootstrap != 'true'
         run: |
           test "$(git -C temp/zeus-ui rev-parse HEAD)" = "${{ steps.pairing.outputs.ui-commit }}"
           pnpm check:ui-pairing \
@@ -123,6 +146,34 @@ jobs:
             --ui-version "${{ steps.pairing.outputs.ui-version }}" \
             --require-commit \
             --out temp/release/ui-pairing.json
+
+      # Records what the run decided, for a bootstrap release too. An absent
+      # artifact would be indistinguishable from a step that silently did not
+      # run, and the point of the bootstrap flag is that the missing pair is on
+      # the record rather than inferred from a gap.
+      - name: Record the pairing decision
+        if: always()
+        run: |
+          mkdir -p temp/release
+          node -e '
+            const fs = require("node:fs");
+            fs.writeFileSync(
+              "temp/release/ui-pairing.json",
+              JSON.stringify(
+                {
+                  bootstrap: process.env.BOOTSTRAP === "true",
+                  uiCommit: process.env.UI_COMMIT || null,
+                  uiVersion: process.env.UI_VERSION,
+                },
+                null,
+                2,
+              ) + "\n",
+            );
+          '
+        env:
+          BOOTSTRAP: ${{ steps.pairing.outputs.bootstrap }}
+          UI_COMMIT: ${{ steps.pairing.outputs.ui-commit }}
+          UI_VERSION: ${{ steps.pairing.outputs.ui-version }}
 
       - name: Preserve UI pairing evidence
         uses: actions/upload-artifact@v4
@@ -161,6 +212,7 @@ jobs:
           --ui-commit "${{ steps.pairing.outputs.ui-commit }}"
           --ui-version "${{ steps.pairing.outputs.ui-version }}"
           --dist-tag "${{ steps.release-version.outputs.dist-tag }}"
+          ${{ steps.pairing.outputs.bootstrap == 'true' && '--bootstrap' || '' }}
           --require-sbom
           --bundle-report temp/release/tarballs.json
           --pairing-record "release-pairing/v${{ steps.release-version.outputs.version }}.json"
@@ -174,22 +226,32 @@ jobs:
           path: temp/release/release-authorization.json
           if-no-files-found: warn
 
+      # A bootstrap release has no UI tree to build against, so everything that
+      # needs one is skipped. These steps exist to prove that the Core candidate
+      # actually works with the UI — which is exactly the claim a bootstrap
+      # release does not make. Skipping is the honest outcome; running them
+      # against a tree that is not there would fail, and inventing a tree would
+      # be the waiver this design refuses to add.
       - name: Prepare Core candidate tarballs and UI overrides
+        if: steps.pairing.outputs.bootstrap != 'true'
         run: pnpm check:create-zeus-candidate:prepare --ui-root temp/zeus-ui
 
       - name: Install paired UI dependencies with Core candidates
+        if: steps.pairing.outputs.bootstrap != 'true'
         working-directory: temp/zeus-ui
         run: pnpm install --ignore-scripts --no-frozen-lockfile --config.confirmModulesPurge=false
 
       - name: Build paired UI candidate packages
+        if: steps.pairing.outputs.bootstrap != 'true'
         working-directory: temp/zeus-ui
         run: pnpm exec tsx scripts/commands/build.ts button
 
       - name: Verify create-zeus candidate templates
+        if: steps.pairing.outputs.bootstrap != 'true'
         run: pnpm check:create-zeus-candidate --ui-root temp/zeus-ui --candidates temp/create-zeus-candidate/candidates.json --require-pin-match
 
       - name: Preserve create-zeus candidate report
-        if: always()
+        if: always() && steps.pairing.outputs.bootstrap != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: create-zeus-candidate-release

@@ -16,9 +16,28 @@ export const RELEASE_PAIRING_SCHEMA = 'zeus.release-pairing/v1'
 export interface ReleasePairing {
   readonly schema: typeof RELEASE_PAIRING_SCHEMA
   readonly coreVersion: string
-  readonly uiCommit: string
+  /**
+   * The UI commit this Core release was verified against.
+   *
+   * `null` is only legal together with `bootstrap: true`, for the first
+   * release that crosses a version line. See the README: the UI lockfile for a
+   * new Core version cannot resolve until that version is published, and the
+   * record has to be in the commit the tag points at, so the first tag in a new
+   * version line cannot name a UI commit that exists.
+   */
+  readonly uiCommit: string | null
   readonly uiVersion: string
   readonly verifiedAt: string
+  /**
+   * Marks a release that publishes a new version line without a UI pair.
+   *
+   * This is a statement about what could not be verified, not a waiver of the
+   * checks that still apply: the tag is still immutable, the published versions
+   * still cannot be overwritten, and the evidence is still bound to the real
+   * tag SHA. What it gives up is the claim that this Core was built against a
+   * specific UI tree.
+   */
+  readonly bootstrap?: boolean
   /**
    * Packages whose first publication this release accepts.
    *
@@ -82,7 +101,28 @@ export function validatePairingRecord(
   if (path.basename(file) !== expectedName) {
     push(`file name must be ${expectedName} so the release finds it by version`)
   }
-  if (typeof value.uiCommit !== 'string' || !SHA.test(value.uiCommit)) {
+  /*
+   * `bootstrap` is a boolean that only widens what `uiCommit` may be. It is
+   * checked first because every rule below reads differently depending on it.
+   */
+  if (value.bootstrap !== undefined && typeof value.bootstrap !== 'boolean') {
+    push('bootstrap must be a boolean when present')
+  }
+  const bootstrap = value.bootstrap === true
+
+  if (bootstrap) {
+    /*
+     * A bootstrap release publishes a new version line with no UI pair. It
+     * must say so by carrying no UI commit: a record that has both a commit
+     * and the bootstrap flag would be a pair that claims not to be verified,
+     * which is the ambiguous state this field exists to remove.
+     */
+    if (value.uiCommit !== null) {
+      push(
+        'a bootstrap record must set uiCommit to null; a paired release must omit bootstrap',
+      )
+    }
+  } else if (typeof value.uiCommit !== 'string' || !SHA.test(value.uiCommit)) {
     /*
      * A branch name is not a release identity: it moves. The whole point of
      * the record is a commit that cannot.
@@ -221,6 +261,8 @@ export function checkUiVersions(
   const mismatches: UiVersionMismatch[] = []
   const problems: PairingProblem[] = []
   for (const record of records) {
+    /* A bootstrap record has no commit to read; nothing to verify here. */
+    if (record.uiCommit === null) continue
     const raw = readUiManifest(record.uiCommit)
     if (raw === undefined) {
       problems.push({
