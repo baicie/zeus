@@ -118,7 +118,7 @@ describe('version rehearsal', () => {
     ).toThrow(/RC version/)
   })
 
-  it('rewrites only the fixed release group plus vite-plugin', () => {
+  it('rewrites only the fixed release group', () => {
     const root = fixture()
     const report = applyVersionRehearsal({
       root,
@@ -132,9 +132,13 @@ describe('version rehearsal', () => {
     expect(readJson(root, 'packages/core/signal/package.json').version).toBe(
       '0.2.0-rc.0',
     )
+    /*
+     * `@zeus-js/vite-plugin` has its own tag line (`vite-plugin@*`,
+     * `devtools-release.yml`) and stays where it is across a Core switch.
+     */
     expect(
       readJson(root, 'packages/devtools/vite-plugin/package.json').version,
-    ).toBe('0.2.0-rc.0')
+    ).toBe('0.0.5')
     expect(readJson(root, 'packages/core/not-fixed/package.json').version).toBe(
       '0.1.1-beta.20',
     )
@@ -152,7 +156,6 @@ describe('version rehearsal', () => {
       '(cargo workspace)',
       '(root)',
       '@zeus-js/signal',
-      '@zeus-js/vite-plugin',
       '@zeus-js/zeus',
     ])
     for (const edit of versionEdits) {
@@ -163,11 +166,9 @@ describe('version rehearsal', () => {
        * therefore its own value, not the packages'.
        */
       const expected =
-        edit.packageName === '@zeus-js/vite-plugin'
-          ? '0.0.5'
-          : edit.packageName === '(cargo workspace)'
-            ? '0.1.1-beta.0'
-            : '0.1.1-beta.20'
+        edit.packageName === '(cargo workspace)'
+          ? '0.1.1-beta.0'
+          : '0.1.1-beta.20'
       expect(edit.before).toBe(expected)
       expect(edit.after).toBe('0.2.0-rc.0')
     }
@@ -188,7 +189,12 @@ describe('version rehearsal', () => {
     expect(basic.dependencies?.['@zeus-js/zeus']).toBe('0.2.0-rc.0')
     expect(basic.dependencies?.['@zeus-web/button']).toBe('0.1.0-beta.34')
     expect(basic.dependencies?.['left-pad']).toBe('1.3.0')
-    expect(basic.devDependencies?.['@zeus-js/vite-plugin']).toBe('0.2.0-rc.0')
+    /*
+     * The vite-plugin pin follows that package's own manifest, not the Core
+     * version — `create-zeus-versions` reconciles it and would otherwise fail
+     * on the tree this function just wrote.
+     */
+    expect(basic.devDependencies?.['@zeus-js/vite-plugin']).toBe('0.0.5')
     expect(basic.devDependencies?.typescript).toBe('^5.0.0')
 
     const consumer = readJson(
@@ -214,7 +220,6 @@ describe('version rehearsal', () => {
       'packages/core/signal/package.json',
       'packages/core/zeus/package.json',
       'packages/devtools/create-zeus/templates/basic-ts/package.json',
-      'packages/devtools/vite-plugin/package.json',
     ])
 
     const zeusEdit = report.edits.find(
@@ -229,15 +234,23 @@ describe('version rehearsal', () => {
 
     const templateEdit = report.edits.find(
       edit =>
-        edit.kind === 'template-pin' &&
-        edit.packageName === '@zeus-js/vite-plugin',
+        edit.kind === 'template-pin' && edit.packageName === '@zeus-js/zeus',
     )
     expect(templateEdit).toMatchObject({
       file: 'packages/devtools/create-zeus/templates/basic-ts/package.json',
-      field: 'devDependencies.@zeus-js/vite-plugin',
-      before: '0.0.5',
+      field: 'dependencies.@zeus-js/zeus',
+      before: '0.1.1-beta.20',
       after: '0.2.0-rc.0',
     })
+
+    /*
+     * The vite-plugin pin is reconciled by `create-zeus-versions` against that
+     * package's own manifest, so this function must not touch it. An edit here
+     * would make the two disagree.
+     */
+    expect(
+      report.edits.filter(edit => edit.packageName === '@zeus-js/vite-plugin'),
+    ).toEqual([])
   })
 
   it('rejects duplicate workspace package names', () => {

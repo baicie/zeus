@@ -146,10 +146,16 @@ interface CliResult {
 
 function runCli(
   built: Scaffold,
-  options: { readPairing?: boolean } = {},
+  options: {
+    readPairing?: boolean
+    /** `null` omits `--ui-commit`, as the workflow does on the bootstrap path. */
+    uiCommit?: string | null
+    bootstrap?: boolean
+  } = {},
 ): CliResult {
   const out = path.join(built.directory, 'temp/release/authorization.json')
   const readPairing = options.readPairing ?? true
+  const uiCommit = options.uiCommit === undefined ? UI_COMMIT : options.uiCommit
   const args = [
     CLI,
     '--root',
@@ -162,12 +168,12 @@ function runCli(
     `refs/tags/v${VERSION}`,
     '--workflow-sha',
     built.sha,
-    '--ui-commit',
-    UI_COMMIT,
+    ...(uiCommit === null ? [] : ['--ui-commit', uiCommit]),
     '--ui-version',
     VERSION,
     '--dist-tag',
     'rc',
+    ...(options.bootstrap ? ['--bootstrap'] : []),
     '--require-sbom',
     '--bundle-report',
     built.bundleReport,
@@ -244,6 +250,19 @@ function pairing(firstPublish?: unknown): Record<string, unknown> {
   }
 }
 
+/** The unpaired record: a new version line's first release. */
+function bootstrapPairing(firstPublish?: unknown): Record<string, unknown> {
+  return {
+    ...pairing(firstPublish),
+    uiCommit: null,
+    bootstrap: true,
+  }
+}
+
+function pairingFinding(result: CliResult) {
+  return result.record?.findings.find(entry => entry.rule === 'core-ui-pairing')
+}
+
 describe('the workflow passes the pairing record', () => {
   /*
    * The defect this file exists for: the flag was never passed, so a
@@ -260,6 +279,81 @@ describe('the workflow passes the pairing record', () => {
       /--pairing-record "release-pairing\/v\$\{\{ steps\.release-version\.outputs\.version \}\}\.json"/,
     )
   })
+
+  /*
+   * `--bootstrap` is only passed when the record declares it. It must never be
+   * derived from an empty `--ui-commit`, or a workflow that forgot to read the
+   * record would silently publish unpaired.
+   */
+  it('passes --bootstrap only when the record declares it', () => {
+    const workflow = fs.readFileSync(
+      path.join(root, '.github/workflows/release.yml'),
+      'utf8',
+    )
+    expect(workflow).toMatch(
+      /\$\{\{ steps\.pairing\.outputs\.bootstrap == 'true' && '--bootstrap' \|\| '' \}\}/,
+    )
+  })
+})
+
+/*
+ * The Bootstrap → Pair split, exercised through the real CLI with the same
+ * arguments the workflow builds.
+ *
+ * The deadlock it exists for: a new version line's first Core release cannot
+ * name a UI commit, because the UI lockfile cannot resolve until those
+ * packages are published, and the record has to be inside the commit the tag
+ * points at. The two requirements form a cycle, so the first tag in a line has
+ * to publish unpaired — and say so.
+ */
+describe('bootstrap releases', () => {
+  it('publishes when the record declares bootstrap and names no commit', () => {
+    const result = runCli(scaffold(bootstrapPairing(THREE)), {
+      uiCommit: null,
+      bootstrap: true,
+    })
+    const finding = pairingFinding(result)
+    /*
+     * Limitation, not authorisation. A bootstrap release did not verify the
+     * pair, and the record has to say that rather than claim a check passed.
+     */
+    expect(finding?.verdict).toBe('POLICY_LIMITATION')
+    expect(finding?.detail).toMatch(/no UI pair was verified/)
+    expect(result.code).toBe(0)
+  }, 180_000)
+
+  /*
+   * The flag is not a waiver of the pair's *shape*. A record that names a
+   * commit and claims bootstrap is ambiguous, and ambiguity is what the flag
+   * exists to remove.
+   */
+  it('refuses when bootstrap is passed with a UI commit', () => {
+    const result = runCli(scaffold(pairing(THREE)), { bootstrap: true })
+    expect(pairingFinding(result)?.verdict).toBe('REFUSED')
+    expect(pairingFinding(result)?.detail).toMatch(
+      /paired or unpaired, never both/,
+    )
+    expect(result.code).not.toBe(0)
+  }, 180_000)
+
+  /*
+   * And it is not a waiver of the record itself. No file, no release.
+   */
+  it('refuses a bootstrap run with no pairing record at all', () => {
+    const result = runCli(scaffold('missing'), { bootstrap: true })
+    expect(result.stdout).toMatch(/does not exist/)
+    expect(result.code).not.toBe(0)
+  }, 180_000)
+
+  /*
+   * A paired release is unaffected: the same tree, the same arguments, and
+   * `core-ui-pairing` authorises rather than limiting.
+   */
+  it('still authorises a paired release', () => {
+    const result = runCli(scaffold(pairing(THREE)))
+    expect(pairingFinding(result)?.verdict).toBe('AUTHORIZED')
+    expect(result.code).toBe(0)
+  }, 180_000)
 })
 
 describe('the CLI with the real arguments', () => {

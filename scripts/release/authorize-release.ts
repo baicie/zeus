@@ -60,6 +60,8 @@ export interface CollectAuthorizationInput {
   readonly checkoutSha: string
   readonly uiCommit: string
   readonly uiVersions: Readonly<Record<string, string>>
+  /** The pairing record declared `bootstrap: true`. */
+  readonly bootstrap?: boolean
   readonly distTag: string | undefined
   readonly sbomOk: boolean | undefined
   readonly tarballOk: boolean | undefined
@@ -141,6 +143,7 @@ export function collectReleaseAuthorization(input: CollectAuthorizationInput): {
     coreVersions: readCoreVersions(input.root),
     uiVersions: input.uiVersions,
     uiCommit: input.uiCommit,
+    bootstrap: input.bootstrap,
     supportingRuns: runs,
     requiredWorkflows: [...REQUIRED_WORKFLOWS],
     sbomOk: input.sbomOk,
@@ -304,6 +307,14 @@ async function main(): Promise<void> {
       'tag-ref': { type: 'string' },
       'workflow-sha': { type: 'string' },
       'ui-commit': { type: 'string' },
+      /*
+       * Declares that the pairing record is a bootstrap record: a new version
+       * line's first release, published with no UI pair. Passed by the
+       * workflow only when the record says so; never inferred from a missing
+       * `--ui-commit`, because "the flag was forgotten" and "this is a
+       * bootstrap" must not look the same.
+       */
+      bootstrap: { type: 'boolean', default: false },
       'ui-version': { type: 'string' },
       'dist-tag': { type: 'string' },
       'bundle-report': { type: 'string' },
@@ -433,6 +444,7 @@ async function main(): Promise<void> {
     checkoutSha,
     uiCommit: values['ui-commit'] ?? '',
     uiVersions,
+    bootstrap: values.bootstrap === true,
     distTag: values['dist-tag'],
     sbomOk: values['require-sbom'] ? readSbomOk(root) : undefined,
     tarballOk,

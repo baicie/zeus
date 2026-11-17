@@ -109,6 +109,58 @@ describe('collecting a plan writes nothing', () => {
 })
 
 describe('the write pass', () => {
+  /*
+   * `@zeus-js/vite-plugin` has its own release line (`vite-plugin@*` tags,
+   * `devtools-release.yml`) and stays at its current version across a Core
+   * switch. Rewriting it here put the two halves of the repo out of step:
+   * `create-zeus-versions` derives each template's vite-plugin pin from that
+   * package's manifest, so the templates followed it to the Core RC while
+   * every `@zeus-web/*` package still pinned the old one.
+   */
+  it('leaves the independently versioned vite-plugin alone', () => {
+    const root = fixture()
+    const plan = collectVersionRehearsal({
+      root,
+      version: '0.2.0-rc.0',
+      fixedPackages: FIXED,
+    })
+    expect(plan.files.map(file => file.file)).not.toContain(
+      'packages/devtools/vite-plugin/package.json',
+    )
+    expect(
+      readVersion(root, 'packages/devtools/vite-plugin/package.json'),
+    ).toBe('0.0.5')
+  })
+
+  /*
+   * The template pin is not a Core-version pin either. `create-zeus-versions`
+   * reconciles it against the vite-plugin manifest, so rewriting it here made
+   * precheck fail on a template this function had just written.
+   */
+  it('leaves create-zeus template vite-plugin pins alone', () => {
+    const root = fixture()
+    const plan = collectVersionRehearsal({
+      root,
+      version: '0.2.0-rc.0',
+      fixedPackages: FIXED,
+    })
+    const edits = plan.edits.filter(
+      edit => edit.packageName === '@zeus-js/vite-plugin',
+    )
+    expect(edits).toEqual([])
+
+    const template = JSON.parse(
+      fs.readFileSync(
+        path.join(
+          root,
+          'packages/devtools/create-zeus/templates/basic-ts/package.json',
+        ),
+        'utf8',
+      ),
+    ) as { devDependencies: Record<string, string> }
+    expect(template.devDependencies['@zeus-js/vite-plugin']).toBe('0.0.5')
+  })
+
   it('writes every planned file and reports them', () => {
     const root = fixture()
     const plan = collectVersionRehearsal({

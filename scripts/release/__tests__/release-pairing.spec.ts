@@ -128,6 +128,60 @@ describe('refusals', () => {
   })
 })
 
+/*
+ * The bootstrap escape hatch. It exists for exactly one situation: the first
+ * release that crosses a version line, where the UI lockfile for the new Core
+ * version cannot resolve until that version is published, and the record has
+ * to be inside the commit the tag points at. The two requirements cannot both
+ * be met, so the first tag in a line publishes unpaired and says so.
+ *
+ * It is deliberately narrow: a record can be unpaired, or paired, but never
+ * ambiguous about which.
+ */
+describe('bootstrap records', () => {
+  it('accepts a record with no UI commit when it declares bootstrap', () => {
+    expect(problemsFor(record({ uiCommit: null, bootstrap: true }))).toEqual([])
+  })
+
+  /* The ambiguity this field exists to prevent. */
+  it('rejects a bootstrap record that still names a commit', () => {
+    expect(
+      problemsFor(record({ uiCommit: SHA, bootstrap: true })),
+    ).toContainEqual(expect.stringContaining('must set uiCommit to null'))
+  })
+
+  /* Opting in is the only way to drop the commit; omitting the flag is not. */
+  it('rejects a null commit without the bootstrap flag', () => {
+    expect(problemsFor(record({ uiCommit: null }))).toContainEqual(
+      expect.stringContaining('40-character SHA'),
+    )
+  })
+
+  it('rejects a non-boolean bootstrap flag', () => {
+    expect(
+      problemsFor(record({ uiCommit: null, bootstrap: 'yes' })),
+    ).toContainEqual(expect.stringContaining('bootstrap must be a boolean'))
+  })
+
+  /*
+   * Bootstrap waives the pair, not the identity of the release. Everything
+   * that makes the record findable and attributable still applies.
+   */
+  it('still requires the version to match its file name', () => {
+    expect(
+      problemsFor(record({ uiCommit: null, bootstrap: true }), 'v0.2.0.json'),
+    ).toContainEqual(expect.stringContaining('file name must be'))
+  })
+
+  it('still requires uiVersion to equal coreVersion', () => {
+    expect(
+      problemsFor(
+        record({ uiCommit: null, bootstrap: true, uiVersion: '0.2.0' }),
+      ),
+    ).toContainEqual(expect.stringContaining('does not equal coreVersion'))
+  })
+})
+
 describe('a directory of records', () => {
   function directory(): string {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'zeus-pairing-'))

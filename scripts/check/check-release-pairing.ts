@@ -55,6 +55,17 @@ if (values.online) {
     }) as string
 
   for (const record of readPairingDirectory(directory)) {
+    /*
+     * A bootstrap record names no commit by construction. There is nothing to
+     * ask the remote about, and reporting a missing commit as a failure would
+     * make the one legal unpaired release look broken.
+     */
+    if (record.uiCommit === null) {
+      console.log(
+        `  skip  ${record.file} is a bootstrap record: no UI commit to check`,
+      )
+      continue
+    }
     const result = checkRemoteCommit(
       { repository: values.repository, commit: record.uiCommit },
       gh,

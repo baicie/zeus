@@ -360,8 +360,61 @@ describe('release.yml pins the approved UI commit', () => {
   it('takes the UI commit from the committed pairing record', () => {
     expect(workflow).toMatch(/release-pairing\/v\$\{\{/)
     expect(workflow).toMatch(
-      /UI_COMMIT=\$\(node -p "require\('\.\/\$FILE'\)\.uiCommit"\)/,
+      /UI_COMMIT=\$\(node -p "String\(require\('\.\/\$FILE'\)\.uiCommit \?\? ''\)"\)/,
     )
+  })
+
+  /*
+   * A bootstrap record has no commit. It is the one legal case, and it must be
+   * bounded: the flag is read from the same record, and a record claiming both
+   * a pair and a bootstrap is refused rather than resolved by precedence.
+   */
+  it('allows an unpaired commit only for a record that declares bootstrap', () => {
+    expect(workflow).toMatch(
+      /BOOTSTRAP=\$\(node -p "String\(require\('\.\/\$FILE'\)\.bootstrap === true\)"\)/,
+    )
+    expect(workflow).toMatch(/declares bootstrap but also names a UI commit/)
+  })
+
+  /*
+   * The bootstrap path must not become a way to publish with no record at all.
+   * This is the failure the check exists for: a tag pushed at a commit where
+   * nobody wrote the file, discovered only once the release is running.
+   */
+  it('still refuses to start without any pairing record', () => {
+    expect(workflow).toMatch(/if \[ ! -f "\$FILE" \]; then/)
+    expect(workflow).toMatch(/no pairing record at \$FILE/)
+  })
+
+  /*
+   * The steps that need a UI tree have to be skipped on the bootstrap path,
+   * and the steps that do not must still run. Asserting the guards are present
+   * is what stops a later edit from running them against a checkout that is
+   * not there — which fails late, after the native matrix has already run.
+   */
+  it('skips every step that needs the UI checkout on the bootstrap path', () => {
+    for (const step of [
+      'Prepare Core candidate tarballs and UI overrides',
+      'Install paired UI dependencies with Core candidates',
+      'Build paired UI candidate packages',
+      'Verify create-zeus candidate templates',
+    ]) {
+      const pattern = new RegExp(
+        `- name: ${step}\\n\\s+if: steps\\.pairing\\.outputs\\.bootstrap != 'true'`,
+      )
+      expect(workflow).toMatch(pattern)
+    }
+  })
+
+  /*
+   * The publish step itself is not conditional: a bootstrap release is a real
+   * release and publishes. Only the pairing evidence is waived.
+   */
+  it('does not gate publishing on the pairing', () => {
+    const publish = workflow.slice(
+      workflow.indexOf('- name: Build and publish'),
+    )
+    expect(publish.slice(0, 200)).not.toMatch(/if:/)
   })
 
   it('rejects a paired commit that is not a full SHA', () => {
