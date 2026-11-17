@@ -82,6 +82,13 @@ export const AUTHORIZATION_RULES = {
   tagImmutability: 'tag-immutability',
   /** The tag still points where this run started, checked against the API. */
   tagUnmoved: 'tag-unmoved',
+  /**
+   * An unpaired release may only publish the first RC of a new version line.
+   *
+   * Separate from `core-ui-pairing`, which decides whether a pair exists. This
+   * one decides whether its absence is allowed at all.
+   */
+  bootstrapEligibility: 'bootstrap-eligibility',
 } as const
 
 /** One CI run this release relies on, bound to the release commit. */
@@ -125,6 +132,22 @@ export interface AuthorizationInput {
    * Passing this with a `uiCommit` is a refusal, not a precedence question.
    */
   readonly bootstrap?: boolean
+  /**
+   * Whether the bootstrap eligibility policy approved this release.
+   *
+   * `undefined` means it was never computed, and the pairing rule refuses
+   * rather than assuming the exception applies. The eligibility decision is
+   * made from the registry and the existing record state, never from the
+   * record's own `bootstrap` claim.
+   */
+  readonly bootstrapEligible?: boolean
+  /**
+   * The full bootstrap eligibility findings, recorded alongside the rest.
+   *
+   * Optional so existing callers keep working; when absent the record simply
+   * carries the pairing rule's one-line refusal instead of the reason chain.
+   */
+  readonly bootstrapFindings?: readonly AuthorizationFinding[]
   /** Required CI runs, already narrowed to this commit by the caller. */
   readonly supportingRuns?: readonly SupportingRun[]
   /** The workflows that must have run, at minimum. */
@@ -184,7 +207,15 @@ export function normalizeTagRef(value: string): string {
   return value.replace(/^refs\/tags\//, '')
 }
 
-function finding(
+/**
+ * Constructs a finding.
+ *
+ * Exported so the bootstrap eligibility policy, which is a separate module,
+ * reports through the same shape. It must be the same shape: a rule that
+ * produced findings with a different structure would be silently dropped by
+ * the code that scans them for blocking verdicts.
+ */
+export function finding(
   rule: string,
   verdict: AuthorizationVerdict,
   detail: string,
@@ -436,13 +467,42 @@ export function evaluateReleaseAuthorization(
         ),
       )
     } else {
-      findings.push(
-        finding(
-          AUTHORIZATION_RULES.coreUiPairing,
-          'POLICY_LIMITATION',
-          `bootstrap release: Core is at ${version}, and no UI pair was verified because none can exist before these packages are published`,
-        ),
-      )
+      /*
+       * The pair is absent, which is only acceptable if this release is
+       * *eligible* to publish unpaired. `bootstrapEligible` is computed by the
+       * dedicated policy from the registry and the existing-record state, not
+       * read from the record's own claim — a file saying `bootstrap: true`
+       * cannot be the only evidence that bootstrapping is allowed.
+       *
+       * Absent eligibility (undefined) is not a pass: a caller that never
+       * computed it has not established the precondition, and the finding says
+       * so rather than defaulting in the permissive direction.
+       */
+      if (input.bootstrapEligible === true) {
+        findings.push(
+          finding(
+            AUTHORIZATION_RULES.coreUiPairing,
+            'POLICY_LIMITATION',
+            `bootstrap release: Core is at ${version}, and no UI pair was verified because none can exist before these packages are published`,
+          ),
+        )
+      } else if (input.bootstrapEligible === false) {
+        findings.push(
+          finding(
+            AUTHORIZATION_RULES.coreUiPairing,
+            'REFUSED',
+            'bootstrap was declared, but this release is not eligible to publish unpaired; see the bootstrap-eligibility finding for why',
+          ),
+        )
+      } else {
+        findings.push(
+          finding(
+            AUTHORIZATION_RULES.coreUiPairing,
+            'REFUSED',
+            'bootstrap was declared without an eligibility decision; whether this version may publish unpaired was never established',
+          ),
+        )
+      }
     }
   } else if (!/^[0-9a-f]{40}$/i.test(input.uiCommit ?? '')) {
     findings.push(
@@ -693,6 +753,42 @@ export function evaluateReleaseAuthorization(
       'tag immutability is enforced by a repository ruleset, which no workflow token can read; the maintainer must ensure v* tags block deletion and non-fast-forward updates',
     ),
   )
+
+  /*
+   * 14. Bootstrap eligibility.
+   *
+   * Its findings were already consulted by the pairing rule above, which is
+   * what makes them blocking. Appending them here puts the reason in the
+   * record next to every other rule, so an audit reading the authorisation
+   * artifact sees *why* the exception was granted or refused rather than only
+   * that some rule downstream disagreed.
+   *
+   * A paired release gets a finding too, and it is neither a pass nor a
+   * limitation. Every other rule speaks on every release; a rule that went
+   * silent would be indistinguishable in the artifact from one that was
+   * removed, and a reader counting verdicts would undercount the policy.
+   */
+  if (input.bootstrap === true) {
+    if (input.bootstrapFindings !== undefined) {
+      findings.push(...input.bootstrapFindings)
+    } else {
+      findings.push(
+        finding(
+          AUTHORIZATION_RULES.bootstrapEligibility,
+          'REFUSED',
+          'bootstrap was declared without an eligibility decision; publishing unpaired needs a policy verdict, not a flag',
+        ),
+      )
+    }
+  } else {
+    findings.push(
+      finding(
+        AUTHORIZATION_RULES.bootstrapEligibility,
+        'POLICY_LIMITATION',
+        'this release is paired, so the bootstrap exception was not exercised; the rule is recorded as not-applicable rather than passed',
+      ),
+    )
+  }
 
   const verdict: AuthorizationVerdict = findings.some(
     entry => entry.verdict === 'REFUSED',

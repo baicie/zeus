@@ -210,19 +210,22 @@ describe('a simulated release', () => {
     expect(result.findings.filter(f => f.verdict === 'REFUSED')).toEqual([])
     expect(result.verdict).toBe('POLICY_LIMITATION')
     /*
-     * The only limitation is tag immutability, which is repository
-     * configuration. Nothing else was unresolved.
-     */
-    /*
-     * One limitation: tag immutability is a repository ruleset, which no
-     * workflow token can read. The simulation supplies `currentTagSha`, so the
-     * live re-read that would otherwise also be a limitation is answered.
+     * Two limitations, both of them "this rule could not apply" rather than
+     * "this rule failed":
+     *
+     * - `tag-immutability` is a repository ruleset, which no workflow token can
+     *   read. The simulation supplies `currentTagSha`, so the live re-read that
+     *   would otherwise also be a limitation is answered.
+     * - `bootstrap-eligibility` did not apply, because this release is paired.
+     *   It is recorded as a limitation rather than a pass so that a reader
+     *   counting limits does not mistake "the exception was never exercised"
+     *   for "the exception was approved".
      */
     expect(
       result.findings
         .filter(f => f.verdict === 'POLICY_LIMITATION')
         .map(f => f.rule),
-    ).toEqual(['tag-immutability'])
+    ).toEqual(['tag-immutability', 'bootstrap-eligibility'])
     expect(lookupProblems).toEqual([])
   })
 
