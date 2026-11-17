@@ -231,7 +231,14 @@ export function readAttestationDirectory(
       const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as unknown
       if (!isRecord(parsed)) continue
       out.push({
-        file: path.relative(process.cwd(), file),
+        /*
+         * Relative to the attestation directory's parent, not to the process
+         * working directory. `process.cwd()` differs between the CLI (repo
+         * root) and the checks (also repo root, but not necessarily), and a
+         * path that changes with the caller makes two reports of the same
+         * file look like two files.
+         */
+        file: path.posix.join(PAIR_ATTESTATION_DIRECTORY, path.basename(file)),
         attestation: parsed as unknown as PairAttestation,
       })
     } catch {
