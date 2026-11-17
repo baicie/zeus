@@ -24,6 +24,11 @@ import process from 'node:process'
 import { parseArgs } from 'node:util'
 
 import {
+  findConflictingAttestations,
+  readAttestationDirectory,
+  validatePairAttestation,
+} from '../release/pair-attestation'
+import {
   checkRemoteCommit,
   checkUiVersions,
   readPairingDirectory,
@@ -35,11 +40,52 @@ const { values } = parseArgs({
   options: {
     online: { type: 'boolean', default: false },
     repository: { type: 'string', default: 'baicie/zeus-ui' },
+    coreRepository: { type: 'string', default: 'baicie/zeus' },
   },
 })
 
 const directory = path.join(root, 'release-pairing')
 const problems = [...validatePairingDirectory(directory)]
+
+/*
+ * Attestations are structural here. Whether `coreCommit` really is the tag's
+ * target, and whether `uiCommit` is reachable, needs the remote and is done
+ * in the online half.
+ */
+const attestations = readAttestationDirectory(
+  path.join(root, 'release-pairing/attestations'),
+)
+const attestedVersions = new Set<string>()
+for (const stored of attestations) {
+  const tag = stored.attestation.releaseTag
+  const version = typeof tag === 'string' ? tag.replace(/^v/, '') : ''
+  if (version.length === 0) continue
+  attestedVersions.add(version)
+  for (const problem of validatePairAttestation(
+    stored.attestation,
+    stored.file,
+    {
+      version,
+    },
+  )) {
+    problems.push(problem)
+  }
+}
+/*
+ * One pair per version. A second attestation naming a different UI commit
+ * would let one Core release claim two UI trees, and a reader has no way to
+ * choose between them.
+ */
+for (const version of attestedVersions) {
+  const conflicts = findConflictingAttestations(attestations, version)
+  for (const conflict of conflicts) {
+    const separator = conflict.indexOf(': ')
+    problems.push({
+      file: separator === -1 ? conflict : conflict.slice(0, separator),
+      message: separator === -1 ? conflict : conflict.slice(separator + 2),
+    })
+  }
+}
 
 if (values.online) {
   /*
@@ -99,6 +145,56 @@ if (values.online) {
       message: `record says the UI is at ${mismatch.expected}, but the tree at that commit is ${mismatch.actual}`,
     })
   }
+
+  /*
+   * Attestations, against the remote.
+   *
+   * The two facts a file cannot establish about itself are asked of GitHub:
+   * whether `uiCommit` exists, and whether `coreCommit` really is what the
+   * release tag points at. A well-formed attestation naming a commit nobody
+   * can check out is exactly the `f3b7dce3` failure this file exists for.
+   */
+  for (const stored of attestations) {
+    const version = stored.attestation.releaseTag?.replace(/^v/, '') ?? ''
+    if (version.length === 0) continue
+
+    const ui = stored.attestation.uiCommit
+    if (typeof ui === 'string' && /^[0-9a-f]{40}$/i.test(ui)) {
+      const result = checkRemoteCommit(
+        { repository: values.repository, commit: ui },
+        gh,
+      )
+      if (result.verdict !== 'present') {
+        problems.push({
+          file: stored.file,
+          message:
+            result.verdict === 'absent'
+              ? `uiCommit ${ui} does not exist on ${values.repository} (${result.detail})`
+              : `uiCommit ${ui} could not be verified on ${values.repository}: ${result.detail}`,
+        })
+      }
+    }
+
+    const tagCommit = readTagCommit(values.coreRepository, `v${version}`, gh)
+    if (tagCommit === undefined) {
+      problems.push({
+        file: stored.file,
+        message: `release tag v${version} could not be resolved on ${values.coreRepository}; a pair that names an unresolvable release is not evidence`,
+      })
+    } else {
+      for (const problem of validatePairAttestation(
+        stored.attestation,
+        stored.file,
+        { version, releaseTagCommit: tagCommit },
+      )) {
+        /*
+         * Only the coreCommit comparison is re-run here; structural findings
+         * were already collected above and repeating them would double-report.
+         */
+        if (problem.message.startsWith('coreCommit ')) problems.push(problem)
+      }
+    }
+  }
 }
 
 if (problems.length === 0) {
@@ -113,6 +209,38 @@ if (problems.length === 0) {
   }
   console.error(`\n${problems.length} pairing problem(s).`)
   process.exitCode = 1
+}
+
+/**
+ * The commit a tag resolves to, dereferencing an annotated tag.
+ *
+ * An annotated tag's ref names a tag object, not a commit, so reading
+ * `object.sha` and comparing it against a commit would report every annotated
+ * release as moved. The tag object is fetched and its `object.sha` used
+ * instead. Measured: `v0.1.1-beta.19` resolves to tag object `105e0554…` whose
+ * commit is `3041a708…`.
+ */
+function readTagCommit(
+  repository: string,
+  tag: string,
+  gh: (args: readonly string[]) => string,
+): string | undefined {
+  try {
+    const ref = JSON.parse(
+      gh(['api', `repos/${repository}/git/ref/tags/${tag}`]),
+    ) as { object?: { type?: string; sha?: string } }
+    const object = ref.object
+    if (!object || typeof object.sha !== 'string') return undefined
+    if (object.type === 'commit') return object.sha
+    const tagObject = JSON.parse(
+      gh(['api', `repos/${repository}/git/tags/${object.sha}`]),
+    ) as { object?: { type?: string; sha?: string } }
+    return tagObject.object?.type === 'commit'
+      ? tagObject.object.sha
+      : undefined
+  } catch {
+    return undefined
+  }
 }
 
 /**

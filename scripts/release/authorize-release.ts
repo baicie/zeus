@@ -26,16 +26,19 @@ import process from 'node:process'
 import { parseArgs } from 'node:util'
 
 import { zeusFixedPackages } from '../release.config'
+import { evaluateBootstrapEligibility } from './bootstrap-eligibility'
 import {
   findSupportingRuns,
   isAncestorOfMain,
   readCurrentTagSha,
 } from './find-release-evidence'
 import { queryNpmJson } from './npm-registry'
+import { attestationFile } from './pair-attestation'
 import {
   AUTHORIZATION_RULES,
   RELEASE_AUTHORIZATION_SCHEMA,
   evaluateReleaseAuthorization,
+  type AuthorizationFinding,
   type SupportingRun,
 } from './release-authorization'
 
@@ -62,6 +65,10 @@ export interface CollectAuthorizationInput {
   readonly uiVersions: Readonly<Record<string, string>>
   /** The pairing record declared `bootstrap: true`. */
   readonly bootstrap?: boolean
+  /** Whether the bootstrap eligibility policy approved this release. */
+  readonly bootstrapEligible?: boolean
+  /** The eligibility findings, recorded with the rest. */
+  readonly bootstrapFindings?: readonly AuthorizationFinding[]
   readonly distTag: string | undefined
   readonly sbomOk: boolean | undefined
   readonly tarballOk: boolean | undefined
@@ -144,6 +151,12 @@ export function collectReleaseAuthorization(input: CollectAuthorizationInput): {
     uiVersions: input.uiVersions,
     uiCommit: input.uiCommit,
     bootstrap: input.bootstrap,
+    ...(input.bootstrapEligible === undefined
+      ? {}
+      : { bootstrapEligible: input.bootstrapEligible }),
+    ...(input.bootstrapFindings === undefined
+      ? {}
+      : { bootstrapFindings: input.bootstrapFindings }),
     supportingRuns: runs,
     requiredWorkflows: [...REQUIRED_WORKFLOWS],
     sbomOk: input.sbomOk,
@@ -210,6 +223,74 @@ export function normalizeVersions(value: unknown): string[] | undefined {
     )
   }
   return undefined
+}
+
+/**
+ * Every version of the published root package, or `undefined` if unreadable.
+ *
+ * The bootstrap policy needs the *whole* list rather than a single
+ * `includes(version)` answer: "is this the first RC of its line" cannot be
+ * decided from one version, and a policy that could only ask about the exact
+ * version would have to guess about every other one.
+ *
+ * `@zeus-js/zeus` is the root of the fixed group, so its version list is the
+ * line's version list.
+ */
+export async function readPublishedVersionsOfPackage(
+  version: string,
+  query: typeof queryNpmJson = queryNpmJson,
+): Promise<string[] | undefined> {
+  const result = await query<unknown>([
+    'view',
+    '@zeus-js/zeus',
+    'versions',
+    '--json',
+  ])
+  if (result.status === 'not-found') {
+    /*
+     * The package itself does not exist, which for this repository would mean
+     * the fixed group was never published at all. That is a state bootstrap
+     * cannot reason about, and treating it as "no versions" would silently
+     * mark every line as new.
+     */
+    return undefined
+  }
+  if (result.status !== 'ok') return undefined
+  const normalized = normalizeVersions(result.value)
+  if (normalized === undefined) return undefined
+  return normalized
+}
+
+/** Whether an attestation for this version is already in the tree. */
+export function attestationExists(
+  version: string,
+  root = process.cwd(),
+): boolean {
+  return fs.existsSync(path.join(root, attestationFile(version)))
+}
+
+/**
+ * Whether the in-tree record for this version already names a UI commit.
+ *
+ * Read from the file the release passes as `--pairing-record`. A record with a
+ * full SHA there means the pair was established before the tag, and a release
+ * that then declared bootstrap would be discarding it.
+ */
+export function inTreePairNamesUiCommit(
+  pairingRecord: string | undefined,
+): boolean {
+  if (pairingRecord === undefined || !fs.existsSync(pairingRecord)) return false
+  try {
+    const parsed = JSON.parse(fs.readFileSync(pairingRecord, 'utf8')) as {
+      uiCommit?: unknown
+    }
+    return (
+      typeof parsed.uiCommit === 'string' &&
+      /^[0-9a-f]{40}$/i.test(parsed.uiCommit)
+    )
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -435,6 +516,36 @@ async function main(): Promise<void> {
     console.error(`  note: pairing record: ${pairingProblem}`)
   }
 
+  /*
+   * Bootstrap eligibility, computed before the authorisation so the pairing
+   * rule can consult it.
+   *
+   * The record's `bootstrap: true` is a claim that this release *wants* the
+   * exception; this decides whether it *gets* it. The inputs are the registry
+   * state (already queried above) and whether a pair for this version already
+   * exists — never the record itself.
+   *
+   * `publishedVersions` is `undefined` when the registry is unreachable, and
+   * the policy refuses on that rather than assuming first publication.
+   */
+  const bootstrapRequested = values.bootstrap === true
+  let bootstrapFindings: readonly AuthorizationFinding[] | undefined
+  let bootstrapEligible: boolean | undefined
+  if (bootstrapRequested) {
+    const publishedVersions = registry.reachable
+      ? await readPublishedVersionsOfPackage(values.version)
+      : undefined
+    const eligibility = evaluateBootstrapEligibility({
+      version: values.version,
+      declared: true,
+      ...(publishedVersions === undefined ? {} : { publishedVersions }),
+      existingAttestation: attestationExists(values.version),
+      existingPairInTree: inTreePairNamesUiCommit(values['pairing-record']),
+    })
+    bootstrapEligible = eligibility.eligible
+    bootstrapFindings = eligibility.findings
+  }
+
   const { result, runs, lookupProblems } = collectReleaseAuthorization({
     root,
     repository: values.repository,
@@ -445,6 +556,8 @@ async function main(): Promise<void> {
     uiCommit: values['ui-commit'] ?? '',
     uiVersions,
     bootstrap: values.bootstrap === true,
+    ...(bootstrapEligible === undefined ? {} : { bootstrapEligible }),
+    ...(bootstrapFindings === undefined ? {} : { bootstrapFindings }),
     distTag: values['dist-tag'],
     sbomOk: values['require-sbom'] ? readSbomOk(root) : undefined,
     tarballOk,
