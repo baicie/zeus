@@ -48,6 +48,8 @@ export interface RegistryClient {
   whoami(): string
   setTag(name: string, version: string, tag: string): void
   removeTag(name: string, tag: string): void
+  /** What `latest` points at now, or undefined when the tag is absent. */
+  readLatest(name: string): string | undefined
 }
 
 export function stableVersions(versions: readonly string[]): string[] {
@@ -112,6 +114,8 @@ export function applyLatestTagRepair(
     action: string
     ok: boolean
     error?: string
+    /** What `latest` pointed at after the change, when it was re-read. */
+    readonly observedLatest?: string
   }> = []
   for (const action of actions) {
     if (action.kind === 'none') continue
@@ -121,7 +125,42 @@ export function applyLatestTagRepair(
       } else {
         client.removeTag(action.name, 'latest')
       }
-      results.push({ name: action.name, action: action.kind, ok: true })
+      /*
+       * A successful command is not the same as a changed tag.
+       *
+       * `npm dist-tag rm` exits 0 while leaving `latest` in place on at least
+       * one registry implementation (measured against Verdaccio 6: the
+       * command prints `-latest: @zeus-js/i18n@0.2.0-rc.0` and a subsequent
+       * read still returns `latest: 0.2.0-rc.0`). Treating exit 0 as success
+       * is how a repair reports "done" while the prerelease stays the default
+       * install target.
+       *
+       * So the tag is read back, and the result says what it actually is.
+       */
+      let observedLatest: string | undefined
+      try {
+        observedLatest = client.readLatest(action.name)
+      } catch {
+        /* A failed read is reported by the caller as unverified, not a pass. */
+      }
+      const repaired =
+        action.kind === 'set'
+          ? observedLatest === action.version
+          : observedLatest === undefined
+      results.push({
+        name: action.name,
+        action: action.kind,
+        ok: repaired,
+        ...(observedLatest !== undefined ? { observedLatest } : {}),
+        ...(repaired
+          ? {}
+          : {
+              error:
+                observedLatest === undefined
+                  ? 'could not read latest back after the change'
+                  : `the command reported success but latest still points at ${observedLatest}`,
+            }),
+      })
     } catch (error) {
       results.push({
         name: action.name,
@@ -193,6 +232,20 @@ function createNpmClient(registry: string): RegistryClient {
         ['dist-tag', 'rm', name, tag, '--registry', registry],
         { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
       )
+    },
+    readLatest: name => {
+      try {
+        const raw = execFileSync(
+          'npm',
+          ['view', name, 'dist-tags.latest', '--json', '--registry', registry],
+          { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+        ).trim()
+        if (!raw) return undefined
+        const parsed: unknown = JSON.parse(raw)
+        return typeof parsed === 'string' ? parsed : undefined
+      } catch {
+        return undefined
+      }
     },
   }
 }

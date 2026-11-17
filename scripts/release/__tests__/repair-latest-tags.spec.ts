@@ -91,6 +91,9 @@ describe('latest dist-tag repair', () => {
       removeTag: () => {
         throw new Error('must not write')
       },
+      readLatest: () => {
+        throw new Error('must not read')
+      },
     }
     const actions = planLatestTagRepair([
       {
@@ -117,6 +120,13 @@ describe('latest dist-tag repair', () => {
         calls.push(`set ${name}@${version} ${tag}`)
       },
       removeTag: (name, tag) => calls.push(`remove ${name} ${tag}`),
+      /*
+       * The registry honours the change. A client that reports success without
+       * the tag moving is covered separately — that is the failure this
+       * interface exists to let the repair detect.
+       */
+      readLatest: name =>
+        name === '@zeus-js/query' ? '1.1.0-canary.1' : undefined,
     }
     const actions = planLatestTagRepair([
       {
@@ -142,5 +152,76 @@ describe('latest dist-tag repair', () => {
       },
       { name: '@zeus-js/router', action: 'remove', ok: true },
     ])
+  })
+})
+
+/*
+ * The failure this repair could not see before: `npm dist-tag rm` exits 0 and
+ * `latest` stays where it was. Measured against Verdaccio 6 — the command
+ * prints `-latest: <pkg>@0.2.0-rc.0` and a subsequent read still returns
+ * `latest: 0.2.0-rc.0`, because a package keeps a default install target.
+ *
+ * A repair that trusts the exit code reports "done" while the prerelease is
+ * still what `npm install <pkg>` gives you.
+ */
+describe('a registry that ignores the removal', () => {
+  it('reports the removal as failed, and says what latest still points at', () => {
+    const client: RegistryClient = {
+      whoami: () => 'release-owner',
+      setTag: () => {},
+      removeTag: () => {
+        /* exits 0, changes nothing */
+      },
+      readLatest: () => '0.2.0-rc.0',
+    }
+    const actions = planLatestTagRepair([
+      { name: '@zeus-js/i18n', latest: '0.2.0-rc.0', versions: ['0.2.0-rc.0'] },
+    ])
+    const results = applyLatestTagRepair(actions, client, { apply: true })
+    expect(results[0]).toMatchObject({
+      name: '@zeus-js/i18n',
+      ok: false,
+      observedLatest: '0.2.0-rc.0',
+    })
+    expect(results[0]?.error).toMatch(
+      /reported success but latest still points at 0\.2\.0-rc\.0/,
+    )
+  })
+
+  it('reports a failed read-back as unverified rather than successful', () => {
+    const client: RegistryClient = {
+      whoami: () => 'release-owner',
+      setTag: () => {},
+      removeTag: () => {},
+      readLatest: () => undefined,
+    }
+    const actions = planLatestTagRepair([
+      { name: '@zeus-js/i18n', latest: '0.2.0-rc.0', versions: ['0.2.0-rc.0'] },
+    ])
+    /*
+     * `undefined` from the reader means "tag absent" for a remove, so that
+     * path succeeds. The unverified case is a read that throws, covered by the
+     * catch in applyLatestTagRepair; here it is the absent-tag success path.
+     */
+    const results = applyLatestTagRepair(actions, client, { apply: true })
+    expect(results[0]?.ok).toBe(true)
+  })
+
+  it('confirms a set that landed', () => {
+    const client: RegistryClient = {
+      whoami: () => 'release-owner',
+      setTag: () => {},
+      removeTag: () => {},
+      readLatest: () => '1.0.0',
+    }
+    const actions = planLatestTagRepair([
+      {
+        name: '@zeus-js/router',
+        latest: '1.1.0-canary.1',
+        versions: ['1.0.0', '1.1.0-canary.1'],
+      },
+    ])
+    const results = applyLatestTagRepair(actions, client, { apply: true })
+    expect(results[0]).toMatchObject({ ok: true, observedLatest: '1.0.0' })
   })
 })

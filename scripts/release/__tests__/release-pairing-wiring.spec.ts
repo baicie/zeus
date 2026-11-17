@@ -1,0 +1,321 @@
+/**
+ * The pairing-record wiring, tested through the real CLI and the real
+ * workflow file.
+ *
+ * The defect this covers is the kind that unit tests miss by construction: the
+ * policy function handled `acknowledgedFirstPublish` correctly and every test
+ * passed it directly, while the workflow never passed the flag that fills it.
+ * A rule can be right and unreachable at the same time.
+ *
+ * So these tests run `authorize-release.ts` as a subprocess with the same
+ * arguments the workflow uses, and read `release.yml` to confirm the flag is
+ * among them.
+ */
+import { execFileSync } from 'node:child_process'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+
+import { afterEach, describe, expect, it } from 'vitest'
+
+const root = path.resolve(import.meta.dirname, '../../..')
+const CLI = path.join(root, 'scripts/release/authorize-release.ts')
+const TSX = path.join(root, 'node_modules/.bin/tsx')
+const UI_COMMIT = '89fc93cac5b97f29f48deb64964886476c5d7aac'
+const VERSION = '0.2.0-rc.0'
+
+const work: string[] = []
+
+afterEach(() => {
+  for (const directory of work.splice(0)) {
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+interface Scaffold {
+  readonly directory: string
+  readonly sha: string
+  readonly pairingFile: string
+  readonly bundleReport: string
+  /** Where the stubbed `gh` and `npm` live. */
+  readonly bin: string
+}
+
+/**
+ * A repository the CLI can be pointed at, with a stubbed `gh` and `npm`.
+ *
+ * The stubs answer what the release needs: CI runs for this commit, a tag
+ * pointing at it, and a registry where three packages have never been
+ * published. Everything else — the policy, the CLI, the argument parsing — is
+ * the real code.
+ */
+function scaffold(pairing: unknown | 'missing'): Scaffold {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'zeus-pairing-wire-'))
+  work.push(directory)
+  const repo = path.join(directory, 'repo')
+  const bin = path.join(directory, 'bin')
+  fs.mkdirSync(path.join(repo, 'packages/core/zeus'), { recursive: true })
+  fs.mkdirSync(path.join(repo, 'release-pairing'), { recursive: true })
+  fs.mkdirSync(path.join(repo, 'temp/sbom'), { recursive: true })
+  fs.mkdirSync(bin, { recursive: true })
+
+  /*
+   * `zeusFixedPackages` is the published set; the scaffold needs its members
+   * present so the Core/UI pairing rule can read them. Two is enough — the
+   * rule checks that they agree with each other and with the tag.
+   */
+  for (const [name, dir] of [
+    ['@zeus-js/zeus', 'packages/core/zeus'],
+    ['@zeus-js/signal', 'packages/core/signal'],
+  ] as const) {
+    fs.mkdirSync(path.join(repo, dir), { recursive: true })
+    fs.writeFileSync(
+      path.join(repo, `${dir}/package.json`),
+      `${JSON.stringify({ name, version: VERSION })}\n`,
+    )
+  }
+
+  const pairingFile = path.join(repo, 'release-pairing', `v${VERSION}.json`)
+  if (pairing !== 'missing') {
+    fs.writeFileSync(pairingFile, `${JSON.stringify(pairing, null, 2)}\n`)
+  }
+
+  fs.writeFileSync(
+    path.join(repo, 'temp/sbom/zeus.cdx.json'),
+    JSON.stringify({ bomFormat: 'CycloneDX', components: [{ name: 'x' }] }),
+  )
+  const bundleReport = path.join(directory, 'tarballs.json')
+  fs.writeFileSync(
+    bundleReport,
+    JSON.stringify({ schema: 'zeus.release-artifacts/v1', ok: true }),
+  )
+
+  const git = (args: string[]): string =>
+    execFileSync('git', args, { cwd: repo, encoding: 'utf8' }).trim()
+  git(['init', '-q'])
+  git(['config', 'user.email', 'test@example.com'])
+  git(['config', 'user.name', 'test'])
+  git(['add', '-A'])
+  git(['commit', '-qm', 'init'])
+  const sha = git(['rev-parse', 'HEAD'])
+
+  /* `origin/main` at the same commit, so reachability is established. */
+  const origin = path.join(directory, 'origin.git')
+  execFileSync('git', ['init', '-q', '--bare', origin])
+  git(['remote', 'add', 'origin', origin])
+  git(['push', '-q', 'origin', `HEAD:refs/heads/main`])
+
+  fs.writeFileSync(
+    path.join(bin, 'gh'),
+    `#!/bin/bash
+case "$*" in
+  *actions/workflows/ci.yml/runs*)
+    echo '{"workflow_runs":[{"id":1,"path":".github/workflows/ci.yml","head_sha":"${sha}","run_attempt":1,"conclusion":"success","event":"push","status":"completed"}]}' ;;
+  *actions/workflows/compiler-native.yml/runs*)
+    echo '{"workflow_runs":[{"id":2,"path":".github/workflows/compiler-native.yml","head_sha":"${sha}","run_attempt":1,"conclusion":"success","event":"workflow_call","status":"completed"}]}' ;;
+  *git/ref/tags*) echo '{"object":{"type":"commit","sha":"${sha}"}}' ;;
+  *) echo '{}' ;;
+esac
+`,
+  )
+  fs.writeFileSync(
+    path.join(bin, 'npm'),
+    `#!/bin/bash
+case "$*" in
+  *"view @zeus-js/i18n "*|*"view @zeus-js/eslint-plugin "*|*"view @zeus-js/playground-engine "*)
+    echo "npm error code E404" >&2; exit 1 ;;
+  *"view"*) echo '["0.1.1-beta.20"]' ;;
+  *) exit 1 ;;
+esac
+`,
+  )
+  for (const name of ['gh', 'npm']) {
+    fs.chmodSync(path.join(bin, name), 0o755)
+  }
+  return { directory: repo, sha, pairingFile, bundleReport, bin }
+}
+
+interface CliResult {
+  readonly code: number
+  readonly stdout: string
+  readonly record?: {
+    verdict: string
+    findings: { rule: string; verdict: string; detail: string }[]
+  }
+}
+
+function runCli(
+  built: Scaffold,
+  options: { readPairing?: boolean } = {},
+): CliResult {
+  const out = path.join(built.directory, 'temp/release/authorization.json')
+  const readPairing = options.readPairing ?? true
+  const args = [
+    CLI,
+    '--root',
+    built.directory,
+    '--repository',
+    'baicie/zeus',
+    '--version',
+    VERSION,
+    '--tag-ref',
+    `refs/tags/v${VERSION}`,
+    '--workflow-sha',
+    built.sha,
+    '--ui-commit',
+    UI_COMMIT,
+    '--ui-version',
+    VERSION,
+    '--dist-tag',
+    'rc',
+    '--require-sbom',
+    '--bundle-report',
+    built.bundleReport,
+  ]
+  if (readPairing) args.push('--pairing-record', built.pairingFile)
+  args.push('--out', out)
+
+  let stdout = ''
+  let code = 0
+  try {
+    /*
+     * `tsx` directly, not `pnpm exec tsx`: pnpm rebuilds PATH for the child,
+     * which drops the stubbed `gh` and `npm` this test relies on. That was
+     * why the first version reported zero first publications — the real npm
+     * answered, and every package looked published.
+     */
+    if (process.env.DEBUG_WIRING) {
+      console.error(
+        'PATH starts:',
+        `${path.join(built.directory, 'bin')}:${process.env.PATH ?? ''}`.slice(
+          0,
+          90,
+        ),
+      )
+      console.error(
+        'stub exists:',
+        fs.existsSync(path.join(built.directory, 'bin', 'npm')),
+      )
+    }
+    stdout = execFileSync(TSX, args, {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 120_000,
+      env: {
+        ...process.env,
+        PATH: `${built.bin}:${process.env.PATH ?? ''}`,
+      },
+    })
+  } catch (error) {
+    const failure = error as {
+      status?: number
+      stdout?: string
+      stderr?: string
+    }
+    code = failure.status ?? 1
+    stdout = `${failure.stdout ?? ''}${failure.stderr ?? ''}`
+  }
+
+  const record = fs.existsSync(out)
+    ? (JSON.parse(fs.readFileSync(out, 'utf8')) as CliResult['record'])
+    : undefined
+  return { code, stdout, record }
+}
+
+function distTagFinding(result: CliResult) {
+  return result.record?.findings.find(entry => entry.rule === 'dist-tag')
+}
+
+const THREE = [
+  '@zeus-js/i18n',
+  '@zeus-js/eslint-plugin',
+  '@zeus-js/playground-engine',
+]
+
+function pairing(firstPublish?: unknown): Record<string, unknown> {
+  return {
+    schema: 'zeus.release-pairing/v1',
+    coreVersion: VERSION,
+    uiCommit: UI_COMMIT,
+    uiVersion: VERSION,
+    verifiedAt: '2026-11-16T00:00:00.000Z',
+    ...(firstPublish === undefined ? {} : { firstPublish }),
+  }
+}
+
+describe('the workflow passes the pairing record', () => {
+  /*
+   * The defect this file exists for: the flag was never passed, so a
+   * maintainer who accepted the three first publications would still be
+   * refused, and the error told them to add names to a file nobody read.
+   */
+  it('passes --pairing-record to the authorisation', () => {
+    const workflow = fs.readFileSync(
+      path.join(root, '.github/workflows/release.yml'),
+      'utf8',
+    )
+    expect(workflow).toContain('--pairing-record')
+    expect(workflow).toMatch(
+      /--pairing-record "release-pairing\/v\$\{\{ steps\.release-version\.outputs\.version \}\}\.json"/,
+    )
+  })
+})
+
+describe('the CLI with the real arguments', () => {
+  it('accepts all three first publications when the record lists them', () => {
+    const result = runCli(scaffold(pairing(THREE)))
+    expect(distTagFinding(result)?.verdict).toBe('AUTHORIZED')
+    expect(distTagFinding(result)?.detail).toMatch(
+      /3 first publish\(es\) accepted/,
+    )
+  }, 180_000)
+
+  it('refuses when one of the three is missing from the list', () => {
+    const result = runCli(scaffold(pairing(THREE.slice(0, 2))))
+    expect(distTagFinding(result)?.verdict).toBe('REFUSED')
+    expect(distTagFinding(result)?.detail).toMatch(/never been published/)
+  }, 180_000)
+
+  it('refuses when the record lists a package this repository does not publish', () => {
+    /*
+     * A name outside the published set makes the list look satisfied while the
+     * real first publication goes unacknowledged — a typo and an attempt both
+     * have to fail.
+     */
+    const result = runCli(
+      scaffold(pairing([...THREE.slice(0, 2), '@zeus-js/not-a-package'])),
+    )
+    expect(distTagFinding(result)?.verdict).toBe('REFUSED')
+    expect(result.stdout).toMatch(/does not publish/)
+  }, 180_000)
+
+  it('refuses when the record file is missing', () => {
+    const result = runCli(scaffold('missing'))
+    expect(distTagFinding(result)?.verdict).toBe('REFUSED')
+    expect(result.stdout).toMatch(/does not exist/)
+  }, 180_000)
+
+  it('refuses when firstPublish is not an array', () => {
+    const result = runCli(scaffold(pairing('@zeus-js/i18n')))
+    expect(distTagFinding(result)?.verdict).toBe('REFUSED')
+    expect(result.stdout).toMatch(/not an array of package names/)
+  }, 180_000)
+
+  it('refuses when the record is not valid JSON', () => {
+    const built = scaffold(pairing(THREE))
+    fs.writeFileSync(built.pairingFile, '{not json')
+    const result = runCli(built)
+    expect(distTagFinding(result)?.verdict).toBe('REFUSED')
+  }, 180_000)
+
+  /*
+   * And the wiring defect itself: without the flag the CLI cannot see the
+   * record at all, which is why the workflow must pass it.
+   */
+  it('refuses when the flag is not passed, and says so', () => {
+    const result = runCli(scaffold(pairing(THREE)), { readPairing: false })
+    expect(distTagFinding(result)?.verdict).toBe('REFUSED')
+    expect(result.stdout).toMatch(/no --pairing-record was passed/)
+  }, 180_000)
+})

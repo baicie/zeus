@@ -46,17 +46,38 @@ for (const contract of Object.values(ENVIRONMENT_CONTRACTS)) {
 }
 
 /*
- * The governance token is the widest credential in the repository. It is
- * checked separately so that adding it to a second environment fails here
- * rather than silently widening who can read repository configuration.
+ * Credentials must not spread silently.
+ *
+ * A secret in two environments has two places to leak from and one place to
+ * rotate, so each shared credential is listed here explicitly with the reason.
+ * The point is not that sharing is forbidden — a canary that cannot publish
+ * cannot exercise the publish path — but that adding a third holder is a
+ * reviewed change rather than a side effect.
  */
-const governanceHolders = environmentsHoldingSecret('ZEUS_GOVERNANCE_TOKEN')
-if (governanceHolders.length !== 1) {
-  problems.push({
-    workflow: '(contracts)',
-    message: `ZEUS_GOVERNANCE_TOKEN is held by ${governanceHolders.length} environments (${governanceHolders.join(', ')}); it must exist in exactly one`,
-  })
+const SHARED_SECRETS: Readonly<Record<string, readonly string[]>> = {
+  /*
+   * `release-canary.yml` publishes prerelease versions to prove the publish
+   * path works before a tag exists; it needs the same npm token the release
+   * uses, and it is the only other holder.
+   */
+  NPM_TOKEN: ['Release', 'Canary'],
 }
+
+for (const [secret, allowed] of Object.entries(SHARED_SECRETS)) {
+  const holders = environmentsHoldingSecret(secret)
+  const unexpected = holders.filter(name => !allowed.includes(name))
+  if (unexpected.length > 0) {
+    problems.push({
+      workflow: '(contracts)',
+      message: `${secret} is held by ${unexpected.join(', ')}, which is not in its declared holder list (${allowed.join(', ')})`,
+    })
+  }
+}
+
+/*
+ * A credential with no holder at all is not an error — it means the workflow
+ * that needed it is gone. It is printed so the maintainer can delete it.
+ */
 
 if (problems.length === 0) {
   console.log('\nEnvironment topology matches the contracts.')

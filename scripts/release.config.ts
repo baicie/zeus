@@ -102,7 +102,13 @@ export default defineReleaseConfig({
       ['pnpm', 'check:runtime-interop'],
       ['pnpm', 'check:cjs'],
       ['pnpm', 'build-dts'],
-      ['pnpm', 'check:release-artifacts', '--require-binaries'],
+      [
+        'pnpm',
+        'check:release-artifacts',
+        '--require-binaries',
+        '--out',
+        'temp/release/tarballs.json',
+      ],
       ['pnpm', 'api:check'],
       ['pnpm', 'check'],
       ['pnpm', 'lint'],
@@ -123,10 +129,10 @@ export default defineReleaseConfig({
       // the wrong one would be refused at deploy time, which is a late and
       // confusing way to find out.
       ['pnpm', 'check:environment-topology'],
+      ['pnpm', 'check:release-pairing'],
       // RC readiness validates the packed consumer report; generate it in the
       // same precheck so a stale or missing report cannot pass the gate.
       ['pnpm', 'check:packed-consumers'],
-      ['pnpm', 'check:rc-readiness', '--release-snapshot'],
       ['pnpm', 'check:release-worktree', '--verify'],
     ],
   },

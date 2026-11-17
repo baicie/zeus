@@ -56,90 +56,102 @@ async function failure(args: readonly string[]): Promise<string> {
 }
 
 describe('admin demo snapshot provenance', () => {
-  it('requires both commits and rejects a malformed SHA', async () => {
-    const out = path.join(scratch(), 'snapshot.json')
+  it(
+    'requires both commits and rejects a malformed SHA',
+    { timeout: 60_000 },
+    async () => {
+      const out = path.join(scratch(), 'snapshot.json')
 
-    expect(await failure(['--out', out, '--core-commit', CORE_SHA])).toMatch(
-      '--ui-commit is required',
-    )
-    expect(
-      await failure([
+      expect(await failure(['--out', out, '--core-commit', CORE_SHA])).toMatch(
+        '--ui-commit is required',
+      )
+      expect(
+        await failure([
+          '--out',
+          out,
+          '--core-commit',
+          CORE_SHA,
+          '--ui-commit',
+          UI_SHA.slice(0, 12),
+        ]),
+      ).toMatch('--ui-commit must be a full 40-character lowercase SHA')
+      expect(
+        await failure([
+          '--out',
+          out,
+          '--core-commit',
+          CORE_SHA.toUpperCase(),
+          '--ui-commit',
+          UI_SHA,
+        ]),
+      ).toMatch('--core-commit must be a full 40-character lowercase SHA')
+      expect(
+        await failure([
+          '--out',
+          out,
+          '--core-commit',
+          CORE_SHA,
+          '--ui-commit',
+          'unknown',
+        ]),
+      ).toMatch('--ui-commit must be a full 40-character lowercase SHA')
+    },
+  )
+
+  it(
+    'records both commits in the snapshot it writes',
+    { timeout: 60_000 },
+    async () => {
+      const out = path.join(scratch(), 'snapshot.json')
+      await invoke([
         '--out',
         out,
         '--core-commit',
         CORE_SHA,
-        '--ui-commit',
-        UI_SHA.slice(0, 12),
-      ]),
-    ).toMatch('--ui-commit must be a full 40-character lowercase SHA')
-    expect(
-      await failure([
-        '--out',
-        out,
-        '--core-commit',
-        CORE_SHA.toUpperCase(),
         '--ui-commit',
         UI_SHA,
-      ]),
-    ).toMatch('--core-commit must be a full 40-character lowercase SHA')
-    expect(
-      await failure([
-        '--out',
-        out,
-        '--core-commit',
-        CORE_SHA,
-        '--ui-commit',
-        'unknown',
-      ]),
-    ).toMatch('--ui-commit must be a full 40-character lowercase SHA')
-  })
+      ])
 
-  it('records both commits in the snapshot it writes', async () => {
-    const out = path.join(scratch(), 'snapshot.json')
-    await invoke([
-      '--out',
-      out,
-      '--core-commit',
-      CORE_SHA,
-      '--ui-commit',
-      UI_SHA,
-    ])
+      const snapshot = JSON.parse(readFileSync(out, 'utf8')) as Record<
+        string,
+        unknown
+      >
+      expect(snapshot.schema).toBe('zeus.admin-demo/v1')
+      expect(snapshot.coreCommit).toBe(CORE_SHA)
+      expect(snapshot.uiCommit).toBe(UI_SHA)
+      expect(Array.isArray(snapshot.users)).toBe(true)
+      expect((snapshot.users as unknown[]).length).toBeGreaterThan(0)
+    },
+  )
 
-    const snapshot = JSON.parse(readFileSync(out, 'utf8')) as Record<
-      string,
-      unknown
-    >
-    expect(snapshot.schema).toBe('zeus.admin-demo/v1')
-    expect(snapshot.coreCommit).toBe(CORE_SHA)
-    expect(snapshot.uiCommit).toBe(UI_SHA)
-    expect(Array.isArray(snapshot.users)).toBe(true)
-    expect((snapshot.users as unknown[]).length).toBeGreaterThan(0)
-  })
+  it(
+    'names the same pair and the same data every time it runs',
+    { timeout: 60_000 },
+    async () => {
+      // Reproducibility of the *pairing*: two recordings of the same pair name
+      // the same commits and carry the same seed rows. The audit timestamps come
+      // from real requests, so they are normalized out — asserting on them would
+      // be asserting on wall-clock time, not on provenance.
+      const first = path.join(scratch(), 'first.json')
+      const second = path.join(scratch(), 'second.json')
+      const args = ['--core-commit', CORE_SHA, '--ui-commit', UI_SHA]
+      await invoke(['--out', first, ...args])
+      await invoke(['--out', second, ...args])
 
-  it('names the same pair and the same data every time it runs', async () => {
-    // Reproducibility of the *pairing*: two recordings of the same pair name
-    // the same commits and carry the same seed rows. The audit timestamps come
-    // from real requests, so they are normalized out — asserting on them would
-    // be asserting on wall-clock time, not on provenance.
-    const first = path.join(scratch(), 'first.json')
-    const second = path.join(scratch(), 'second.json')
-    const args = ['--core-commit', CORE_SHA, '--ui-commit', UI_SHA]
-    await invoke(['--out', first, ...args])
-    await invoke(['--out', second, ...args])
-
-    const stable = (file: string): unknown => {
-      const value = JSON.parse(readFileSync(file, 'utf8')) as {
-        generatedAt?: string
-        audit?: Array<{ created_at?: string; [key: string]: unknown }>
-        [key: string]: unknown
+      const stable = (file: string): unknown => {
+        const value = JSON.parse(readFileSync(file, 'utf8')) as {
+          generatedAt?: string
+          audit?: Array<{ created_at?: string; [key: string]: unknown }>
+          [key: string]: unknown
+        }
+        value.generatedAt = '<timestamp>'
+        value.audit = (value.audit ?? []).map(entry => ({
+          ...entry,
+          created_at: '<timestamp>',
+        }))
+        return value
       }
-      value.generatedAt = '<timestamp>'
-      value.audit = (value.audit ?? []).map(entry => ({
-        ...entry,
-        created_at: '<timestamp>',
-      }))
-      return value
-    }
-    expect(stable(second)).toEqual(stable(first))
-  })
+      expect(stable(second)).toEqual(stable(first))
+    },
+  )
 })

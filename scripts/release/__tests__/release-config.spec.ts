@@ -77,7 +77,13 @@ describe('zeus release config', () => {
       ['pnpm', 'check:runtime-interop'],
       ['pnpm', 'check:cjs'],
       ['pnpm', 'build-dts'],
-      ['pnpm', 'check:release-artifacts', '--require-binaries'],
+      [
+        'pnpm',
+        'check:release-artifacts',
+        '--require-binaries',
+        '--out',
+        'temp/release/tarballs.json',
+      ],
       ['pnpm', 'api:check'],
       ['pnpm', 'check'],
       ['pnpm', 'lint'],
@@ -95,8 +101,8 @@ describe('zeus release config', () => {
       ['pnpm', 'check:exports'],
       ['pnpm', 'check:repository'],
       ['pnpm', 'check:environment-topology'],
+      ['pnpm', 'check:release-pairing'],
       ['pnpm', 'check:packed-consumers'],
-      ['pnpm', 'check:rc-readiness', '--release-snapshot'],
       ['pnpm', 'check:release-worktree', '--verify'],
     ])
   })

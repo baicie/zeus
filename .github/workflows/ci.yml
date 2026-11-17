@@ -410,6 +410,11 @@ jobs:
       # individually fine.
       - name: Check the runtime dependency boundary
         run: pnpm check:runtime-boundary
+      # A release reads its pairing record by version at tag time. Validating
+      # them here means a malformed record fails in the PR that adds it rather
+      # than in the release that needed it.
+      - name: Check the release pairing records
+        run: pnpm check:release-pairing
 
   test:
     needs: impact

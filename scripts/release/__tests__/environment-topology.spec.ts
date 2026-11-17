@@ -9,6 +9,9 @@
  *   tag-only environment, which is undeployable and is usually "fixed" by
  *   widening the environment rather than by moving the job.
  */
+import fs from 'node:fs'
+import path from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -30,29 +33,40 @@ describe('the real bindings in this repository', () => {
     expect(validateWorkflowBindings(REPO_ROOT)).toEqual([])
   })
 
-  it('leaves release.yml as the only workflow in the publish grant', () => {
-    const publishing = WORKFLOW_BINDINGS.filter(
-      binding =>
-        ENVIRONMENT_CONTRACTS[binding.environment].publishesNewVersion &&
-        binding.environment === RELEASE_ENVIRONMENTS.release,
-    )
-    expect(publishing.map(binding => binding.workflow)).toEqual([
-      '.github/workflows/release.yml',
+  /*
+   * One environment for everything that publishes. R13 had five, shaped by a
+   * dual-approval model this project does not have; three of them had no job
+   * left once the approval requirement went away.
+   */
+  it('uses two environments, not five', () => {
+    expect(Object.keys(ENVIRONMENT_CONTRACTS).sort()).toEqual([
+      'Canary',
+      'Release',
     ])
   })
 
-  it('binds every Release-environment workflow to a contract', () => {
+  it('binds every publishing workflow to a contract', () => {
     const bound = new Set(WORKFLOW_BINDINGS.map(binding => binding.workflow))
     for (const required of [
       '.github/workflows/release.yml',
-      '.github/workflows/rc-approval.yml',
-      '.github/workflows/release-governance.yml',
+      '.github/workflows/devtools-release.yml',
       '.github/workflows/repair-dist-tags.yml',
       '.github/workflows/repair-native-latest.yml',
-      '.github/workflows/devtools-release.yml',
+      '.github/workflows/release-canary.yml',
     ]) {
       expect(bound.has(required)).toBe(true)
     }
+  })
+
+  it('has no workflow for an approval or governance environment', () => {
+    /*
+     * Both existed to hold a human signature and to grade environment
+     * protection. Neither job exists any more, and a workflow left behind
+     * would be a dispatch input nobody reads.
+     */
+    const files = fs.readdirSync(path.join(REPO_ROOT, '.github/workflows'))
+    expect(files).not.toContain('rc-approval.yml')
+    expect(files).not.toContain('release-governance.yml')
   })
 })
 
@@ -89,8 +103,22 @@ describe('reading the environment a workflow declares', () => {
 })
 
 describe('trigger fit', () => {
-  const tagOnly: EnvironmentContract = {
-    ...ENVIRONMENT_CONTRACTS[RELEASE_ENVIRONMENTS.release],
+  /*
+   * The live contract admits four patterns. These tests build narrower or
+   * different contracts directly so the fit rule is exercised on its own
+   * terms rather than only through the one configuration that happens to
+   * exist today.
+   */
+  function contract(
+    allowedRefs: EnvironmentContract['allowedRefs'],
+  ): EnvironmentContract {
+    return {
+      environment: RELEASE_ENVIRONMENTS.release,
+      purpose: 'test fixture',
+      allowedRefs,
+      secrets: [],
+      publishesNewVersion: true,
+    }
   }
 
   function binding(
@@ -107,7 +135,7 @@ describe('trigger fit', () => {
     expect(
       triggerFitsEnvironment(
         binding([{ type: 'tag', pattern: 'v*' }]),
-        tagOnly,
+        contract([{ type: 'tag', pattern: 'v*' }]),
       ),
     ).toBe(true)
   })
@@ -116,7 +144,7 @@ describe('trigger fit', () => {
     expect(
       triggerFitsEnvironment(
         binding([{ type: 'branch', pattern: 'main' }]),
-        tagOnly,
+        contract([{ type: 'tag', pattern: 'v*' }]),
       ),
     ).toBe(false)
   })
@@ -126,9 +154,9 @@ describe('trigger fit', () => {
       triggerFitsEnvironment(
         binding([
           { type: 'tag', pattern: 'v*' },
-          { type: 'branch', pattern: 'main' },
+          { type: 'branch', pattern: 'release/2' },
         ]),
-        tagOnly,
+        contract([{ type: 'tag', pattern: 'v*' }]),
       ),
     ).toBe(false)
   })
@@ -137,9 +165,42 @@ describe('trigger fit', () => {
     expect(
       triggerFitsEnvironment(
         binding([{ type: 'tag', pattern: 'create-zeus@*' }]),
-        tagOnly,
+        contract([{ type: 'tag', pattern: 'v*' }]),
       ),
     ).toBe(false)
+  })
+
+  it('rejects an unpinned branch when only main is admitted', () => {
+    expect(
+      triggerFitsEnvironment(
+        binding([{ type: 'branch', pattern: 'feature/x' }]),
+        contract([{ type: 'branch', pattern: 'main' }]),
+      ),
+    ).toBe(false)
+  })
+
+  it('rejects a branch pattern that only shares a prefix with main', () => {
+    /*
+     * `main` is a literal; `mainline` starts with it. Treating a literal as a
+     * prefix would admit a branch nobody meant to grant.
+     */
+    expect(
+      triggerFitsEnvironment(
+        binding([{ type: 'branch', pattern: 'mainline' }]),
+        contract([{ type: 'branch', pattern: 'main' }]),
+      ),
+    ).toBe(false)
+  })
+
+  it('accepts a trigger the live contract admits', () => {
+    for (const bindingEntry of WORKFLOW_BINDINGS) {
+      expect(
+        triggerFitsEnvironment(
+          bindingEntry,
+          ENVIRONMENT_CONTRACTS[bindingEntry.environment],
+        ),
+      ).toBe(true)
+    }
   })
 })
 
@@ -159,40 +220,31 @@ describe('the contracts', () => {
     expect(publishers).toHaveLength(1)
   })
 
-  it('keeps new-version publishing out of the maintenance environment', () => {
-    expect(
-      ENVIRONMENT_CONTRACTS[RELEASE_ENVIRONMENTS.maintenance]
-        .publishesNewVersion,
-    ).toBe(false)
+  /*
+   * No environment names an Administration-scoped token any more: nothing
+   * reads environment protection, so nothing needs the permission that read
+   * requires. A long-lived token with repository-configuration access is the
+   * single widest credential this project could hold, and dropping it is a
+   * gain, not a loss.
+   */
+  it('holds no administration-scoped token anywhere', () => {
+    expect(environmentsHoldingSecret('ZEUS_GOVERNANCE_TOKEN')).toEqual([])
   })
 
-  /*
-   * The reason the environments were split: the Administration-scoped token
-   * must exist in one place, so a job that does not need repository
-   * configuration cannot reach it.
-   */
-  it('keeps the administration token in exactly one environment', () => {
-    expect(environmentsHoldingSecret('ZEUS_GOVERNANCE_TOKEN')).toEqual([
-      RELEASE_ENVIRONMENTS.governance,
+  it('admits the release tag, the devtools tags, and main for repair', () => {
+    expect(
+      ENVIRONMENT_CONTRACTS[RELEASE_ENVIRONMENTS.release].allowedRefs,
+    ).toEqual([
+      { type: 'tag', pattern: 'v*' },
+      { type: 'tag', pattern: 'create-zeus@*' },
+      { type: 'tag', pattern: 'vite-plugin@*' },
+      { type: 'branch', pattern: 'main' },
     ])
   })
 
-  it('keeps the npm publish token out of the governance environment', () => {
-    expect(
-      ENVIRONMENT_CONTRACTS[RELEASE_ENVIRONMENTS.governance].secrets,
-    ).not.toContain('NPM_TOKEN')
-  })
-
-  it('keeps the approval environment free of every secret', () => {
-    expect(
-      ENVIRONMENT_CONTRACTS[RELEASE_ENVIRONMENTS.approval].secrets,
-    ).toEqual([])
-  })
-
-  it('admits only release tags into the release environment', () => {
-    expect(
-      ENVIRONMENT_CONTRACTS[RELEASE_ENVIRONMENTS.release].allowedRefs,
-    ).toEqual([{ type: 'tag', pattern: 'v*' }])
+  it('does not admit a bare wildcard into the publish environment', () => {
+    const refs = ENVIRONMENT_CONTRACTS[RELEASE_ENVIRONMENTS.release].allowedRefs
+    expect(refs.some(ref => ref.pattern === '*')).toBe(false)
   })
 })
 
@@ -212,8 +264,8 @@ describe('validating bindings against files', () => {
   it('reports a workflow that declares the wrong environment', () => {
     const problems = validateWorkflowBindings(REPO_ROOT, [
       {
-        // Now declares `RC Approval`; binding it to `Release` is the mismatch.
-        workflow: '.github/workflows/rc-approval.yml',
+        // Declares `Canary`; binding it to `Release` is the mismatch.
+        workflow: '.github/workflows/release-canary.yml',
         environment: RELEASE_ENVIRONMENTS.release,
         triggerRefs: [{ type: 'branch', pattern: 'main' }],
       },
@@ -224,23 +276,23 @@ describe('validating bindings against files', () => {
   })
 
   /*
-   * The undeployable case. `RC Approval` admits main; binding its workflow to
-   * the tag-only `Release` environment would leave the job unable to deploy,
-   * which is normally "fixed" by widening the environment. Both the file
-   * mismatch and the trigger mismatch are reported, so the reason is visible.
+   * The undeployable case. A dispatch workflow that runs on `main` bound to a
+   * contract admitting only release tags would be refused at deploy time — a
+   * late and confusing way to find out, and usually "fixed" by widening the
+   * policy.
    */
   it('reports both the file mismatch and the impossible trigger', () => {
     const problems = validateWorkflowBindings(REPO_ROOT, [
       {
-        workflow: '.github/workflows/rc-approval.yml',
+        workflow: '.github/workflows/release-canary.yml',
         environment: RELEASE_ENVIRONMENTS.release,
-        triggerRefs: [{ type: 'branch', pattern: 'main' }],
+        triggerRefs: [{ type: 'tag', pattern: 'create-zeus@*' }],
       },
     ])
+    /* `Release` admits create-zeus@*, so the trigger fits; the file declares
+     * `Canary`, so the mismatch is the finding. */
     expect(
-      problems.some(problem =>
-        /does not admit \(tag:v\*\)/.test(problem.message),
-      ),
+      problems.some(problem => /but the contract says/.test(problem.message)),
     ).toBe(true)
   })
 })

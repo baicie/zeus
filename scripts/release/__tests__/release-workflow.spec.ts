@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '../../..')
@@ -74,11 +74,12 @@ describe('release workflows', () => {
     expect(workflow).toContain('workflow_dispatch:')
     expect(workflow).toContain('default: dry-run')
     /*
-     * Maintenance has its own environment. It writes dist-tags but cannot
-     * publish a new version, so it must not sit in the publish grant — and it
-     * runs from main, which a tag-only environment cannot admit.
+     * Repair runs in `Release` alongside publishing. R13 gave it a separate
+     * environment because `Release` was tag-only and repair runs from main;
+     * `Release` now admits main, and a second environment holding the same
+     * token narrowed nothing.
      */
-    expect(workflow).toContain('environment: Release Maintenance')
+    expect(workflow).toContain('environment: Release')
     expect(workflow).toContain('group: npm-release')
     expect(workflow).not.toContain('\n  push:')
     expect(workflow).not.toContain('\n  pull_request:')
@@ -188,75 +189,85 @@ describe('release workflows', () => {
     expect(workflow).toContain('--require-provenance')
   })
 
-  it('binds RC evidence to approved deployment and approval artifacts', () => {
+  /*
+   * The release path takes its UI commit from a committed pairing record and
+   * its authorisation from a rule engine that reads GitHub itself. Neither
+   * needs a repository variable or a hand-produced document, and neither can
+   * be satisfied by naming a run id.
+   */
+  it('pins the UI commit from the committed pairing record', () => {
     const workflow = readFileSync(
       resolve(root, '.github/workflows/release.yml'),
       'utf8',
     )
 
     expect(workflow).not.toContain('vars.ZEUS_UI_REF')
-    expect(workflow).toContain('ZEUS_UI_COMMIT')
+    expect(workflow).not.toContain('vars.ZEUS_UI_COMMIT')
+    expect(workflow).toContain('release-pairing/v${{')
     expect(workflow).toContain('check:ui-pairing')
     expect(workflow).toContain('--require-commit')
     expect(workflow).toContain('ui-pairing.json')
-    expect(workflow).toContain('ZEUS_UI_VERSION')
-    expect(workflow).toContain('ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID')
-    expect(workflow).toContain('host-deployment-stage2-evidence')
-    expect(workflow).toContain('ZEUS_RC_APPROVAL_RUN_ID')
-    expect(workflow).toContain('rc-approval')
-    expect(workflow).toContain('assemble-rc-evidence.ts')
-    expect(workflow).toContain('evidence-source.json')
-    expect(workflow).toContain('--run-id')
-    expect(workflow.indexOf('assemble-rc-evidence.ts')).toBeLessThan(
-      workflow.indexOf('pnpm release:precheck'),
-    )
+    expect(workflow).toContain('steps.pairing.outputs.ui-commit')
   })
 
-  it('verifies the RC approval against GitHub run metadata and attestation', () => {
+  it('authorises the release from evidence, with no approval artifact', () => {
     const workflow = readFileSync(
       resolve(root, '.github/workflows/release.yml'),
       'utf8',
     )
 
-    expect(workflow).toContain('verify-rc-approval.ts')
-    expect(workflow).toContain('ZEUS_RC_APPROVERS')
-    expect(workflow).toContain('--approval temp/rc-approval/rc-approval.json')
-    expect(workflow).toContain(
-      '--payload temp/rc-approval/rc-approval-payload.json',
-    )
-    expect(workflow).toContain(
-      '--cross-platform temp/rc-approval/cross-platform.json',
-    )
-    expect(workflow).toContain('--trust temp/release/approval-trust.json')
-    expect(workflow).not.toContain('rc-evidence.base.json')
-    expect(workflow.indexOf('verify-rc-approval.ts')).toBeLessThan(
-      workflow.indexOf('assemble-rc-evidence.ts'),
+    expect(workflow).toContain('authorize-release.ts')
+    expect(workflow).toContain('release-authorization.json')
+    /* Every v1 approval input is gone, not merely unused. */
+    expect(workflow).not.toContain('ZEUS_RC_APPROVAL_RUN_ID')
+    expect(workflow).not.toContain('ZEUS_RC_APPROVERS')
+    expect(workflow).not.toContain('ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID')
+    expect(workflow).not.toContain('rc-approval')
+    expect(workflow).not.toContain('verify-rc-approval.ts')
+    expect(workflow).not.toContain('assemble-rc-evidence.ts')
+    expect(workflow).not.toContain('host-deployment-stage2-evidence')
+    /*
+     * And it runs before anything can publish. The publish step is later in
+     * the same job, so a non-zero exit from the authorisation stops it.
+     */
+    expect(workflow.indexOf('authorize-release.ts')).toBeLessThan(
+      workflow.indexOf('pnpm release --publishOnly'),
     )
   })
 
-  it('produces approvals only from a protected manual RC Approval workflow', () => {
+  it('has no approval workflow left to dispatch', () => {
+    expect(existsSync(resolve(root, '.github/workflows/rc-approval.yml'))).toBe(
+      false,
+    )
+    expect(
+      existsSync(resolve(root, '.github/workflows/release-governance.yml')),
+    ).toBe(false)
+  })
+
+  it('keeps a single environment for everything that publishes', () => {
     const workflow = readFileSync(
-      resolve(root, '.github/workflows/rc-approval.yml'),
+      resolve(root, '.github/workflows/release.yml'),
       'utf8',
     )
+    expect(workflow).toContain('environment: Release')
+  })
 
-    expect(workflow).toContain('name: RC Approval')
-    expect(workflow).toContain('workflow_dispatch:')
-    expect(workflow).not.toContain('push:')
-    expect(workflow).not.toContain('pull_request:')
-    /*
-     * The approval job publishes nothing and is dispatched from main, so it
-     * lives in its own environment rather than in the tag-only publish grant.
-     */
-    expect(workflow).toContain('environment: RC Approval')
-    expect(workflow).toContain('attestations: write')
-    expect(workflow).toContain('id-token: write')
-    expect(workflow).toContain('actions/attest-build-provenance@v2')
-    expect(workflow).toContain('Require dispatch at the approved Core commit')
-    expect(workflow).toContain('--mode payload')
-    expect(workflow).toContain('--mode envelope')
-    expect(workflow).toContain('steps.upload-payload.outputs.artifact-digest')
-    expect(workflow).toContain('!= "APPROVE"')
+  /*
+   * A first publication's `latest` only starts pointing at the prerelease
+   * *after* the publish step. The precheck's `check:latest-tags` runs before
+   * it, so nothing in the workflow used to observe the state the release
+   * created. This step does, in the run that caused it.
+   */
+  it('checks npm latest after publishing, not only before', () => {
+    const workflow = readFileSync(
+      resolve(root, '.github/workflows/release.yml'),
+      'utf8',
+    )
+    const publish = workflow.indexOf('pnpm release --publishOnly')
+    const postCheck = workflow.indexOf('Check npm latest after publishing')
+    expect(publish).toBeGreaterThan(-1)
+    expect(postCheck).toBeGreaterThan(publish)
+    expect(workflow).toContain('pnpm check:latest-tags --version')
   })
 
   it('collects cross-platform evidence from real CI job metadata', () => {
