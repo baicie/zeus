@@ -267,7 +267,14 @@ describe('release workflows', () => {
     const postCheck = workflow.indexOf('Check npm latest after publishing')
     expect(publish).toBeGreaterThan(-1)
     expect(postCheck).toBeGreaterThan(publish)
-    expect(workflow).toContain('pnpm check:latest-tags --version')
+    /*
+     * The step now passes the pairing record and writes a verdict artifact, so
+     * the command spans lines. Asserting the old single-line form would pin the
+     * shape of the YAML rather than the facts the step needs.
+     */
+    expect(workflow).toMatch(/pnpm check:latest-tags\s*\n?\s*--version/)
+    expect(workflow).toContain('--pairing-record')
+    expect(workflow).toContain('--policy-out')
   })
 
   it('collects cross-platform evidence from real CI job metadata', () => {

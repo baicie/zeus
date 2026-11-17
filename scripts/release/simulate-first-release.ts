@@ -89,7 +89,13 @@ async function main(): Promise<void> {
       version: { type: 'string', required: true },
       'pairing-record': { type: 'string' },
       out: { type: 'string', default: 'temp/release/simulation.json' },
-      tarball: { type: 'string', action: 'append', default: [] },
+      /*
+       * `action: 'append'` collects repeats, and `parseArgs` requires the
+       * default to be absent rather than an empty array — an array default is
+       * rejected at parse time, not at use.
+       */
+      tarball: { type: 'string', action: 'append' },
+      'skip-publish': { type: 'boolean', default: false },
     },
   })
 
@@ -125,11 +131,24 @@ async function main(): Promise<void> {
    * and a simulation that repacked would be simulating a different artifact.
    */
   const tarballs = ([] as string[]).concat(values.tarball ?? [])
-  if (tarballs.length === 0) {
+  if (tarballs.length === 0 && values['skip-publish'] === true) {
+    /*
+     * Reading a registry that was populated by an earlier step is a legitimate
+     * mode: it is how the `latest` verdict gets evaluated against a state that
+     * already exists, without republishing versions npm refuses to overwrite.
+     * Recorded as a skip rather than a pass, because it proves nothing about
+     * the publish step.
+     */
+    record(
+      'publish',
+      true,
+      'skipped (--skip-publish): evaluating the registry state as already published',
+    )
+  } else if (tarballs.length === 0) {
     record(
       'publish',
       false,
-      'no tarballs supplied; run check:release-artifacts --out first and pass --tarball for each',
+      'no tarballs supplied; run check:release-artifacts --out first and pass --tarball for each, or use --skip-publish to read an existing registry',
     )
   } else {
     let published = 0
