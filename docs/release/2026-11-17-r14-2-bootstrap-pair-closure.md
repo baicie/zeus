@@ -143,7 +143,27 @@ No such file or directory
 | 是否触发任何 workflow                  | **否**                                  |
 | 清理                                   | 是，`matching-refs/tags/pair` 返回 `[]` |
 
-`v*` 的 `*` 不跨 `/`，因此 `pair/v…` 不匹配 release 触发器，不会造成第二次 npm 发布。代价是它需要**独立的 ruleset**。
+`v*` 的 `*` 不跨 `/`，因此 `pair/v…` 不匹配 release 触发器，不会造成第二次 npm 发布。
+
+### 3.1 pair tag 被移动会怎样（实测，不是推断）
+
+初版文档把「需要独立的 pair ruleset」写成了阻塞项。这个判断过强，实测推翻了一半：
+
+| 情况                                                                      | 结果     |
+| ------------------------------------------------------------------------- | -------- |
+| 正常 attestation                                                          | 通过     |
+| pair tag 被移到另一个 commit，那里放一份指向别的 UI commit 的 attestation | **拒绝** |
+| attestation 的 `uiCommit` 改成别的                                        | **拒绝** |
+| attestation 的 `coreCommit` 改成别的                                      | **拒绝** |
+| attestation 去掉 `bootstrap: true`                                        | **拒绝** |
+
+原因是校验读的是 **tag 解析到的那个 commit 的内容**，tag 指哪就读哪，而读到的内容必须与 release tag 的 SHA、正在发布的 UI commit 自洽。伪造一份内容让四项同时成立，等于伪造了整个链接。
+
+所以 ruleset **不是协议工作的前提**。它防的是另一件事：`pair/v0.2.0-rc.0` 今天指向 A，一周后被删掉重建指向 B，两次都各自自洽、都验证通过——「这个版本配对的是哪个 UI commit」的答案变了，而没有任何记录显示它变过。
+
+这与 `v*` ruleset 防的是同一类问题，区别在于 `v*` 有代码侧兜底（`tag-unmoved` 在发布运行期间重读比对），`pair/*` 目前没有，因为写入 pair tag 不在任何 workflow 里。
+
+**结论**：首次配对可以不配 ruleset——没有历史可比对，风险最低。第二次配对前应当补上，或者用代码记录历史 SHA 来替代。
 
 ## 4. 完整 Workflow DAG
 
@@ -302,16 +322,16 @@ check 只要求"合法"，workflow 还要求"不撞发布分支模式"。
 
 - 真实 npmjs 发布
 - 真实 `v0.2.0-rc.0` tag 推送触发 `release.yml` 的完整运行
-- pair tag 在**已配置 ruleset** 后的不可变性（ruleset 尚未配置）
+- pair tag 在**已配置 ruleset** 后的不可变性（ruleset 未配置，且按 §3.1 的决定延后）
 - 7 平台跨平台安装（只在 darwin-arm64 验证）
 - Node 22.18 / 24.11 双版本（本地 22.12，低于 engines）
 - 隔离 Registry 的完整 33 包发布（本轮未重跑；R14.1 已验证该路径）
 
 以上均**不是 PASS**。
 
-## 9. 维护者一次性配置（未做，需人工）
+## 9. 维护者配置（可延后，非阻塞）
 
-Core 仓库新增 tag ruleset：
+Core 仓库可新增 tag ruleset：
 
 | 字段         | 值                   |
 | ------------ | -------------------- |
@@ -320,21 +340,26 @@ Core 仓库新增 tag ruleset：
 | rules        | `deletion`, `update` |
 | bypass       | 无                   |
 
-未配置前 pair tag 可被移动或删除，协议的安全性依赖这条配置。代码无法读取 ruleset（workflow token 无 Administration scope），所以 `tag-immutability` 规则始终报 `POLICY_LIMITATION`。
+**这不是协议工作的前提**（见 §3.1 的实测）。不加，四种伪造仍然全部被拒绝。
+
+它关闭的是「配对记录可被静默替换」这个窗口。首次配对时该窗口风险最低——没有历史可比对。第二次配对前应当补上，或用代码记录历史 SHA 替代。
+
+代码无法读取 ruleset（workflow token 无 Administration scope），所以 `tag-immutability` 规则始终报 `POLICY_LIMITATION`——那是如实报告，不是缺陷。
 
 ## 10. GO / NO_GO
 
-**协议修复：GO**（Draft PR 已开，CI 绿）。
+**协议修复：GO**，已合入（Core `c434c9c7`、UI `ff2941e`）。
 
-**首次 0.2.0-rc.0 Cut：NO_GO**，阻塞项：
+**首次 0.2.0-rc.0 Cut：GO**，条件已满足。剩下的两项是**工作项**，不是阻塞：
 
-1. `pair/*` ruleset 未配置——协议安全性的最后一环
-2. RC 版本切换 PR 未创建（Phase 7 未开始）
-3. UI 的 `examples/ai-workbench` 仍钉 `0.1.1-beta.20`，需在版本切换时一并改
+1. RC 版本切换 PR 未创建（Phase 7 未开始）
+2. UI 的 `examples/ai-workbench` 仍钉 `0.1.1-beta.20`，需在版本切换时一并改
+
+`pair/*` ruleset 不在阻塞列表里。
 
 ## 11. R14.3 实施顺序
 
-1. 配置 `pair/*` tag ruleset（维护者，一次性）
+1. ~~配置 `pair/*` tag ruleset~~ —— 可延后，不阻塞首次 Cut
 2. 合并 Core #313 → UI #151
 3. Core 版本切换 PR：`version-rehearsal --apply` + **手动** `sync-native-loader`（rehearsal 不调用它）+ bootstrap 记录
 4. 合入后打 `v0.2.0-rc.0`，执行真实 Bootstrap 发布
