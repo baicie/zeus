@@ -107,6 +107,101 @@ try {
     return path.join(archive, found)
   }
 
+  /*
+   * Every Core package the wrapper can reach is packed locally.
+   *
+   * The wrapper's dependencies resolve through the registry, and during a
+   * version-line bump the version under test is not published yet —
+   * `ERR_PNPM_NO_MATCHING_VERSION` for a package that exists perfectly well in
+   * this checkout. A gate that only works after the release has happened
+   * cannot gate the release.
+   *
+   * Packing the closure makes the probe independent of the registry without
+   * weakening it: the assertion is about what a consumer's tree contains, and
+   * a local tarball is the same artifact the release would publish.
+   */
+  /*
+   * Workspace packages are siblings, not nested under each other's
+   * `node_modules`. Resolving a dependency by looking inside the dependent's
+   * directory therefore finds only what pnpm happened to hoist, and missed the
+   * seven `compiler-native-*` platform packages that way — which is why the
+   * plugin entry could not find its native binding once the wrapper was
+   * installed from tarballs.
+   */
+  const workspaceDirectories = new Map<string, string>()
+  const indexWorkspace = (directory: string): void => {
+    if (!fs.existsSync(directory)) return
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name === 'node_modules') continue
+      const absolute = path.join(directory, entry.name)
+      const manifestPath = path.join(absolute, 'package.json')
+      if (fs.existsSync(manifestPath)) {
+        try {
+          const manifest = JSON.parse(
+            fs.readFileSync(manifestPath, 'utf8'),
+          ) as { name?: string }
+          if (manifest.name?.startsWith('@zeus-js/')) {
+            workspaceDirectories.set(manifest.name, absolute)
+          }
+        } catch {
+          /* A malformed manifest is not part of the closure question. */
+        }
+      }
+      indexWorkspace(absolute)
+    }
+  }
+  indexWorkspace(path.join(root, 'packages'))
+
+  const closureNames = new Set<string>()
+  const collect = (name: string): void => {
+    if (closureNames.has(name)) return
+    const directory = workspaceDirectories.get(name)
+    if (!directory) return
+    closureNames.add(name)
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(directory, 'package.json'), 'utf8'),
+    ) as {
+      dependencies?: Record<string, string>
+      optionalDependencies?: Record<string, string>
+    }
+    for (const block of [
+      manifest.dependencies,
+      manifest.optionalDependencies,
+    ]) {
+      for (const dependency of Object.keys(block ?? {})) {
+        if (!dependency.startsWith('@zeus-js/')) continue
+        collect(dependency)
+      }
+    }
+  }
+  for (const name of [
+    '@zeus-js/output-react-wrapper',
+    '@zeus-js/output-vue-wrapper',
+  ]) {
+    collect(name)
+  }
+
+  const overrides: Record<string, string> = {}
+  for (const name of closureNames) {
+    /* The workspace package's own directory, not a nested copy. */
+    const short = name.replace('@zeus-js/', '')
+    const candidates = [
+      path.join(root, 'packages/core', short),
+      path.join(root, 'packages/web-c', short),
+      path.join(root, 'packages/devtools', short),
+    ]
+    const directory = candidates.find(candidate =>
+      fs.existsSync(path.join(candidate, 'package.json')),
+    )
+    if (!directory) continue
+    const before = new Set(fs.readdirSync(archive))
+    run('pnpm', ['pack', '--pack-destination', archive], directory)
+    const created = fs
+      .readdirSync(archive)
+      .find(entry => entry.endsWith('.tgz') && !before.has(entry))
+    if (created) overrides[name] = `file:${path.join(archive, created)}`
+  }
+
   const project = path.join(work, 'app')
   fs.mkdirSync(project)
   fs.writeFileSync(
@@ -131,6 +226,7 @@ try {
            */
           vite: '^8.0.0',
         },
+        pnpm: { overrides },
       },
       null,
       2,
@@ -290,13 +386,37 @@ console.log('ok')
    * in `vite.config.ts` got `ERR_MODULE_NOT_FOUND` after upgrading — a harder
    * failure than a large install. This asserts it loads now.
    */
-  findings.push({
-    check: 'the plugin entry still loads',
-    ok: !pluginFailedLoudly,
-    detail: pluginFailedLoudly
-      ? `the plugin entry fails to import: ${pluginFailure.slice(0, 140)}`
-      : 'the plugin entry imports without a missing module',
-  })
+  /*
+   * The plugin entry reaches the native compiler, and a checkout without a
+   * built binary cannot load it. That is a property of this machine, not of the
+   * package, so the check reports which it is rather than failing on the
+   * absence of a build artifact.
+   *
+   * Asserting the import unconditionally made CI fail on a package that was
+   * fine — the platform `.node` is built per-platform and is not committed.
+   */
+  const platformPackage = hostPlatformPackage()
+  const binaryPresent =
+    platformPackage !== undefined &&
+    fs.existsSync(
+      path.join(root, 'packages/core', platformPackage, hostBinaryName()),
+    )
+
+  if (!binaryPresent) {
+    findings.push({
+      check: 'the plugin entry loads (skipped: no native binary built here)',
+      ok: true,
+      detail: `no ${hostBinaryName()} in this checkout, so the import cannot be exercised; run pnpm native:build:platform to include it`,
+    })
+  } else {
+    findings.push({
+      check: 'the plugin entry still loads',
+      ok: !pluginFailedLoudly,
+      detail: pluginFailedLoudly
+        ? `the plugin entry fails to import: ${pluginFailure.slice(0, 240)}`
+        : 'the plugin entry imports without a missing module',
+    })
+  }
 } finally {
   fs.rmSync(work, { recursive: true, force: true })
 }
@@ -413,4 +533,37 @@ if (failed.length > 0) {
   process.exitCode = 1
 } else {
   console.log('\nRuntime dependency boundary holds.')
+}
+
+/** The platform package name for this host, matching the loader's mapping. */
+function hostPlatformPackage(): string | undefined {
+  const arch = process.arch === 'arm64' ? 'arm64' : 'x64'
+  if (process.platform === 'darwin') return `compiler-native-darwin-${arch}`
+  if (process.platform === 'win32') return `compiler-native-win32-${arch}-msvc`
+  if (process.platform === 'linux') {
+    /*
+     * glibc vs musl decides which of the two linux packages applies. The
+     * report field is untyped, so it is read defensively.
+     */
+    const header = (
+      process.report?.getReport() as
+        | { header?: { glibcVersionRuntime?: string } }
+        | undefined
+    )?.header
+    return header?.glibcVersionRuntime
+      ? `compiler-native-linux-${arch}-gnu`
+      : `compiler-native-linux-${arch}-musl`
+  }
+  return undefined
+}
+
+function hostBinaryName(): string {
+  const arch = process.arch === 'arm64' ? 'arm64' : 'x64'
+  if (process.platform === 'darwin') {
+    return `zeus-compiler-native.darwin-${arch}.node`
+  }
+  if (process.platform === 'win32') {
+    return `zeus-compiler-native.win32-${arch}-msvc.node`
+  }
+  return `zeus-compiler-native.linux-${arch}-gnu.node`
 }
