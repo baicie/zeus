@@ -45,6 +45,24 @@ afterEach(() => {
  * supposed to describe the tree as it is; a test that pins the version is
  * pinning the thing under test.
  */
+/**
+ * The channel rule, written out independently of the implementation.
+ *
+ * Deliberately a literal table rather than `distTagForVersion` calls: a test
+ * that computes its expectation with the function under test proves only that
+ * the function agrees with itself. These rows are what the release actually
+ * needs to be true — `rc` for an RC, `canary` for a canary, `latest` for a
+ * stable version — and the assertions below compare the implementation to
+ * them.
+ */
+const CHANNEL_TABLE: ReadonlyArray<{ version: string; distTag: string }> = [
+  { version: '0.2.0-rc.1', distTag: 'rc' },
+  { version: '0.2.0-canary.20261118.12345.1.abc12345', distTag: 'canary' },
+  { version: '0.2.0-beta.1', distTag: 'beta' },
+  { version: '0.2.0-alpha.1', distTag: 'alpha' },
+  { version: '0.2.0', distTag: 'latest' },
+]
+
 const TREE_VERSION = (
   JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as {
     version: string
@@ -107,14 +125,82 @@ describe('the real publish set', () => {
     expect(manifest.counts.independent).toBe(1)
   })
 
-  it('carries the RC dist-tag for every publishable package', () => {
+  /*
+   * Every publishable package must carry the dist-tag this version's channel
+   * implies — not `'rc'`.
+   *
+   * This assertion used to read `toBe('rc')`, which was true for the tree it
+   * was written against and false the moment the same tree was rewritten for a
+   * canary run. Release Canary rewrites every manifest to
+   * `0.2.0-canary.<date>.<run>.<attempt>.<sha>`, runs `release:precheck`
+   * (which runs this suite), and the production code correctly returned
+   * `canary` — the test failed on a correct answer.
+   *
+   * The expectation is still exact, not loosened: the manifest's tag must
+   * equal the tag the channel rule derives, and that mapping has its own
+   * fixed table below so a wrong implementation cannot pass by agreeing with
+   * itself.
+   */
+  it('carries the dist-tag this version channel implies', () => {
     const manifest = manifestAt()
+    const expected = CHANNEL_TABLE.find(
+      row => row.distTag === distTagForVersion(TREE_VERSION),
+    )
+    /*
+     * The tree's version must be one the channel rule recognises. A version
+     * whose channel has no table row means the rule invented a tag nobody
+     * validated, and that is a failure rather than a pass by default.
+     */
+    expect(
+      expected,
+      `${TREE_VERSION} produced a dist-tag with no channel-table entry`,
+    ).toBeDefined()
+
     for (const entry of manifest.packages) {
       if (!entry.publishable) continue
-      expect(entry.expectedDistTag).toBe('rc')
+      expect(entry.expectedDistTag).toBe(expected!.distTag)
       expect(entry.version).toBe(TREE_VERSION)
       expect(entry.private).toBe(false)
     }
+  })
+
+  /*
+   * The canary shape specifically, without rewriting the tree.
+   *
+   * Release Canary's whole failure mode was "works for rc, not for canary",
+   * so the manifest is built for a canary version string directly. The paths
+   * point at the real workspace, so this exercises the real discovery code
+   * with a version the tree does not currently carry — which is exactly the
+   * state the canary run is in.
+   */
+  it('accepts a canary version and tags it canary', () => {
+    const canary = '0.2.0-canary.20261118.12345.1.abc12345'
+    /*
+     * `buildPublishManifest` reports a version mismatch as a problem, so this
+     * asserts that the canary version is treated as a *different version*
+     * rather than as a malformed one: the shape is valid, the packages simply
+     * are not at it yet.
+     */
+    const manifest = buildPublishManifest({
+      root,
+      version: canary,
+      distTag: distTagForVersion(canary),
+    })
+    expect(manifest.distTag).toBe('canary')
+    for (const entry of manifest.packages) {
+      if (entry.independentVersionLine) continue
+      expect(entry.expectedDistTag).toBe('canary')
+    }
+    /*
+     * The tree is not at the canary version, so every package is a version
+     * mismatch — and therefore nothing is publishable. That is the honest
+     * answer here: this asserts the *shape* is accepted and the channel is
+     * right, not that a tree at rc.1 could be published as a canary.
+     */
+    expect(manifest.counts.publishable).toBe(0)
+    expect(manifest.problems.length).toBe(
+      manifest.counts.total - manifest.counts.independent,
+    )
   })
 
   it('names a real path for every entry', () => {
@@ -276,10 +362,20 @@ describe('refusals', () => {
 })
 
 describe('dist-tag derivation', () => {
-  it('maps the version line to the tag the release channel rule expects', () => {
-    expect(distTagForVersion('0.2.0-rc.0')).toBe('rc')
-    expect(distTagForVersion('0.2.0-beta.3')).toBe('beta')
-    expect(distTagForVersion('0.2.0-alpha.1')).toBe('alpha')
-    expect(distTagForVersion('0.2.0')).toBe('latest')
+  /*
+   * Every row of the fixed table, including canary. The previous version of
+   * this test omitted canary entirely, which is how the rc-only assumption in
+   * the manifest test went unnoticed until a canary run rewrote the tree.
+   */
+  it.each(CHANNEL_TABLE)(
+    'maps $version to $distTag',
+    ({ version, distTag }) => {
+      expect(distTagForVersion(version)).toBe(distTag)
+    },
+  )
+
+  it('falls back to latest only for a version with no prerelease part', () => {
+    expect(distTagForVersion('1.0.0')).toBe('latest')
+    expect(distTagForVersion('0.2.0-rc.9')).toBe('rc')
   })
 })
