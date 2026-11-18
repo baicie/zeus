@@ -44,12 +44,63 @@ export type LatestTagAction =
       readonly reason: string
     }
 
+/**
+ * What a read of `latest` actually established.
+ *
+ * `undefined` for "not there" conflated three different facts, and the repair
+ * treated a failed query as a successful removal — a registry outage would
+ * report the tag repaired while it still pointed at the prerelease. The
+ * distinction has to survive into the read-back, so it is a type rather than a
+ * comment.
+ */
+export type LatestRead =
+  /** The tag exists and points here. */
+  | { readonly status: 'PRESENT'; readonly version: string }
+  /** The registry answered and the tag is not there. */
+  | { readonly status: 'ABSENT' }
+  /** The registry did not answer, so nothing was established. */
+  | { readonly status: 'QUERY_FAILED'; readonly error: string }
+
 export interface RegistryClient {
   whoami(): string
   setTag(name: string, version: string, tag: string): void
   removeTag(name: string, tag: string): void
-  /** What `latest` points at now, or undefined when the tag is absent. */
-  readLatest(name: string): string | undefined
+  /** What `latest` points at now. Never conflates "absent" with "unreadable". */
+  readLatest(name: string): LatestRead
+}
+
+/**
+ * Whether a read-back proves the requested change.
+ *
+ * A removal is verified only by `ABSENT`; a set only by `PRESENT` at the exact
+ * version. `QUERY_FAILED` proves nothing in either direction, which is the
+ * whole reason this function exists.
+ */
+export function changeVerified(
+  action: 'set' | 'remove',
+  read: LatestRead,
+  version?: string,
+): boolean {
+  if (action === 'remove') return read.status === 'ABSENT'
+  return read.status === 'PRESENT' && read.version === version
+}
+
+/**
+ * Whether an npm failure means "the registry answered, the tag is not there".
+ *
+ * Deliberately narrow. The npm client reports a missing dist-tag as `E404`
+ * with "no dist-tags", and a missing package as `E404` too — both are answers
+ * from the registry. A timeout, a DNS failure, a refused connection, a 429 or a
+ * 5xx is not, and must not be read as absence by this or any caller.
+ *
+ * An error that matches nothing here is treated as unreadable, because a
+ * classifier that guesses in the permissive direction turns every novel
+ * network error into a successful repair.
+ */
+export function looksAbsent(message: string): boolean {
+  return /E404|404 Not Found|no dist-tags|is not in the npm registry/i.test(
+    message,
+  )
 }
 
 export function stableVersions(versions: readonly string[]): string[] {
@@ -137,28 +188,42 @@ export function applyLatestTagRepair(
        *
        * So the tag is read back, and the result says what it actually is.
        */
-      let observedLatest: string | undefined
-      try {
-        observedLatest = client.readLatest(action.name)
-      } catch {
-        /* A failed read is reported by the caller as unverified, not a pass. */
+      let observed: LatestRead = {
+        status: 'QUERY_FAILED',
+        error: 'not read',
       }
-      const repaired =
-        action.kind === 'set'
-          ? observedLatest === action.version
-          : observedLatest === undefined
+      try {
+        observed = client.readLatest(action.name)
+      } catch (error) {
+        observed = {
+          status: 'QUERY_FAILED',
+          error: error instanceof Error ? error.message : String(error),
+        }
+      }
+      const repaired = changeVerified(
+        action.kind,
+        observed,
+        action.kind === 'set' ? action.version : undefined,
+      )
       results.push({
         name: action.name,
         action: action.kind,
         ok: repaired,
-        ...(observedLatest !== undefined ? { observedLatest } : {}),
+        ...(observed.status === 'PRESENT'
+          ? { observedLatest: observed.version }
+          : {}),
+        ...(observed.status === 'QUERY_FAILED'
+          ? { queryError: observed.error }
+          : {}),
         ...(repaired
           ? {}
           : {
               error:
-                observedLatest === undefined
-                  ? 'could not read latest back after the change'
-                  : `the command reported success but latest still points at ${observedLatest}`,
+                observed.status === 'QUERY_FAILED'
+                  ? `could not read latest back after the change: ${observed.error}`
+                  : observed.status === 'PRESENT'
+                    ? `the command reported success but latest still points at ${observed.version}`
+                    : 'the command reported success but latest is absent',
             }),
       })
     } catch (error) {
@@ -234,17 +299,55 @@ function createNpmClient(registry: string): RegistryClient {
       )
     },
     readLatest: name => {
+      /*
+       * Three outcomes, and the catch does not collapse two of them.
+       *
+       * `npm view dist-tags.latest` exits non-zero both when the tag is absent
+       * and when the registry is unreachable, so the exit code alone cannot
+       * tell them apart. The error text is what distinguishes them:
+       *
+       * - `E404` / "no dist-tags" — the registry answered, the tag is not
+       *   there. That is `ABSENT` and it is a real answer.
+       * - `ETIMEDOUT`, `EAI_AGAIN`, `ECONNREFUSED`, 429, 5xx — no answer.
+       *   `QUERY_FAILED`, never `ABSENT`.
+       *
+       * Anything unrecognised is also `QUERY_FAILED`: an error nobody
+       * classified is not evidence that a tag was removed.
+       */
+      let raw: string
       try {
-        const raw = execFileSync(
+        raw = execFileSync(
           'npm',
           ['view', name, 'dist-tags.latest', '--json', '--registry', registry],
           { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
         ).trim()
-        if (!raw) return undefined
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        return looksAbsent(message)
+          ? { status: 'ABSENT' }
+          : { status: 'QUERY_FAILED', error: message }
+      }
+      if (!raw) {
+        /*
+         * Empty output with exit 0. `npm view` prints nothing for a missing
+         * field, which for `dist-tags.latest` means the tag is not set.
+         */
+        return { status: 'ABSENT' }
+      }
+      try {
         const parsed: unknown = JSON.parse(raw)
-        return typeof parsed === 'string' ? parsed : undefined
+        if (typeof parsed !== 'string') {
+          return {
+            status: 'QUERY_FAILED',
+            error: `dist-tags.latest is not a string: ${raw.slice(0, 80)}`,
+          }
+        }
+        return { status: 'PRESENT', version: parsed }
       } catch {
-        return undefined
+        return {
+          status: 'QUERY_FAILED',
+          error: `dist-tags.latest is not JSON: ${raw.slice(0, 80)}`,
+        }
       }
     },
   }
