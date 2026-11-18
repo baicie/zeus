@@ -1,0 +1,21 @@
+{
+  "schema": "zeus.release-pairing/v1",
+  "coreVersion": "0.2.0-rc.3",
+  "uiCommit": null,
+  "uiVersion": "0.2.0-rc.3",
+  "verifiedAt": "2026-11-18T14:00:00.000Z",
+  "bootstrap": true,
+  "firstPublish": [
+    "@zeus-js/i18n",
+    "@zeus-js/eslint-plugin",
+    "@zeus-js/playground-engine"
+  ],
+  "recovery": {
+    "failedVersion": "0.2.0-rc.2",
+    "failedTagCommit": "5acab32ccb88c52e5726297c4c1099cf6be70f0b",
+    "failedRunId": "44304328576",
+    "failedRunTagCommit": "5acab32ccb88c52e5726297c4c1099cf6be70f0b",
+    "failedRunReachedPublish": false,
+    "note": "Release precheck passed, then Authorise the release refused because readFailedRun counted skipped steps as run: GitHub reports a skipped step as status=completed + conclusion=skipped, and only status was tested. Fixed in f66d223b. Build and publish is skipped; no rc.2 package was published. failedRunId is a string because readRecoveryClaim drops the whole block when it is not."
+  }
+}
