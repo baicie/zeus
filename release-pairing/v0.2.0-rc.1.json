@@ -1,0 +1,21 @@
+{
+  "schema": "zeus.release-pairing/v1",
+  "coreVersion": "0.2.0-rc.1",
+  "uiCommit": null,
+  "uiVersion": "0.2.0-rc.1",
+  "verifiedAt": "2026-11-18T10:00:00.000Z",
+  "bootstrap": true,
+  "firstPublish": [
+    "@zeus-js/i18n",
+    "@zeus-js/eslint-plugin",
+    "@zeus-js/playground-engine"
+  ],
+  "recovery": {
+    "failedVersion": "0.2.0-rc.0",
+    "failedTagCommit": "a2cc74d08b4f80582b5969f27340f0ca5cb94361",
+    "failedRunId": "44218605332",
+    "failedRunTagCommit": "a2cc74d08b4f80582b5969f27340f0ca5cb94361",
+    "failedRunReachedPublish": false,
+    "note": "Release precheck failed at pnpm audit:prod; Build and publish never ran"
+  }
+}

@@ -18,6 +18,12 @@ import path from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
+import {
+  readFailedRun,
+  readRecoveryClaim,
+  readRemoteTagCommit,
+} from '../authorize-release'
+
 const root = path.resolve(import.meta.dirname, '../../..')
 const CLI = path.join(root, 'scripts/release/authorize-release.ts')
 const TSX = path.join(root, 'node_modules/.bin/tsx')
@@ -412,4 +418,139 @@ describe('the CLI with the real arguments', () => {
     expect(distTagFinding(result)?.verdict).toBe('REFUSED')
     expect(result.stdout).toMatch(/no --pairing-record was passed/)
   }, 180_000)
+})
+
+/*
+ * Recovery evidence, read from GitHub rather than from the record.
+ *
+ * The record says which failed version and run to check. Whether that run
+ * really stopped before publishing is the claim the whole recovery path rests
+ * on, so it is answered by the API. A record can ask for a recovery; it cannot
+ * certify one.
+ */
+describe('recovery evidence', () => {
+  function ghReturning(responses: Record<string, unknown>) {
+    return (args: readonly string[]): string => {
+      const key = args.find(arg => arg.startsWith('repos/')) ?? ''
+      for (const [pattern, value] of Object.entries(responses)) {
+        if (key.includes(pattern)) return JSON.stringify(value)
+      }
+      throw new Error(`unexpected gh call: ${args.join(' ')}`)
+    }
+  }
+
+  it('reads the tag commit and whether the run reached a publish step', () => {
+    const gh = ghReturning({
+      'git/ref/tags/v0.2.0-rc.0': {
+        object: { type: 'commit', sha: 'a'.repeat(40) },
+      },
+      'actions/runs/44218605332/jobs': {
+        jobs: [
+          {
+            steps: [
+              { name: 'Checkout', status: 'completed' },
+              { name: 'Release precheck', status: 'completed' },
+              { name: 'Build and publish', status: 'skipped' },
+            ],
+          },
+        ],
+      },
+      'actions/runs/44218605332': { head_sha: 'a'.repeat(40) },
+    })
+
+    expect(readRemoteTagCommit('baicie/zeus', 'v0.2.0-rc.0', gh)).toBe(
+      'a'.repeat(40),
+    )
+    expect(readFailedRun('baicie/zeus', '44218605332', gh)).toEqual({
+      tagCommit: 'a'.repeat(40),
+      reachedPublish: false,
+    })
+  })
+
+  /*
+   * A skipped publish step did not publish. The distinction matters because
+   * the release that this recovery path was built for failed in precheck and
+   * left `Build and publish` as `skipped`.
+   */
+  it('treats a skipped publish step as not reached', () => {
+    const gh = ghReturning({
+      'actions/runs/1/jobs': {
+        jobs: [{ steps: [{ name: 'Build and publish', status: 'skipped' }] }],
+      },
+      'actions/runs/1': { head_sha: 'b'.repeat(40) },
+    })
+    expect(readFailedRun('baicie/zeus', '1', gh)?.reachedPublish).toBe(false)
+  })
+
+  it('treats a started publish step as reached', () => {
+    const gh = ghReturning({
+      'actions/runs/2/jobs': {
+        jobs: [{ steps: [{ name: 'Build and publish', status: 'failure' }] }],
+      },
+      'actions/runs/2': { head_sha: 'c'.repeat(40) },
+    })
+    expect(readFailedRun('baicie/zeus', '2', gh)?.reachedPublish).toBe(true)
+  })
+
+  it('returns undefined when the run cannot be read', () => {
+    const gh = (): string => {
+      throw new Error('404')
+    }
+    expect(readFailedRun('baicie/zeus', '3', gh)).toBeUndefined()
+    expect(
+      readRemoteTagCommit('baicie/zeus', 'v0.2.0-rc.0', gh),
+    ).toBeUndefined()
+  })
+
+  it('dereferences an annotated tag to its commit', () => {
+    const gh = ghReturning({
+      'git/ref/tags/v0.2.0-rc.0': {
+        object: { type: 'tag', sha: 'e'.repeat(40) },
+      },
+      'git/tags/eeee': { object: { type: 'commit', sha: 'f'.repeat(40) } },
+    })
+    expect(readRemoteTagCommit('baicie/zeus', 'v0.2.0-rc.0', gh)).toBe(
+      'f'.repeat(40),
+    )
+  })
+
+  it('reads the recovery claim from a record, and nothing more', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zeus-recovery-'))
+    work.push(dir)
+    const file = path.join(dir, 'record.json')
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        schema: 'zeus.release-pairing/v1',
+        recovery: {
+          failedVersion: '0.2.0-rc.0',
+          failedRunId: '44218605332',
+          failedTagCommit: 'a'.repeat(40),
+          failedRunReachedPublish: true,
+        },
+      }),
+    )
+    const claim = readRecoveryClaim(file)
+    /*
+     * `failedRunReachedPublish` is in the file and is **not** returned: it is
+     * the one field an attacker would flip, so it is read from GitHub instead.
+     */
+    expect(claim).toEqual({
+      failedVersion: '0.2.0-rc.0',
+      failedRunId: '44218605332',
+      failedTagCommit: 'a'.repeat(40),
+    })
+  })
+
+  it('returns undefined for a record with no recovery block', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zeus-recovery-'))
+    work.push(dir)
+    const file = path.join(dir, 'record.json')
+    fs.writeFileSync(
+      file,
+      JSON.stringify({ schema: 'zeus.release-pairing/v1' }),
+    )
+    expect(readRecoveryClaim(file)).toBeUndefined()
+    expect(readRecoveryClaim(undefined)).toBeUndefined()
+  })
 })

@@ -26,7 +26,10 @@ import process from 'node:process'
 import { parseArgs } from 'node:util'
 
 import { zeusFixedPackages } from '../release.config'
-import { evaluateBootstrapEligibility } from './bootstrap-eligibility'
+import {
+  evaluateBootstrapEligibility,
+  type RecoveryEvidence,
+} from './bootstrap-eligibility'
 import {
   findSupportingRuns,
   isAncestorOfMain,
@@ -267,6 +270,139 @@ export function attestationExists(
   root = process.cwd(),
 ): boolean {
   return fs.existsSync(path.join(root, attestationFile(version)))
+}
+
+/**
+ * Reads the `recovery` block from a pairing record, if present.
+ *
+ * Only the identifying fields. Everything the verdict depends on — that the tag
+ * exists at that commit, that the run started from it, that the run stopped
+ * before publishing — is established from GitHub below, never from the file.
+ * A record can claim a recovery; it cannot prove one.
+ */
+export function readRecoveryClaim(
+  pairingRecord: string | undefined,
+):
+  | { failedVersion: string; failedRunId: string; failedTagCommit: string }
+  | undefined {
+  if (pairingRecord === undefined || !fs.existsSync(pairingRecord)) {
+    return undefined
+  }
+  try {
+    const parsed = JSON.parse(fs.readFileSync(pairingRecord, 'utf8')) as {
+      recovery?: {
+        failedVersion?: unknown
+        failedRunId?: unknown
+        failedTagCommit?: unknown
+      }
+    }
+    const recovery = parsed.recovery
+    if (
+      recovery === undefined ||
+      typeof recovery.failedVersion !== 'string' ||
+      typeof recovery.failedRunId !== 'string' ||
+      typeof recovery.failedTagCommit !== 'string'
+    ) {
+      return undefined
+    }
+    return {
+      failedVersion: recovery.failedVersion,
+      failedRunId: recovery.failedRunId,
+      failedTagCommit: recovery.failedTagCommit,
+    }
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * What the failed run actually did, read from GitHub.
+ *
+ * The two questions that matter:
+ *
+ * - did it start from the commit the failed tag points at?
+ * - did it reach any step before the first publish?
+ *
+ * Both are answered from the jobs API rather than from the record, because the
+ * claim "this failed before publishing" is exactly what an attacker would
+ * assert to get an unpaired release.
+ */
+export interface FailedRunEvidence {
+  /** The SHA the run started from. */
+  readonly tagCommit: string
+  /** Whether any publish step ran to completion or started at all. */
+  readonly reachedPublish: boolean
+}
+
+export function readFailedRun(
+  repository: string,
+  runId: string,
+  gh: (args: readonly string[]) => string,
+): FailedRunEvidence | undefined {
+  try {
+    const run = JSON.parse(
+      gh(['api', `repos/${repository}/actions/runs/${runId}`]),
+    ) as { head_sha?: string; conclusion?: string }
+    if (typeof run.head_sha !== 'string') return undefined
+
+    const jobs = JSON.parse(
+      gh([
+        'api',
+        `repos/${repository}/actions/runs/${runId}/jobs?per_page=100`,
+      ]),
+    ) as { jobs?: Array<{ steps?: Array<{ name?: string; status?: string }> }> }
+
+    /*
+     * Any step whose name mentions publishing counts, and so does any step
+     * that started. A step that was skipped did not publish; a step that ran
+     * at all might have, and "might have" is a refusal.
+     */
+    let reachedPublish = false
+    for (const job of jobs.jobs ?? []) {
+      for (const step of job.steps ?? []) {
+        if (step.status === 'skipped' || step.status === undefined) continue
+        const name = step.name ?? ''
+        if (/publish/i.test(name)) {
+          reachedPublish = true
+          break
+        }
+      }
+      if (reachedPublish) break
+    }
+
+    return { tagCommit: run.head_sha, reachedPublish }
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * The commit a tag resolves to on the remote, dereferencing an annotated tag.
+ *
+ * Duplicated from `check-release-pairing.ts` rather than imported: that module
+ * is a CLI entry point, and importing it would run its argument parsing.
+ */
+export function readRemoteTagCommit(
+  repository: string,
+  tag: string,
+  gh: (args: readonly string[]) => string,
+): string | undefined {
+  try {
+    const ref = JSON.parse(
+      gh(['api', `repos/${repository}/git/ref/tags/${tag}`]),
+    ) as { object?: { type?: string; sha?: string } }
+    const object = ref.object
+    if (!object || typeof object.sha !== 'string') return undefined
+    if (object.type === 'commit') return object.sha
+    const tagObject = JSON.parse(
+      gh(['api', `repos/${repository}/git/tags/${object.sha}`]),
+    ) as { object?: { type?: string; sha?: string } }
+    return tagObject.object?.type === 'commit'
+      ? tagObject.object.sha
+      : undefined
+  } catch {
+    return undefined
+  }
 }
 
 /**
@@ -531,16 +667,85 @@ async function main(): Promise<void> {
   const bootstrapRequested = values.bootstrap === true
   let bootstrapFindings: readonly AuthorizationFinding[] | undefined
   let bootstrapEligible: boolean | undefined
-  if (bootstrapRequested) {
-    const publishedVersions = registry.reachable
+
+  /*
+   * Every version of the root package, needed by both the bootstrap check and
+   * the recovery evidence. Queried once: two queries could answer differently
+   * and the recovery would be judged against a different snapshot than the
+   * bootstrap.
+   */
+  const publishedVersions =
+    bootstrapRequested && registry.reachable
       ? await readPublishedVersionsOfPackage(values.version)
       : undefined
+
+  /*
+   * Recovery evidence, assembled from GitHub rather than from the record.
+   *
+   * The record says *which* failed version and run to check; the facts below
+   * are read from the API. A record that claims a recovery the API contradicts
+   * produces `undefined`, and the eligibility policy then refuses because it
+   * cannot establish the premise.
+   */
+  let recoveryEvidence: RecoveryEvidence | undefined
+  const releaseVersion = values.version
+  if (bootstrapRequested && releaseVersion !== undefined) {
+    const claim = readRecoveryClaim(values['pairing-record'])
+    if (claim !== undefined) {
+      const gh = (args: readonly string[]): string =>
+        execFileSync('gh', args, {
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'pipe'],
+          timeout: 30_000,
+        }) as string
+      const failedTagCommit = readRemoteTagCommit(
+        values.repository,
+        `v${claim.failedVersion}`,
+        gh,
+      )
+      const run = readFailedRun(values.repository, claim.failedRunId, gh)
+      if (failedTagCommit !== undefined && run !== undefined) {
+        const failedPublished = await readPublishedVersionsOfPackage(
+          claim.failedVersion,
+        )
+        recoveryEvidence = {
+          failedVersion: claim.failedVersion,
+          failedTagCommit,
+          failedRunId: claim.failedRunId,
+          failedRunTagCommit: run.tagCommit,
+          failedRunReachedPublish: run.reachedPublish,
+          /*
+           * `undefined` from the query means the registry could not be asked.
+           * Treating that as "not published" is the permissive direction, so
+           * the policy refuses on an undefined `publishedVersions` instead.
+           */
+          failedVersionPublished:
+            failedPublished === undefined
+              ? true
+              : failedPublished.includes(claim.failedVersion),
+          recoveryVersionPublished:
+            registry.collisions.includes(releaseVersion),
+          otherPublishedRcs: (publishedVersions ?? []).filter(
+            (candidate: string) =>
+              candidate !== releaseVersion &&
+              candidate.startsWith(
+                `${releaseVersion.replace(/-rc\.\d+$/, '')}-`,
+              ),
+          ),
+          failedVersionPaired: attestationExists(claim.failedVersion),
+        }
+      }
+    }
+  }
+
+  if (bootstrapRequested) {
     const eligibility = evaluateBootstrapEligibility({
       version: values.version,
       declared: true,
       ...(publishedVersions === undefined ? {} : { publishedVersions }),
       existingAttestation: attestationExists(values.version),
       existingPairInTree: inTreePairNamesUiCommit(values['pairing-record']),
+      ...(recoveryEvidence === undefined ? {} : { recovery: recoveryEvidence }),
     })
     bootstrapEligible = eligibility.eligible
     bootstrapFindings = eligibility.findings
