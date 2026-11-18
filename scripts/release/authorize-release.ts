@@ -350,17 +350,43 @@ export function readFailedRun(
         'api',
         `repos/${repository}/actions/runs/${runId}/jobs?per_page=100`,
       ]),
-    ) as { jobs?: Array<{ steps?: Array<{ name?: string; status?: string }> }> }
+    ) as {
+      jobs?: Array<{
+        steps?: Array<{
+          name?: string
+          status?: string
+          conclusion?: string
+        }>
+      }>
+    }
 
     /*
      * Any step whose name mentions publishing counts, and so does any step
      * that started. A step that was skipped did not publish; a step that ran
      * at all might have, and "might have" is a refusal.
+     *
+     * `status` is not how a skipped step is reported. GitHub marks a step
+     * whose `if:` was false as `status: "completed"` with
+     * `conclusion: "skipped"` — so testing `status === 'skipped'` matched
+     * nothing. Every not-yet-run publish step in v0.2.0-rc.1's run
+     * (44263303787) was therefore counted as having run, and the recovery of
+     * rc.1 was refused as "a partially published version" when `Build and
+     * publish` never executed and nothing was published.
+     *
+     * Both fields are checked: a step is skipped if either says so, and the
+     * conclusion is the one that carries the answer. Erring toward "it ran"
+     * is the safe direction, so anything unrecognised still counts as reached.
      */
     let reachedPublish = false
     for (const job of jobs.jobs ?? []) {
       for (const step of job.steps ?? []) {
-        if (step.status === 'skipped' || step.status === undefined) continue
+        if (
+          step.status === 'skipped' ||
+          step.conclusion === 'skipped' ||
+          step.status === undefined
+        ) {
+          continue
+        }
         const name = step.name ?? ''
         if (/publish/i.test(name)) {
           reachedPublish = true

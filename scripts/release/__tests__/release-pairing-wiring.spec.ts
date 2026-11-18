@@ -492,6 +492,104 @@ describe('recovery evidence', () => {
     expect(readFailedRun('baicie/zeus', '2', gh)?.reachedPublish).toBe(true)
   })
 
+  /*
+   * The shape GitHub actually returns for a step whose `if:` was false.
+   *
+   * `status` is `completed` and `conclusion` is `skipped` — there is no
+   * `status: "skipped"` for a step that never ran. Every fixture above used
+   * the shape that does not occur, so the guard against
+   * `status === 'skipped'` never fired in production: rc.1's three
+   * never-executed publish steps were counted as reached and the release was
+   * refused as "partially published" while nothing had been published.
+   */
+  it('treats completed+skipped publish steps as not reached', () => {
+    const gh = ghReturning({
+      'actions/runs/44263303787/jobs': {
+        jobs: [
+          {
+            name: 'release',
+            steps: [
+              {
+                name: 'Release precheck',
+                status: 'completed',
+                conclusion: 'failure',
+              },
+              {
+                name: 'Build and publish',
+                status: 'completed',
+                conclusion: 'skipped',
+              },
+              {
+                name: 'Verify published create-zeus scaffold',
+                status: 'completed',
+                conclusion: 'skipped',
+              },
+              {
+                name: 'Check npm latest after publishing',
+                status: 'completed',
+                conclusion: 'skipped',
+              },
+            ],
+          },
+        ],
+      },
+      'actions/runs/44263303787': { head_sha: 'd'.repeat(40) },
+    })
+    expect(readFailedRun('baicie/zeus', '44263303787', gh)).toEqual({
+      tagCommit: 'd'.repeat(40),
+      reachedPublish: false,
+    })
+  })
+
+  /*
+   * The safe direction: a publish step that ran and failed still counts.
+   * Reading `conclusion` must not turn a real attempt into "never ran".
+   */
+  it('still counts a publish step that ran and failed', () => {
+    const gh = ghReturning({
+      'actions/runs/4/jobs': {
+        jobs: [
+          {
+            steps: [
+              {
+                name: 'Build and publish',
+                status: 'completed',
+                conclusion: 'failure',
+              },
+            ],
+          },
+        ],
+      },
+      'actions/runs/4': { head_sha: 'e'.repeat(40) },
+    })
+    expect(readFailedRun('baicie/zeus', '4', gh)?.reachedPublish).toBe(true)
+  })
+
+  /*
+   * Cancelled counts as reached. A cancelled publish may have pushed some
+   * packages before it stopped, so it is the "might have" case the rule
+   * refuses on.
+   */
+  it('counts a cancelled publish step as reached', () => {
+    const gh = ghReturning({
+      'actions/runs/5/jobs': {
+        jobs: [
+          {
+            steps: [
+              {
+                name: 'Build and publish',
+                status: 'completed',
+                conclusion: 'cancelled',
+              },
+            ],
+          },
+        ],
+      },
+      'actions/runs/5': { head_sha: 'f'.repeat(40) },
+    })
+    expect(readFailedRun('baicie/zeus', '5', gh)?.reachedPublish).toBe(true)
+  })
+
   it('returns undefined when the run cannot be read', () => {
     const gh = (): string => {
       throw new Error('404')
