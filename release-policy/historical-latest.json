@@ -1,0 +1,109 @@
+{
+  "schema": "zeus.historical-latest/v1",
+  "policyVersion": "zeus.latest-policy/v2",
+  "acceptedAt": "2026-11-18T00:00:00.000Z",
+  "approvedBy": "maintainer:baicie",
+  "decisionReference": {
+    "document": "docs/release-process.md",
+    "section": "5.4 Native `latest` 异常修复",
+    "decidedOn": "2026-10-24",
+    "quote": "历史 native `latest` 的精确删除此前由 npm 返回 E403；用户于 2026-10-24 决定放弃这项清理，不再将它作为后续 `0.2.0` 等版本发布的前置条件，也不自动重试删除。",
+    "supporting": ["docs/internal/architecture-roadmap-2026-10.md:394"]
+  },
+  "registry": "https://registry.npmjs.org",
+  "observedAt": "2026-11-18T00:00:00.000Z",
+  "evidence": {
+    "repairRuns": [
+      "39048806869",
+      "39236355352",
+      "39363351657",
+      "39535665906",
+      "39884107912"
+    ],
+    "repairFailure": "npm error code E403 / 403 Forbidden - DELETE https://registry.npmjs.org/-/package/@zeus-js%2fcompiler-native/dist-tags/latest",
+    "explanation": "Authentication and package ACL succeeded (baicie2, 29 published packages with read-write access) before every DELETE was refused. The same token succeeds for dist-tag add (PUT). This is a platform-side restriction on the delete operation, not a configuration error in this repository."
+  },
+  "scope": "Limited to the exact package/version pairs below. Adding a package, changing a version, or re-observing the registry must never widen this list automatically.",
+  "risk": "These 13 packages resolve an unversioned install to an old canary. Consumers who need a stable or current version must pin explicitly. The state predates every 0.2.0 release and is unrelated to whether a given release published correctly.",
+  "exitStrategy": "Each entry leaves the baseline when its `latest` is repaired by a mechanism that permits deletion, or when a stable version supersedes it. Because `latest` cannot be deleted with the current credential, the durable exit is a stable release whose `latest` is advanced normally. An entry whose observed value no longer matches is refused from that moment on; the baseline is never silently re-pointed.",
+  "packages": [
+    {
+      "name": "@zeus-js/compiler-native",
+      "latest": "0.1.1-canary.20260812.106.1.658fe407",
+      "firstObserved": "2026-08-12",
+      "group": "native"
+    },
+    {
+      "name": "@zeus-js/compiler-native-darwin-arm64",
+      "latest": "0.1.1-canary.20260812.106.1.658fe407",
+      "firstObserved": "2026-08-12",
+      "group": "native"
+    },
+    {
+      "name": "@zeus-js/compiler-native-darwin-x64",
+      "latest": "0.1.1-canary.20260812.106.1.658fe407",
+      "firstObserved": "2026-08-12",
+      "group": "native"
+    },
+    {
+      "name": "@zeus-js/compiler-native-linux-arm64-gnu",
+      "latest": "0.1.1-canary.20260812.106.1.658fe407",
+      "firstObserved": "2026-08-12",
+      "group": "native"
+    },
+    {
+      "name": "@zeus-js/compiler-native-linux-x64-gnu",
+      "latest": "0.1.1-canary.20260812.106.1.658fe407",
+      "firstObserved": "2026-08-12",
+      "group": "native"
+    },
+    {
+      "name": "@zeus-js/compiler-native-linux-x64-musl",
+      "latest": "0.1.1-canary.20260812.106.1.658fe407",
+      "firstObserved": "2026-08-12",
+      "group": "native"
+    },
+    {
+      "name": "@zeus-js/compiler-native-win32-arm64-msvc",
+      "latest": "0.1.1-canary.20260812.106.1.658fe407",
+      "firstObserved": "2026-08-12",
+      "group": "native"
+    },
+    {
+      "name": "@zeus-js/compiler-native-win32-x64-msvc",
+      "latest": "0.1.1-canary.20260812.106.1.658fe407",
+      "firstObserved": "2026-08-12",
+      "group": "native"
+    },
+    {
+      "name": "@zeus-js/runtime-ssr",
+      "latest": "0.1.0-canary.20260805.97.1.fa5d9cef",
+      "firstObserved": "2026-08-05",
+      "group": "runtime"
+    },
+    {
+      "name": "@zeus-js/router",
+      "latest": "0.1.1-canary.20261020.188.1.02f2975b",
+      "firstObserved": "2026-10-20",
+      "group": "runtime"
+    },
+    {
+      "name": "@zeus-js/resource",
+      "latest": "0.1.1-canary.20261020.188.1.02f2975b",
+      "firstObserved": "2026-10-20",
+      "group": "runtime"
+    },
+    {
+      "name": "@zeus-js/query",
+      "latest": "0.1.1-canary.20261020.188.1.02f2975b",
+      "firstObserved": "2026-10-20",
+      "group": "runtime"
+    },
+    {
+      "name": "@zeus-js/testing",
+      "latest": "0.1.1-canary.20261020.188.1.02f2975b",
+      "firstObserved": "2026-10-20",
+      "group": "runtime"
+    }
+  ]
+}

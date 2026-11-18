@@ -272,9 +272,20 @@ describe('release workflows', () => {
      * the command spans lines. Asserting the old single-line form would pin the
      * shape of the YAML rather than the facts the step needs.
      */
-    expect(workflow).toMatch(/pnpm check:latest-tags\s*\n?\s*--version/)
+    expect(workflow).toMatch(
+      /pnpm check:latest-tags\s*\n?\s*--phase post-publish/,
+    )
+    expect(workflow).toContain('--version')
     expect(workflow).toContain('--pairing-record')
     expect(workflow).toContain('--policy-out')
+    /*
+     * The post-publish phase verifies the precheck snapshot came from this
+     * run, so it cannot be run without the bindings that check needs.
+     */
+    expect(workflow).toContain(
+      '--snapshot temp/release/latest-precheck-snapshot.json',
+    )
+    expect(workflow).toContain('--run-id "$GITHUB_RUN_ID"')
   })
 
   it('collects cross-platform evidence from real CI job metadata', () => {

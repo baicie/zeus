@@ -537,6 +537,31 @@ dist-tag。历史 native `latest` 的精确删除此前由 npm 返回 E403；用
 正式发布和 Canary 仍必须验证本次版本、目标 dist-tag、provenance 与 compiler registry
 smoke；stable 发布会正常推进并核验 `latest`，因此历史 tag 不能替代本次发布结果。
 
+#### 5.4.1 已批准的历史偏差基线
+
+上面那个决定由 `release-policy/historical-latest.json` 承载。它记录 13 条精确的
+`包名@latest 版本`（8 个 native + `runtime-ssr` / `router` / `resource` / `query` /
+`testing`），并引用本节的决策作为依据。加载器会拒绝重复项、固定发布组之外的包、
+stable 版本，以及缺少 `approvedBy` 或 `decisionReference` 的文件；路径是常量，
+没有参数能指向别的文件。
+
+豁免**只在值精确相等**时成立：换成另一个 canary、beta 或 rc 都会离开豁免并被拒绝，
+查询失败返回 `UNKNOWN` 而不是 `accepted`，等于本次发布版本时也不算历史。所以新增的
+偏差不能靠挨着一条旧记录就变成"历史"。
+
+`check:latest-tags` 因此分两个阶段：
+
+| 阶段           | 允许                                   | 拒绝                                                                       |
+| -------------- | -------------------------------------- | -------------------------------------------------------------------------- |
+| `precheck`     | `PASS`、`ACCEPTED_HISTORICAL`          | 任何未解释的 prerelease；发布**之前**就已存在的首发版本                    |
+| `post-publish` | 上述 + `ACCEPTED_DEVIATION` + 两者组合 | 首发包指向别的版本；未批准包的 `latest` 移到本次版本；历史包漂移；查询失败 |
+
+post-publish 还比对同一 job 内 precheck 写出的快照（32 包状态，绑定 version /
+gitSha / runId / baselineDigest）。快照缺失、只覆盖部分包、来自另一次 run，都无法
+进入成功状态；发布期间 stable tag 移动、prerelease 互换、tag 消失同样会被拒绝。
+
+报告里这些包显示为 `ACCEPTED_HISTORICAL`，不会伪装成 `PASS`。
+
 `Repair Native Latest` 仍保留为维护工具，仅在用户另行明确授权清理时于 `main` 手动运行：
 输入当前精确污染版本，并输入 `remove-native-latest:<version>` 确认串。修复脚本会先读取全部 8 个
 native 包；只要任一 `latest` 指向其他版本就整体拒绝，然后仅删除仍指向该确认 prerelease

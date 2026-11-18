@@ -307,14 +307,21 @@ jobs:
       - name: Check npm latest after publishing
         run: >-
           pnpm check:latest-tags
+          --phase post-publish
           --version "${{ steps.release-version.outputs.version }}"
           --pairing-record "release-pairing/v${{ steps.release-version.outputs.version }}.json"
+          --sha "$GITHUB_SHA"
+          --run-id "$GITHUB_RUN_ID"
+          --snapshot temp/release/latest-precheck-snapshot.json
           --out temp/release/latest-tags.json
           --policy-out temp/release/latest-policy.json
 
       # The verdict is recorded as an artifact, not only in the log: the
       # deviation is an accepted risk that a later audit has to be able to
-      # re-read, together with which packages it applied to and why.
+      # re-read, together with which packages it applied to and why. The
+      # precheck snapshot rides along because it is the only evidence of what
+      # the registry looked like *before* this release, and a post-publish
+      # verdict is not reviewable without it.
       - name: Preserve the latest-tag verdict
         if: always()
         uses: actions/upload-artifact@v4
@@ -323,6 +330,19 @@ jobs:
           path: |
             temp/release/latest-tags.json
             temp/release/latest-policy.json
+            temp/release/latest-precheck-snapshot.json
+          if-no-files-found: warn
+
+      # The precheck snapshot must survive the whole job. It is written by the
+      # precheck step and read by the post-publish step in the same job, so it
+      # is this run's own before-picture — never an artifact from an older run,
+      # which would describe a different release.
+      - name: Preserve the precheck latest snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-latest-precheck-snapshot
+          path: temp/release/latest-precheck-snapshot.json
           if-no-files-found: warn
 
   compiler-registry-smoke:
