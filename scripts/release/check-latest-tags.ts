@@ -16,6 +16,15 @@ import path from 'node:path'
 import { parseArgs } from 'node:util'
 
 import { zeusFixedPackages } from '../release.config'
+import { judgeHistorical, loadHistoricalBaseline } from './historical-latest'
+import {
+  LATEST_SNAPSHOT_PATH,
+  buildSnapshot,
+  compareSnapshots,
+  digestSnapshot,
+  loadSnapshot,
+  writeSnapshot,
+} from './latest-snapshot'
 import {
   DEFAULT_ATTEMPTS,
   queryNpmJson,
@@ -62,6 +71,8 @@ export interface LatestTagRecord {
 export type LatestVerdict =
   | 'PASS'
   | 'ACCEPTED_DEVIATION'
+  | 'ACCEPTED_HISTORICAL'
+  | 'ACCEPTED_HISTORICAL_AND_FIRST_PUBLISH'
   | 'REFUSED'
   | 'UNKNOWN'
 
@@ -69,8 +80,12 @@ export type LatestVerdict =
 export interface LatestDecision {
   readonly name: string
   readonly state: LatestTagState
-  /** `compliant`, `accepted`, or the reason it was refused. */
-  readonly outcome: 'compliant' | 'accepted' | 'refused'
+  /**
+   * `compliant`, `accepted-historical` (an exact, committed, predating
+   * deviation), `accepted` (a first publication this release created), or the
+   * reason it was refused.
+   */
+  readonly outcome: 'compliant' | 'accepted' | 'accepted-historical' | 'refused'
   /** Whether the pairing record named this package as a first publication. */
   readonly firstPublish: boolean
   /** Why this package got this outcome, in a form an audit can read. */
@@ -80,13 +95,29 @@ export interface LatestDecision {
 export interface LatestPolicyResult {
   readonly verdict: LatestVerdict
   readonly decisions: readonly LatestDecision[]
-  /** Packages whose `latest` is wrong but approved. */
+  /** Packages whose `latest` is wrong but approved as first publications. */
   readonly acceptedDeviation: readonly string[]
+  /** Packages excused by the committed historical baseline. */
+  readonly acceptedHistorical: readonly string[]
   /** Packages that make the release fail. */
   readonly refused: readonly string[]
   /** Packages the registry could not answer for. */
   readonly unknown: readonly string[]
 }
+
+/**
+ * Which half of the release is being judged.
+ *
+ * The two phases answer different questions and must not share one rule:
+ *
+ * - `precheck` runs before anything is published. A first publication cannot
+ *   have happened yet, so tolerating one there would excuse a deviation that
+ *   does not exist — and, worse, would stop the check from noticing if it
+ *   somehow did.
+ * - `post-publish` runs after. First publications are expected, and the
+ *   historical baseline must still hold.
+ */
+export type LatestPhase = 'precheck' | 'post-publish'
 
 export interface LatestPolicyInput {
   readonly records: readonly LatestTagRecord[]
@@ -94,27 +125,47 @@ export interface LatestPolicyInput {
   readonly version: string
   /** Package names the pairing record approved for a first publication. */
   readonly approvedFirstPublish: readonly string[]
+  /**
+   * Exact deviations from the committed baseline.
+   *
+   * Empty when no baseline is in force. A caller must pass the *judged*
+   * matches, never the baseline entries themselves — see
+   * `judgeHistorical`, which is what decides whether an entry still applies.
+   */
+  readonly acceptedHistorical?: readonly string[]
+  /** Defaults to `post-publish`, the stricter of the two. */
+  readonly phase?: LatestPhase
 }
 
 /**
- * Decides whether the post-publish `latest` state blocks the release.
+ * Decides whether the `latest` state blocks the release.
  *
  * The rule that matters: an approved first publication is accepted **only
- * when its `latest` points at exactly this release's version**. A package on
- * the approval list whose `latest` points somewhere else is a refusal, because
- * "approved for first publication" says nothing about a tag that moved later.
+ * when its `latest` points at exactly this release's version**, and only in
+ * the post-publish phase. A package on the approval list whose `latest` points
+ * somewhere else is a refusal, because "approved for first publication" says
+ * nothing about a tag that moved later.
+ *
+ * A historical deviation is accepted **only when the caller passes it as an
+ * exact match** against the committed baseline. This function never widens
+ * that set itself: it cannot read the baseline, so a package cannot become
+ * historical by being named here.
  */
 export function evaluateLatestPolicy(
   input: LatestPolicyInput,
 ): LatestPolicyResult {
   const decisions: LatestDecision[] = []
   const acceptedDeviation: string[] = []
+  const acceptedHistorical: string[] = []
   const refused: string[] = []
   const unknown: string[] = []
   const approved = new Set(input.approvedFirstPublish)
+  const historical = new Set(input.acceptedHistorical ?? [])
+  const phase = input.phase ?? 'post-publish'
 
   for (const record of input.records) {
     const isApproved = approved.has(record.name)
+    const isHistorical = historical.has(record.name)
     const decision = (outcome: LatestDecision['outcome'], basis: string) => {
       decisions.push({
         name: record.name,
@@ -148,16 +199,33 @@ export function evaluateLatestPolicy(
 
       case 'LATEST_PRERELEASE': {
         /*
-         * The only acceptable prerelease `latest` is one this release created
-         * by publishing a package for the first time — and only for a package
-         * the pairing record approved in advance.
-         *
-         * Both halves are required. Approving a package does not approve an
-         * arbitrary version, and a matching version does not approve a package
-         * nobody listed.
+         * Order matters. The historical exemption is checked against a set the
+         * caller derived from the committed baseline by exact match, so a
+         * package cannot drift into it. It is then checked against the release
+         * version: a deviation this release created is never historical.
          */
+        if (isHistorical && record.state.version !== input.version) {
+          acceptedHistorical.push(record.name)
+          decision(
+            'accepted-historical',
+            `latest points at ${record.state.version}, which is the exact deviation recorded in the committed historical baseline`,
+          )
+          break
+        }
+
         const pointsAtThisRelease = record.state.version === input.version
-        if (isApproved && pointsAtThisRelease) {
+        if (phase === 'precheck') {
+          /*
+           * In the precheck nothing has been published yet. Any prerelease
+           * `latest` here is either historical, or a state that cannot be
+           * explained by this release at all.
+           */
+          refused.push(record.name)
+          decision(
+            'refused',
+            `precheck found latest at prerelease ${record.state.version} before this release published anything, and the committed baseline does not record this exact package and version`,
+          )
+        } else if (isApproved && pointsAtThisRelease) {
           acceptedDeviation.push(record.name)
           decision(
             'accepted',
@@ -186,22 +254,33 @@ export function evaluateLatestPolicy(
       ? 'UNKNOWN'
       : refused.length > 0
         ? 'REFUSED'
-        : acceptedDeviation.length > 0
-          ? 'ACCEPTED_DEVIATION'
-          : 'PASS'
+        : acceptedDeviation.length > 0 && acceptedHistorical.length > 0
+          ? 'ACCEPTED_HISTORICAL_AND_FIRST_PUBLISH'
+          : acceptedDeviation.length > 0
+            ? 'ACCEPTED_DEVIATION'
+            : acceptedHistorical.length > 0
+              ? 'ACCEPTED_HISTORICAL'
+              : 'PASS'
 
-  return { verdict, decisions, acceptedDeviation, refused, unknown }
+  return {
+    verdict,
+    decisions,
+    acceptedDeviation,
+    acceptedHistorical,
+    refused,
+    unknown,
+  }
 }
 
 /** Whether a verdict lets the release continue to smoke and GitHub Release. */
 export function verdictBlocksRelease(verdict: LatestVerdict): boolean {
   /*
-   * `ACCEPTED_DEVIATION` continues deliberately: the packages were published
-   * correctly and the tag deviation is recorded and repairable. The other
-   * three stop the release — `PASS` because it does not block, `REFUSED`
-   * because something unauthorised is wrong, `UNKNOWN` because nothing was
-   * established. Making this an explicit function keeps the workflow from
-   * encoding the list of non-blocking verdicts in shell.
+   * The accepted verdicts continue deliberately: the packages were published
+   * correctly and every deviation is recorded and either approved in advance
+   * or a committed historical fact. The other two stop the release —
+   * `REFUSED` because something unauthorised is wrong, `UNKNOWN` because
+   * nothing was established. Making this an explicit function keeps the
+   * workflow from encoding the list of non-blocking verdicts in shell.
    */
   return verdict === 'REFUSED' || verdict === 'UNKNOWN'
 }
@@ -330,8 +409,55 @@ async function main(): Promise<void> {
         type: 'string',
         default: 'temp/release/latest-policy.json',
       },
+      /*
+       * Which half of the release this is. Defaults to `precheck`, the
+       * stricter of the two: it refuses a prerelease `latest` it cannot
+       * explain, and it does not treat a first publication as expected.
+       * The post-publish step opts in explicitly.
+       */
+      phase: { type: 'string', default: 'precheck' },
+      /*
+       * The commit this run is building. Only used to bind and verify the
+       * snapshot; it never selects the baseline, which is read from the tree.
+       */
+      sha: { type: 'string' },
+      'run-id': { type: 'string' },
+      snapshot: { type: 'string', default: LATEST_SNAPSHOT_PATH },
+      'snapshot-out': { type: 'string', default: LATEST_SNAPSHOT_PATH },
+      /*
+       * There is deliberately no `--baseline` flag. The baseline path is a
+       * constant, so a run cannot be pointed at a different file, and the
+       * release reads the copy committed at the tag it builds.
+       */
     },
   })
+
+  const phase = values.phase === 'post-publish' ? 'post-publish' : 'precheck'
+  if (values.phase !== undefined && values.phase !== phase) {
+    console.error(
+      `BLOCKER --phase must be precheck or post-publish, got ${values.phase}`,
+    )
+    process.exitCode = 1
+    return
+  }
+  /*
+   * The snapshot bindings default to the run that is executing.
+   *
+   * They are read from the environment rather than being required flags
+   * because the precheck runs from a static command list that has no place to
+   * interpolate them — and a binding that is easy to omit is a binding that
+   * will be omitted, leaving a snapshot nothing can be verified against.
+   * An explicit flag still wins, so a drill can point at a known run.
+   */
+  const gitSha = values.sha ?? process.env.GITHUB_SHA ?? ''
+  const runId = values['run-id'] ?? process.env.GITHUB_RUN_ID ?? ''
+  if (phase === 'post-publish' && (!gitSha || !runId)) {
+    console.error(
+      'BLOCKER --phase post-publish needs the commit and run id (--sha/--run-id or GITHUB_SHA/GITHUB_RUN_ID) to verify the precheck snapshot belongs to this release',
+    )
+    process.exitCode = 1
+    return
+  }
 
   const resolved = resolveVersion(values.version, values.ref)
   for (const warning of resolved.warnings) console.warn(`WARNING ${warning}`)
@@ -376,11 +502,116 @@ async function main(): Promise<void> {
   const approvedFirstPublish = readApprovedFirstPublish(
     values['pairing-record'],
   )
+
+  /*
+   * The committed historical baseline, and what it actually covers today.
+   *
+   * A baseline that cannot be read yields no exemptions, which refuses every
+   * unexplained prerelease `latest`. That direction is deliberate: the
+   * alternative lets a deleted or corrupted file widen the release instead of
+   * blocking it.
+   */
+  const loaded = loadHistoricalBaseline(process.cwd())
+  for (const problem of loaded.problems) {
+    console.error(`BLOCKER historical baseline: ${problem}`)
+  }
+  const baseline = loaded.baseline
+  const judged =
+    baseline === undefined
+      ? { accepted: [], drifted: [], unresolved: [] }
+      : judgeHistorical({ baseline, records, releaseVersion: version })
+
+  for (const drift of judged.drifted) {
+    console.error(
+      `BLOCKER ${drift.name}: historical baseline records latest ${drift.expected}, but the registry now answers ${drift.observed}; the exemption does not cover a re-pointed tag`,
+    )
+  }
+  for (const name of judged.unresolved) {
+    console.error(
+      `BLOCKER ${name}: historical baseline entry could not be confirmed because the registry did not answer`,
+    )
+  }
+
   const policy = evaluateLatestPolicy({
     records,
     version,
     approvedFirstPublish,
+    acceptedHistorical: judged.accepted.map(match => match.name),
+    phase,
   })
+
+  /*
+   * The precheck writes the before-picture the post-publish check compares
+   * against. Written by this job, for this run — never fetched from an older
+   * run, because a snapshot describing a different release would make every
+   * comparison meaningless while still looking authoritative.
+   */
+  const baselineDigest = baseline?.digest ?? 'none'
+  let snapshotDigest = 'none'
+  let snapshotTransitionCount = 0
+  if (phase === 'precheck') {
+    const snapshot = buildSnapshot({
+      version,
+      gitSha,
+      runId,
+      registry: values.registry ?? 'https://registry.npmjs.org',
+      capturedAt: new Date().toISOString(),
+      baselineDigest,
+      records,
+    })
+    writeSnapshot(snapshot, values['snapshot-out']!)
+    snapshotDigest = digestSnapshot(snapshot)
+  } else {
+    /*
+     * Post-publish: prove the comparison is against this release's own
+     * precheck, then refuse any transition the policy does not allow.
+     */
+    const loadedSnapshot = loadSnapshot(
+      {
+        version,
+        gitSha,
+        runId,
+        packageCount: records.length,
+      },
+      values.snapshot!,
+    )
+    for (const problem of loadedSnapshot.problems) {
+      console.error(`BLOCKER snapshot: ${problem}`)
+    }
+    if (loadedSnapshot.snapshot === undefined) {
+      process.exitCode = 1
+      return
+    }
+    snapshotDigest = digestSnapshot(loadedSnapshot.snapshot)
+    if (loadedSnapshot.snapshot.baselineDigest !== baselineDigest) {
+      console.error(
+        `BLOCKER snapshot: the precheck ran with baseline ${loadedSnapshot.snapshot.baselineDigest}, but this run read ${baselineDigest}; the two halves judged different policies`,
+      )
+      process.exitCode = 1
+      return
+    }
+    const comparison = compareSnapshots({
+      before: loadedSnapshot.snapshot,
+      after: records,
+      version,
+      approvedFirstPublish,
+    })
+    for (const transition of comparison.unexpected) {
+      console.error(
+        `BLOCKER transition ${transition.name}: ${transition.change}; nothing in the pairing record or the historical baseline authorises this change`,
+      )
+    }
+    /*
+     * A transition nobody authorised fails the release on its own, even when
+     * every current tag happens to be acceptable. "It looks fine now" is not
+     * the question the post-publish phase asks — "did this release cause
+     * this, and was it allowed to" is, and a snapshot difference is the only
+     * thing that can answer it.
+     */
+    if (comparison.unexpected.length > 0) process.exitCode = 1
+    snapshotTransitionCount = comparison.unexpected.length
+  }
+
   const report: LatestTagReport = {
     schema: 'zeus.latest-tags/v2',
     version,
@@ -401,14 +632,32 @@ async function main(): Promise<void> {
     policyOutput,
     `${JSON.stringify(
       {
-        schema: 'zeus.latest-policy/v1',
+        schema: 'zeus.latest-policy/v2',
         version,
+        phase,
+        gitSha: gitSha || null,
+        runId: runId || null,
+        registry: values.registry ?? 'https://registry.npmjs.org',
+        packageCount: records.length,
         verdict: policy.verdict,
+        policyVersion: baseline?.policyVersion ?? null,
+        baselineDigest,
+        snapshotDigest,
+        snapshotTransitionCount,
         approvedFirstPublish,
+        acceptedHistorical: policy.acceptedHistorical,
         acceptedDeviation: policy.acceptedDeviation,
         refused: policy.refused,
         unknown: policy.unknown,
+        compliant: policy.decisions.filter(d => d.outcome === 'compliant')
+          .length,
         blocksRelease: verdictBlocksRelease(policy.verdict),
+        findings: policy.decisions
+          .filter(decision => decision.outcome !== 'compliant')
+          .map(
+            decision =>
+              `${decision.outcome.toUpperCase()} ${decision.name}: ${decision.basis}`,
+          ),
         decisions: policy.decisions,
       },
       null,
@@ -426,9 +675,19 @@ async function main(): Promise<void> {
           : ''
     console.log(`${record.name}: ${record.state.status}${suffix}`)
   }
-  for (const error of evaluation.errors) console.error(`BLOCKER ${error}`)
+  /*
+   * Two lines, two questions, and they must not be read as contradicting.
+   *
+   * The first is the raw census: how many packages have a non-compliant
+   * `latest`, regardless of whether anything excuses it. The second is the
+   * verdict that actually decides the exit code. Printing only the census as
+   * PASS/FAIL made a release with an accepted historical deviation read
+   * `FAIL` on one line and `ACCEPTED_HISTORICAL` on the next, which is how a
+   * reader concludes the gate is broken when it is working.
+   */
+  for (const error of evaluation.errors) console.error(`NOTE ${error}`)
   console.log(
-    `latest-tag policy ${evaluation.errors.length === 0 ? 'PASS' : 'FAIL'}: ${records.length} packages (${evaluation.stable.length} stable, ${evaluation.prerelease.length} prerelease, ${evaluation.absent.length} absent, ${evaluation.failures.length} failed)`,
+    `latest-tag census: ${records.length} packages (${evaluation.stable.length} stable, ${evaluation.prerelease.length} prerelease, ${evaluation.absent.length} absent, ${evaluation.failures.length} failed)`,
   )
 
   /*
@@ -440,12 +699,18 @@ async function main(): Promise<void> {
    * for a state the maintainer approved in advance.
    */
   console.log(
-    `latest policy: ${policy.verdict} (${policy.acceptedDeviation.length} accepted, ${policy.refused.length} refused, ${policy.unknown.length} unknown)`,
+    `latest policy (${phase}): ${policy.verdict} (${policy.acceptedHistorical.length} historical, ${policy.acceptedDeviation.length} first-publish, ${policy.refused.length} refused, ${policy.unknown.length} unknown)`,
   )
   for (const decision of policy.decisions) {
     if (decision.outcome === 'compliant') continue
+    /*
+     * `toUpperCase` was called without parentheses here, so every finding
+     * printed `function toUpperCase() { [native code] }` instead of the
+     * outcome. It cost nothing in the verdict and everything in the one place
+     * an operator reads to find out what went wrong.
+     */
     console.log(
-      `  ${decision.outcome.toUpperCase} ${decision.name}: ${decision.basis}`,
+      `  ${decision.outcome.toUpperCase()} ${decision.name}: ${decision.basis}`,
     )
   }
   if (verdictBlocksRelease(policy.verdict)) process.exitCode = 1
