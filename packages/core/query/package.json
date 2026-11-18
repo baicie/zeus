@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/query",
   "type": "module",
-  "version": "0.2.0-rc.1",
+  "version": "0.2.0-rc.2",
   "description": "Fine-grained query-core adapter for Zeus",
   "license": "MIT",
   "repository": {
