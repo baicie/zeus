@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/playground-engine",
   "type": "module",
-  "version": "0.2.0-rc.1",
+  "version": "0.2.0-rc.2",
   "description": "Shared project and compiler bridge contracts for Zeus playgrounds",
   "license": "MIT",
   "repository": {

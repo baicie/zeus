@@ -1,0 +1,21 @@
+{
+  "schema": "zeus.release-pairing/v1",
+  "coreVersion": "0.2.0-rc.2",
+  "uiCommit": null,
+  "uiVersion": "0.2.0-rc.2",
+  "verifiedAt": "2026-11-18T12:00:00.000Z",
+  "bootstrap": true,
+  "firstPublish": [
+    "@zeus-js/i18n",
+    "@zeus-js/eslint-plugin",
+    "@zeus-js/playground-engine"
+  ],
+  "recovery": {
+    "failedVersion": "0.2.0-rc.1",
+    "failedTagCommit": "153f9b2b2c28fe4d82d73ad04084d25adeb7f424",
+    "failedRunId": "44263303787",
+    "failedRunTagCommit": "153f9b2b2c28fe4d82d73ad04084d25adeb7f424",
+    "failedRunReachedPublish": false,
+    "note": "Release precheck failed at pnpm check:latest-tags (13 historical canary latest tags, 0 published); Build and publish never ran. Each fact here was read from GitHub for this record rather than copied from the previous one: the tag SHA from the remote ref, the run's head_sha, and the run's step conclusions."
+  }
+}

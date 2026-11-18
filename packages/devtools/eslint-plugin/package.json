@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/eslint-plugin",
   "type": "module",
-  "version": "0.2.0-rc.1",
+  "version": "0.2.0-rc.2",
   "description": "ESLint rules for Zeus application and component sources",
   "license": "MIT",
   "repository": {
