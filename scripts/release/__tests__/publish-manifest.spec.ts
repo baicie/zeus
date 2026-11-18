@@ -36,7 +36,22 @@ afterEach(() => {
   }
 })
 
-function manifestAt(version = '0.2.0-rc.0') {
+/*
+ * The version the tree carries, read rather than hardcoded.
+ *
+ * It was `'0.2.0-rc.0'` and went stale the moment Core moved to rc.1: every
+ * package's version then differed from the queried one, the manifest reported
+ * 32 problems, and the count assertion read `0 !== 32`. The manifest is
+ * supposed to describe the tree as it is; a test that pins the version is
+ * pinning the thing under test.
+ */
+const TREE_VERSION = (
+  JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as {
+    version: string
+  }
+).version
+
+function manifestAt(version = TREE_VERSION) {
   return buildPublishManifest({
     root,
     version,
@@ -97,7 +112,7 @@ describe('the real publish set', () => {
     for (const entry of manifest.packages) {
       if (!entry.publishable) continue
       expect(entry.expectedDistTag).toBe('rc')
-      expect(entry.version).toBe('0.2.0-rc.0')
+      expect(entry.version).toBe(TREE_VERSION)
       expect(entry.private).toBe(false)
     }
   })
