@@ -56,6 +56,13 @@ export interface BootstrapRequest {
   readonly existingAttestation?: boolean
   /** Whether an in-tree pairing record for this version names a UI commit. */
   readonly existingPairInTree?: boolean
+  /**
+   * Evidence that this release recovers a previously failed RC.
+   *
+   * Absent for an ordinary first-RC bootstrap. Present only for `rc.N` with
+   * N > 0, and refused unless every field can be established.
+   */
+  readonly recovery?: RecoveryEvidence
 }
 
 export interface BootstrapEligibility {
@@ -93,6 +100,153 @@ export function publishedPrereleasesOfLine(
   })
 }
 
+/**
+ * Evidence that a previous RC failed before publishing anything.
+ *
+ * Every field is something the caller established from GitHub or the registry;
+ * none of it is read from the pairing record under test. A recovery that cannot
+ * show all of it is refused, because the alternative is a path that lets any
+ * `rc.N` publish unpaired by claiming a failure nobody verified.
+ */
+export interface RecoveryEvidence {
+  /**
+   * The failed version, e.g. `0.2.0-rc.0`. Must be the immediately preceding
+   * RC of the same line: skipping ahead would let rc.2 ride on rc.0's failure.
+   */
+  readonly failedVersion: string
+  /** The tag exists and this is the commit it points at. */
+  readonly failedTagCommit: string
+  /** The workflow run that failed, and the tag SHA it started from. */
+  readonly failedRunId: string
+  readonly failedRunTagCommit: string
+  /**
+   * Whether that run reached any npm publish step. `false` is required: a run
+   * that published some packages cannot be recovered by publishing a new
+   * version, because the previous version is already partially out there.
+   */
+  readonly failedRunReachedPublish: boolean
+  /** Whether the failed version exists on the registry at all. */
+  readonly failedVersionPublished: boolean
+  /** The version being recovered — must not already be published. */
+  readonly recoveryVersionPublished: boolean
+  /** Other RCs of this line that are published and not the failed one. */
+  readonly otherPublishedRcs: readonly string[]
+  /** Whether a pair attestation already exists for the failed version. */
+  readonly failedVersionPaired: boolean
+}
+
+/**
+ * Evaluates the recovery path for `rc.N`.
+ *
+ * The bar is deliberately higher than ordinary bootstrap, not equal to it:
+ * an ordinary bootstrap claims "nothing has been published for this line",
+ * while a recovery claims "something was published but failed before any
+ * artifact left" — a claim that has to be proved rather than asserted.
+ */
+function evaluateRecovery(
+  request: BootstrapRequest,
+  parsed: { line: string; channel: string; sequence: string },
+  findings: AuthorizationFinding[],
+): { eligible: boolean; findings: readonly AuthorizationFinding[] } {
+  const refuse = (
+    detail: string,
+  ): { eligible: false; findings: readonly AuthorizationFinding[] } => {
+    findings.push(
+      finding(AUTHORIZATION_RULES.bootstrapEligibility, 'REFUSED', detail),
+    )
+    return { eligible: false, findings }
+  }
+  const recovery = request.recovery!
+
+  if (!BOOTSTRAPPABLE_CHANNELS.has(parsed.channel)) {
+    return refuse(
+      `${request.version} is a ${parsed.channel} prerelease; recovery, like bootstrap, is an rc-only path`,
+    )
+  }
+
+  /*
+   * Only the immediately preceding RC. `rc.2` after a failed `rc.1` is a
+   * second failure, not a recovery of the first, and treating it as one would
+   * let an unbounded chain of unpaired publications hang off one failure.
+   */
+  const expectedFailed = `${parsed.line}-${parsed.channel}.${Number(parsed.sequence) - 1}`
+  if (recovery.failedVersion !== expectedFailed) {
+    return refuse(
+      `recovery of ${request.version} must recover ${expectedFailed}, the immediately preceding RC; ${recovery.failedVersion} is not it`,
+    )
+  }
+
+  if (recovery.failedRunTagCommit !== recovery.failedTagCommit) {
+    return refuse(
+      `the failed run started from ${recovery.failedRunTagCommit}, but v${recovery.failedVersion} points at ${recovery.failedTagCommit}; the recovery would be attributed to a different tag than the one that failed`,
+    )
+  }
+
+  /*
+   * The claim that makes recovery safe. A run that reached publish may have
+   * published some packages; publishing a new version then produces a mixed
+   * release, and no amount of pairing fixes a version that is half out.
+   */
+  if (recovery.failedRunReachedPublish) {
+    return refuse(
+      `the failed run reached a publish step; a partially published version cannot be recovered by publishing another, because the packages that did land cannot be withdrawn`,
+    )
+  }
+
+  if (recovery.failedVersionPublished) {
+    return refuse(
+      `${recovery.failedVersion} exists on the registry; recovery is only for a version whose tag exists but published nothing`,
+    )
+  }
+
+  if (recovery.recoveryVersionPublished) {
+    return refuse(
+      `${request.version} is already published; a recovery publishes a version that is not yet on the registry`,
+    )
+  }
+
+  if (recovery.otherPublishedRcs.length > 0) {
+    return refuse(
+      `${parsed.line} already has published RCs (${recovery.otherPublishedRcs.join(', ')}); recovery is for a line whose only RC failed before publishing`,
+    )
+  }
+
+  if (recovery.failedVersionPaired) {
+    return refuse(
+      `${recovery.failedVersion} already has a pair attestation; a paired release must not be recovered by publishing an unpaired one`,
+    )
+  }
+
+  /*
+   * Same registry and in-tree checks as ordinary bootstrap. Recovery does not
+   * skip them — it adds to them.
+   */
+  if (request.publishedVersions === undefined) {
+    return refuse(
+      'the registry could not be queried, so the published state of this line cannot be established; a recovery that cannot prove its premise must not proceed',
+    )
+  }
+  if (request.existingAttestation === true) {
+    return refuse(
+      `an attestation for ${request.version} already exists; a paired release must not fall back to recovery`,
+    )
+  }
+  if (request.existingPairInTree === true) {
+    return refuse(
+      `the in-tree record for ${request.version} already names a UI commit; this release is paired`,
+    )
+  }
+
+  findings.push(
+    finding(
+      AUTHORIZATION_RULES.bootstrapEligibility,
+      'AUTHORIZED',
+      `${request.version} recovers ${recovery.failedVersion}, whose tag exists but whose run ${recovery.failedRunId} stopped before publishing anything; the line has no published RC and no pair`,
+    ),
+  )
+  return { eligible: true, findings }
+}
+
 export function evaluateBootstrapEligibility(
   request: BootstrapRequest,
 ): BootstrapEligibility {
@@ -128,10 +282,29 @@ export function evaluateBootstrapEligibility(
   }
 
   if (parsed.sequence !== '0') {
-    refuse(
-      `${request.version} is not the first RC of ${parsed.line}; rc.${parsed.sequence} implies an earlier RC exists, which would already carry its pair`,
-    )
-    return { eligible: false, findings }
+    /*
+     * `rc.N` for N > 0 normally means an earlier RC of this line shipped, and
+     * that RC carries its own pair — so bootstrapping again would publish a
+     * second unpaired release for a line that already had one.
+     *
+     * The exception is a *failed* rc.0: a tag that exists but whose release
+     * workflow stopped before any npm publish. That leaves a version number
+     * occupied with nothing published, and without a recovery path the line is
+     * stuck forever — the tag cannot be deleted and the published versions
+     * cannot be overwritten.
+     *
+     * `recovery` is that path, and it is a different claim from bootstrap. It
+     * is checked below against evidence the caller supplies, and it never
+     * loosens the ordinary rule: with no recovery evidence, rc.1 is refused
+     * exactly as before.
+     */
+    if (request.recovery === undefined) {
+      refuse(
+        `${request.version} is not the first RC of ${parsed.line}; rc.${parsed.sequence} implies an earlier RC exists, which would already carry its pair`,
+      )
+      return { eligible: false, findings }
+    }
+    return evaluateRecovery(request, parsed, findings)
   }
 
   if (request.publishedVersions === undefined) {

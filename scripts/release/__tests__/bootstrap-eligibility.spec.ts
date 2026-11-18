@@ -187,3 +187,174 @@ describe('scope', () => {
     expect(authorised[0]?.detail).toMatch(/may publish unpaired/)
   })
 })
+
+/*
+ * Recovering a failed rc.0.
+ *
+ * `rc.0` published nothing but its tag exists and cannot be deleted, so
+ * without a recovery path the whole `0.2.0` line is stuck. The recovery path
+ * is deliberately stricter than ordinary bootstrap, because it claims
+ * something stronger: "a previous RC was attempted and stopped before any
+ * artifact left", which has to be proved.
+ *
+ * Every case below is a way that claim could be false.
+ */
+describe('rc.1 recovery', () => {
+  const RECOVERY_VERSION = '0.2.0-rc.1'
+
+  function evidence(overrides: Record<string, unknown> = {}) {
+    return {
+      failedVersion: '0.2.0-rc.0',
+      failedTagCommit: 'a'.repeat(40),
+      failedRunId: '44218605332',
+      failedRunTagCommit: 'a'.repeat(40),
+      failedRunReachedPublish: false,
+      failedVersionPublished: false,
+      recoveryVersionPublished: false,
+      otherPublishedRcs: [],
+      failedVersionPaired: false,
+      ...overrides,
+    }
+  }
+
+  function recovery(
+    overrides: Record<string, unknown> = {},
+    recoveryOverrides: Record<string, unknown> = {},
+  ) {
+    return evaluateBootstrapEligibility({
+      version: RECOVERY_VERSION,
+      declared: true,
+      publishedVersions: ['0.1.0', '0.1.1-beta.20'],
+      recovery: evidence({ ...overrides, ...recoveryOverrides }) as never,
+    })
+  }
+
+  const refusals = (r: {
+    findings: readonly { verdict: string; detail: string }[]
+  }) => r.findings.filter(f => f.verdict === 'REFUSED').map(f => f.detail)
+
+  it('accepts rc.1 when rc.0 failed before publishing anything', () => {
+    const result = recovery()
+    expect(result.eligible).toBe(true)
+    expect(refusals(result)).toEqual([])
+    const authorised = result.findings.filter(f => f.verdict === 'AUTHORIZED')
+    expect(authorised).toHaveLength(1)
+    expect(authorised[0]?.detail).toMatch(/recovered|recovers/)
+  })
+
+  /*
+   * The plain rc.1 refusal still applies when there is no recovery evidence.
+   * A missing `recovery` is not a default to the permissive direction.
+   */
+  it('still refuses rc.1 with no recovery evidence', () => {
+    const result = evaluateBootstrapEligibility({
+      version: RECOVERY_VERSION,
+      declared: true,
+      publishedVersions: ['0.1.0'],
+    })
+    expect(result.eligible).toBe(false)
+    expect(refusals(result)[0]).toMatch(/is not the first RC/)
+  })
+
+  it('refuses when rc.0 published some packages', () => {
+    expect(refusals(recovery({ failedRunReachedPublish: true }))[0]).toMatch(
+      /reached a publish step/,
+    )
+  })
+
+  it('refuses when rc.0 is on the registry', () => {
+    expect(refusals(recovery({ failedVersionPublished: true }))[0]).toMatch(
+      /exists on the registry/,
+    )
+  })
+
+  it('refuses when rc.1 is already published', () => {
+    expect(refusals(recovery({ recoveryVersionPublished: true }))[0]).toMatch(
+      /already published/,
+    )
+  })
+
+  it('refuses when the registry could not be read', () => {
+    const result = evaluateBootstrapEligibility({
+      version: RECOVERY_VERSION,
+      declared: true,
+      recovery: evidence() as never,
+    })
+    expect(result.eligible).toBe(false)
+    expect(refusals(result)[0]).toMatch(/registry could not be queried/)
+  })
+
+  it('refuses when another RC of the line is published', () => {
+    expect(
+      refusals(recovery({ otherPublishedRcs: ['0.2.0-rc.2'] }))[0],
+    ).toMatch(/already has published RCs/)
+  })
+
+  it('refuses when rc.0 already has a pair attestation', () => {
+    expect(refusals(recovery({ failedVersionPaired: true }))[0]).toMatch(
+      /already has a pair attestation/,
+    )
+  })
+
+  it('refuses when the failed run started from a different commit', () => {
+    expect(
+      refusals(recovery({ failedRunTagCommit: 'b'.repeat(40) }))[0],
+    ).toMatch(/started from .*, but v0\.2\.0-rc\.0 points at/)
+  })
+
+  /*
+   * rc.2 cannot ride on rc.0's failure. Otherwise one failure authorises an
+   * unbounded chain of unpaired publications.
+   */
+  it('refuses rc.2 recovering rc.0', () => {
+    const result = evaluateBootstrapEligibility({
+      version: '0.2.0-rc.2',
+      declared: true,
+      publishedVersions: ['0.1.0'],
+      recovery: evidence() as never,
+    })
+    expect(result.eligible).toBe(false)
+    expect(refusals(result)[0]).toMatch(/must recover 0\.2\.0-rc\.1/)
+  })
+
+  it('refuses a stable version even with recovery evidence', () => {
+    const result = evaluateBootstrapEligibility({
+      version: '0.2.0',
+      declared: true,
+      publishedVersions: ['0.1.0'],
+      recovery: evidence() as never,
+    })
+    expect(result.eligible).toBe(false)
+    expect(refusals(result)[0]).toMatch(/is not a prerelease/)
+  })
+
+  it('refuses a beta recovery', () => {
+    const result = evaluateBootstrapEligibility({
+      version: '0.2.0-beta.1',
+      declared: true,
+      publishedVersions: ['0.1.0'],
+      recovery: evidence({ failedVersion: '0.2.0-beta.0' }) as never,
+    })
+    expect(result.eligible).toBe(false)
+    expect(refusals(result)[0]).toMatch(/only an rc may bootstrap|rc-only path/)
+  })
+
+  it('refuses when the in-tree record already names a UI commit', () => {
+    const result = evaluateBootstrapEligibility({
+      version: RECOVERY_VERSION,
+      declared: true,
+      publishedVersions: ['0.1.0'],
+      recovery: evidence() as never,
+      existingPairInTree: true,
+    })
+    expect(result.eligible).toBe(false)
+    expect(refusals(result)[0]).toMatch(/already names a UI commit/)
+  })
+
+  it('reports under the same rule so an audit sees one place', () => {
+    const result = recovery()
+    expect(result.findings.every(f => f.rule === 'bootstrap-eligibility')).toBe(
+      true,
+    )
+  })
+})
