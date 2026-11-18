@@ -1,6 +1,6 @@
 {
   "name": "@zeus-js/compiler-native-darwin-arm64",
-  "version": "0.2.0-rc.0",
+  "version": "0.2.0-rc.1",
   "description": "Zeus Rust compiler native binary for macOS arm64",
   "license": "MIT",
   "repository": {
