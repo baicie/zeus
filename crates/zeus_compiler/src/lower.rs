@@ -806,9 +806,14 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         if !element.children.is_empty() {
             let span = self.context.source_index.span(element.span);
             let children = if kind == "Host" {
+                // Saved and restored inline. A guard that held `&mut state`
+                // would block the recursive `self` borrow below, and the only
+                // escape would be interior mutability — a worse trade than a
+                // balanced pair with an assertion.
+                let depth_before = self.state.host_depth;
                 self.state.host_depth += 1;
                 let children = self.lower_inline_value_children(&element.children);
-                self.state.host_depth = self.state.host_depth.saturating_sub(1);
+                self.state.host_depth = depth_before;
                 children
             } else {
                 self.lower_inline_value_children(&element.children)
@@ -1326,10 +1331,11 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 }
             }
         }
-        self.state
-            .for_accessor_scopes
-            .pop()
-            .expect("For accessor scopes must be balanced");
+        // Balanced by construction: this function has no early return between
+        // the push above and here. The assertion is a guard against a future
+        // edit introducing one, not a current possibility.
+        let popped = self.state.for_accessor_scopes.pop();
+        debug_assert!(popped.is_some(), "For accessor scopes must be balanced");
         (item, index, body)
     }
 
