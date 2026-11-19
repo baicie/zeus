@@ -142,6 +142,12 @@ function discover(): PackageRecord[] {
     }
     for (const entry of fs.readdirSync(domainDir, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue
+      // `node_modules` is not a package. A stale one survives a move: pnpm
+      // leaves the directory behind when the manifest it linked from is gone,
+      // and the gate then reports a package that does not exist while the real
+      // one sits in its new domain. Skipping it is about the gate reading the
+      // tree correctly, not about tolerating leftovers.
+      if (entry.name === 'node_modules') continue
       const dir = path.join(domainDir, entry.name)
       const manifestPath = path.join(dir, 'package.json')
       if (!fs.existsSync(manifestPath)) {
