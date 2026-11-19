@@ -129,11 +129,11 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
         .or_else(|| parsed.program.hashbang.as_ref().map(|node| node.span.end))
         .unwrap_or_default();
 
-    if !lowerer.diagnostics.is_empty() {
+    if !lowerer.state.diagnostics.is_empty() {
         return LowerResult {
             ir: None,
-            diagnostics: lowerer.diagnostics,
-            error_boundary_spans: lowerer.error_boundary_spans,
+            diagnostics: lowerer.state.diagnostics,
+            error_boundary_spans: lowerer.state.error_boundary_spans,
             reserved_names,
             hmr,
             pure_define_element_calls: Vec::new(),
@@ -146,10 +146,10 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
             id: 0,
             kind: "Module".into(),
             preamble_end,
-            components: lowerer.components,
+            components: lowerer.state.components,
         }),
         diagnostics: Vec::new(),
-        error_boundary_spans: lowerer.error_boundary_spans,
+        error_boundary_spans: lowerer.state.error_boundary_spans,
         reserved_names,
         hmr,
         pure_define_element_calls: collect_top_level_define_element_calls(&parsed.program),
@@ -408,24 +408,57 @@ fn collect_reserved_names(scoping: &Scoping) -> Vec<String> {
     names
 }
 
-struct Lowerer<'source, 'allocator> {
+/// Everything one lowering run reads and must not write.
+///
+/// Derived from the source and the semantic model before traversal starts. A
+/// rule that reads one of these through the context cannot mutate the parse
+/// facts it depends on.
+struct LoweringContext<'source, 'allocator> {
     source: &'source str,
     filename: &'source str,
     allocator: &'allocator Allocator,
     source_index: SourceIndex<'source>,
+    builtin_names: HashMap<String, BuiltinBinding>,
+    define_element_setup_spans: Vec<Span>,
+    host_root_spans: HashSet<u32>,
+    scoping: Scoping,
+}
+
+/// Everything one lowering run accumulates, and nothing else.
+///
+/// Each `lower_module` call builds a fresh state, so nothing leaks between
+/// files. Ordering inside these fields is observable: `next_id` determines
+/// hydration node ids and `diagnostics` order decides which message a user
+/// sees first.
+struct LoweringState {
     next_id: NodeId,
     components: Vec<ComponentIr>,
     diagnostics: Vec<CompilerDiagnostic>,
-    builtin_names: HashMap<String, BuiltinBinding>,
     error_boundary_spans: Vec<SourceSpan>,
-    define_element_setup_spans: Vec<Span>,
-    host_root_spans: HashSet<u32>,
+    /// How many `<Host>` elements enclose the current position.
     host_depth: usize,
-    scoping: Scoping,
     for_accessor_scopes: Vec<LowerForAccessorScope>,
-    /// Namespace the markup being lowered is parsed in. Only elements change
-    /// it; fragments, components and control-flow builtins are transparent.
+    /// Namespace the markup being lowered is parsed in.
     namespace: ElementNamespace,
+}
+
+impl LoweringState {
+    fn new() -> Self {
+        Self {
+            next_id: 1,
+            components: Vec::new(),
+            diagnostics: Vec::new(),
+            error_boundary_spans: Vec::new(),
+            host_depth: 0,
+            for_accessor_scopes: Vec::new(),
+            namespace: ElementNamespace::default(),
+        }
+    }
+}
+
+struct Lowerer<'source, 'allocator> {
+    context: LoweringContext<'source, 'allocator>,
+    state: LoweringState,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -462,27 +495,23 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         scoping: Scoping,
     ) -> Self {
         Self {
-            source,
-            filename,
-            allocator,
-            source_index: SourceIndex::new(source),
-            next_id: 1,
-            components: Vec::new(),
-            diagnostics: Vec::new(),
-            builtin_names,
-            error_boundary_spans: Vec::new(),
-            define_element_setup_spans,
-            host_root_spans,
-            host_depth: 0,
-            scoping,
-            for_accessor_scopes: Vec::new(),
-            namespace: ElementNamespace::default(),
+            context: LoweringContext {
+                source,
+                filename,
+                allocator,
+                source_index: SourceIndex::new(source),
+                builtin_names,
+                define_element_setup_spans,
+                host_root_spans,
+                scoping,
+            },
+            state: LoweringState::new(),
         }
     }
 
     fn allocate_id(&mut self) -> NodeId {
-        let id = self.next_id;
-        self.next_id = self.next_id.saturating_add(1);
+        let id = self.state.next_id;
+        self.state.next_id = self.state.next_id.saturating_add(1);
         id
     }
 
@@ -527,10 +556,10 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             };
             RootIr::Element(root)
         };
-        self.components.push(ComponentIr {
+        self.state.components.push(ComponentIr {
             id,
             kind: "Component".into(),
-            span: self.source_index.span(element.span),
+            span: self.context.source_index.span(element.span),
             root,
         });
     }
@@ -542,10 +571,10 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
 
         let id = self.allocate_id();
         let root = self.lower_fragment(fragment);
-        self.components.push(ComponentIr {
+        self.state.components.push(ComponentIr {
             id,
             kind: "Component".into(),
-            span: self.source_index.span(fragment.span),
+            span: self.context.source_index.span(fragment.span),
             root: RootIr::Fragment(root),
         });
     }
@@ -568,11 +597,13 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         // markup: `<svg>` enters the SVG namespace and `<foreignObject>` leaves
         // it again. The same rule applies inside component and control-flow
         // children, which are transparent to the HTML parser's context.
-        let namespace = element_namespace(self.namespace, tag_name);
-        let previous =
-            std::mem::replace(&mut self.namespace, content_namespace(namespace, tag_name));
+        let namespace = element_namespace(self.state.namespace, tag_name);
+        let previous = std::mem::replace(
+            &mut self.state.namespace,
+            content_namespace(namespace, tag_name),
+        );
         let mut children = self.lower_children(&element.children);
-        self.namespace = previous;
+        self.state.namespace = previous;
         self.lower_raw_text_children(tag_name, element, &mut children)?;
 
         Some(ElementIr {
@@ -581,7 +612,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             reference: IrRef { node_id: id },
             tag_name: identifier.name.to_string(),
             namespace: namespace.as_str().into(),
-            span: self.source_index.span(element.span),
+            span: self.context.source_index.span(element.span),
             attributes,
             children,
         })
@@ -773,11 +804,11 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         }
 
         if !element.children.is_empty() {
-            let span = self.source_index.span(element.span);
+            let span = self.context.source_index.span(element.span);
             let children = if kind == "Host" {
-                self.host_depth += 1;
+                self.state.host_depth += 1;
                 let children = self.lower_inline_value_children(&element.children);
-                self.host_depth = self.host_depth.saturating_sub(1);
+                self.state.host_depth = self.state.host_depth.saturating_sub(1);
                 children
             } else {
                 self.lower_inline_value_children(&element.children)
@@ -795,7 +826,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             kind: kind.into(),
             callee,
             props,
-            span: self.source_index.span(element.span),
+            span: self.context.source_index.span(element.span),
         }
     }
 
@@ -810,29 +841,34 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         let JSXElementName::IdentifierReference(identifier) = &element.opening_element.name else {
             return None;
         };
-        let binding = self.builtin_names.get(name)?;
+        let binding = self.context.builtin_names.get(name)?;
         let reference_id = identifier.reference_id.get()?;
-        let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
+        let symbol_id = self
+            .context
+            .scoping
+            .get_reference(reference_id)
+            .symbol_id()?;
         (symbol_id == binding.symbol_id).then_some(binding.kind)
     }
 
     fn is_host_root(&self, element: &JSXElement<'_>) -> bool {
-        self.host_depth == 0
-            && (self.host_root_spans.is_empty()
-                || self.host_root_spans.contains(&element.span.start))
+        self.state.host_depth == 0
+            && (self.context.host_root_spans.is_empty()
+                || self.context.host_root_spans.contains(&element.span.start))
             && self.is_inside_define_element_setup(element.span)
     }
 
     fn is_inside_define_element_setup(&self, span: Span) -> bool {
-        self.define_element_setup_spans
+        self.context
+            .define_element_setup_spans
             .iter()
             .any(|setup| setup.start <= span.start && span.end <= setup.end)
     }
 
     fn lower_error_boundary(&mut self, element: &JSXElement<'_>) -> ErrorBoundaryBindingIr {
         let id = self.allocate_id();
-        let span = self.source_index.span(element.span);
-        self.error_boundary_spans.push(span);
+        let span = self.context.source_index.span(element.span);
+        self.state.error_boundary_spans.push(span);
         self.reject_once_markers_on_builtin_attributes(element);
         self.reject_unknown_builtin_attributes(element, "ErrorBoundary", &["fallback", "onError"]);
         for attribute in &element.opening_element.attributes {
@@ -938,7 +974,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 })
                 .collect(),
             body: vec![body],
-            span: self.source_index.span(function.span),
+            span: self.context.source_index.span(function.span),
         }))
     }
 
@@ -959,7 +995,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 when: self.empty_expression(element.span),
                 children: Vec::new(),
                 fallback: None,
-                span: self.source_index.span(element.span),
+                span: self.context.source_index.span(element.span),
             };
         }
         if self.reject_unknown_builtin_attributes(element, "Show", &["when", "fallback"]) {
@@ -969,7 +1005,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 when: self.empty_expression(element.span),
                 children: Vec::new(),
                 fallback: None,
-                span: self.source_index.span(element.span),
+                span: self.context.source_index.span(element.span),
             };
         }
         let Some(when) = self.lower_builtin_expression_attr(element, "when", true) else {
@@ -979,7 +1015,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 when: self.empty_expression(element.span),
                 children: Vec::new(),
                 fallback: None,
-                span: self.source_index.span(element.span),
+                span: self.context.source_index.span(element.span),
             };
         };
         let fallback = self.lower_show_fallback(element);
@@ -989,7 +1025,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             when,
             children: self.lower_inline_value_children(&element.children),
             fallback,
-            span: self.source_index.span(element.span),
+            span: self.context.source_index.span(element.span),
         }
     }
 
@@ -1004,7 +1040,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 item: "item".into(),
                 index: None,
                 body: Vec::new(),
-                span: self.source_index.span(element.span),
+                span: self.context.source_index.span(element.span),
             };
         }
         if self.reject_unknown_builtin_attributes(element, "For", &["each", "by"]) {
@@ -1016,7 +1052,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 item: "item".into(),
                 index: None,
                 body: Vec::new(),
-                span: self.source_index.span(element.span),
+                span: self.context.source_index.span(element.span),
             };
         }
         let each = self
@@ -1084,7 +1120,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             item,
             index,
             body,
-            span: self.source_index.span(element.span),
+            span: self.context.source_index.span(element.span),
         }
     }
 
@@ -1101,7 +1137,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             "respectReducedMotion",
         ];
         let id = self.allocate_id();
-        let span = self.source_index.span(element.span);
+        let span = self.context.source_index.span(element.span);
         if self.reject_once_markers_on_builtin_attributes(element)
             || self.reject_unknown_builtin_attributes(element, "Transition", ALLOWED)
         {
@@ -1188,7 +1224,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 id: self.allocate_id(),
                 name: name.name.to_string(),
                 expression,
-                span: self.source_index.span(attribute.span),
+                span: self.context.source_index.span(attribute.span),
             });
         }
         options
@@ -1254,7 +1290,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             .unwrap_or_else(|| "item".into());
         let index_parameter = function.params.items.get(1);
         let index = index_parameter.and_then(|parameter| binding_name(&parameter.pattern));
-        self.for_accessor_scopes.push(LowerForAccessorScope {
+        self.state.for_accessor_scopes.push(LowerForAccessorScope {
             for_id,
             item: item_parameter.and_then(|parameter| binding_symbol(&parameter.pattern)),
             index: index_parameter.and_then(|parameter| binding_symbol(&parameter.pattern)),
@@ -1284,13 +1320,14 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                             reference: IrRef { node_id: id },
                             expression: self.lower_expression(expression),
                             once: false,
-                            span: self.source_index.span(expression.span()),
+                            span: self.context.source_index.span(expression.span()),
                         }));
                     }
                 }
             }
         }
-        self.for_accessor_scopes
+        self.state
+            .for_accessor_scopes
             .pop()
             .expect("For accessor scopes must be balanced");
         (item, index, body)
@@ -1506,7 +1543,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         };
 
         let id = self.allocate_id();
-        let span = self.source_index.span(expression.span());
+        let span = self.context.source_index.span(expression.span());
         Some(DynamicRegionIr {
             id,
             kind: "DynamicRegion".into(),
@@ -1646,7 +1683,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     ChildIr::Component(self.lower_special_component(element, "Host"))
                 }
                 BuiltinKind::Slot => {
-                    if self.host_depth == 0 {
+                    if self.state.host_depth == 0 {
                         self.unsupported(
                             "ZEUS_INVALID_SLOT_USAGE",
                             "<Slot> can only be used inside a defineElement Host boundary.",
@@ -1666,7 +1703,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                         id: self.allocate_id(),
                         kind: "Text".into(),
                         value: String::new(),
-                        span: self.source_index.span(element.span),
+                        span: self.context.source_index.span(element.span),
                     })
                 },
                 ChildIr::Element,
@@ -1682,26 +1719,26 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         ExpressionIr {
             kind: "Expression".into(),
             code: code.into(),
-            span: self.source_index.span(span),
+            span: self.context.source_index.span(span),
             form: ExpressionForm::Value,
             for_accessors: Vec::new(),
         }
     }
 
     fn lower_component_callee(&mut self, name: &JSXElementName<'_>) -> ExpressionIr {
-        let span = self.source_index.span(name.span());
+        let span = self.context.source_index.span(name.span());
         let code = match name {
             JSXElementName::Identifier(identifier) => {
                 if identifier.name.contains('-') {
-                    self.diagnostics.push(
+                    self.state.diagnostics.push(
                         CompilerDiagnostic::error(
                             "ZEUS_UNSUPPORTED_COMPONENT_NAME",
                             format!(
                                 "<{}> is not a valid component name: a component tag must be a JavaScript identifier.",
                                 identifier.name
                             ),
-                            self.filename,
-                            Some(self.source_index.span(identifier.span)),
+                            self.context.filename,
+                            Some(self.context.source_index.span(identifier.span)),
                         )
                         .with_hint(
                             "Rename the component to an identifier such as `AB`, or use a lowercase tag for a custom element.",
@@ -1712,7 +1749,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             }
             JSXElementName::IdentifierReference(identifier) => identifier.name.to_string(),
             JSXElementName::MemberExpression(_) | JSXElementName::ThisExpression(_) => {
-                name.span().source_text(self.source).to_owned()
+                name.span().source_text(self.context.source).to_owned()
             }
             JSXElementName::NamespacedName(_) => {
                 self.unsupported(
@@ -1720,11 +1757,11 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     "Namespaced component names are not supported.",
                     name.span(),
                 );
-                name.span().source_text(self.source).to_owned()
+                name.span().source_text(self.context.source).to_owned()
             }
         };
         let mut collector = ForAccessorReferenceCollector {
-            scoping: &self.scoping,
+            scoping: &self.context.scoping,
             referenced_symbols: HashSet::new(),
         };
         collector.visit_jsx_element_name(name);
@@ -1748,7 +1785,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 format!("{}:{}", namespaced.namespace.name, namespaced.name.name)
             }
         };
-        let span = self.source_index.span(attribute.span);
+        let span = self.context.source_index.span(attribute.span);
         let value = match &attribute.value {
             None => ExpressionIr {
                 kind: "Expression".into(),
@@ -1810,7 +1847,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         FragmentIr {
             id,
             kind: "Fragment".into(),
-            span: self.source_index.span(fragment.span),
+            span: self.context.source_index.span(fragment.span),
             children: self.lower_children(&fragment.children),
         }
     }
@@ -1854,7 +1891,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             id: self.allocate_id(),
             target: target.into(),
             expression: self.lower_expression(&attribute.argument),
-            span: self.source_index.span(attribute.span),
+            span: self.context.source_index.span(attribute.span),
         }
     }
 
@@ -1871,12 +1908,12 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 Some(JSXAttributeValue::ExpressionContainer(_))
             )
         {
-            self.diagnostics.push(
+            self.state.diagnostics.push(
                 CompilerDiagnostic::error(
                     "ZEUS_INVALID_EVENT_BINDING",
                     format!("{name} requires a handler expression."),
-                    self.filename,
-                    Some(self.source_index.span(attribute.span)),
+                    self.context.filename,
+                    Some(self.context.source_index.span(attribute.span)),
                 )
                 .with_hint("Pass a function, for example `on:value-change={event => ...}`."),
             );
@@ -1906,7 +1943,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     id: self.allocate_id(),
                     name,
                     value: StaticAttributeValue::Boolean,
-                    span: self.source_index.span(attribute.span),
+                    span: self.context.source_index.span(attribute.span),
                 }))
             }
             Some(JSXAttributeValue::StringLiteral(value)) => {
@@ -1932,9 +1969,9 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     name,
                     value: StaticAttributeValue::String(decode_jsx_entities(
                         value.value.as_str(),
-                        self.allocator,
+                        self.context.allocator,
                     )),
-                    span: self.source_index.span(attribute.span),
+                    span: self.context.source_index.span(attribute.span),
                 }))
             }
             Some(JSXAttributeValue::ExpressionContainer(container)) => self
@@ -1964,14 +2001,14 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             JSXAttributeName::NamespacedName(namespaced) if namespaced.namespace.name == "prop" => {
                 let property = namespaced.name.name.as_str();
                 if matches!(property, "innerHTML" | "outerHTML") {
-                    self.diagnostics.push(
+                    self.state.diagnostics.push(
                         CompilerDiagnostic::error(
                             "ZEUS_UNSAFE_HTML_PROPERTY",
                             format!(
                                 "prop:{property} parses a string as HTML and bypasses escaping; Zeus does not bind it."
                             ),
-                            self.filename,
-                            Some(self.source_index.span(name.span())),
+                            self.context.filename,
+                            Some(self.context.source_index.span(name.span())),
                         )
                         .with_hint(
                             "Render the markup as JSX. For trusted, sanitized HTML, assign it to the element in a ref callback.",
@@ -1984,14 +2021,14 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 // kebab-case, property spelling is not, and silently dropping
                 // the value is the worst outcome: name the fix instead.
                 if property.contains('-') {
-                    self.diagnostics.push(
+                    self.state.diagnostics.push(
                         CompilerDiagnostic::error(
                             "ZEUS_INVALID_PROP_NAME",
                             format!(
                                 "prop:{property} names a DOM property, and property names are not kebab-case; no element has a `{property}` property."
                             ),
-                            self.filename,
-                            Some(self.source_index.span(name.span())),
+                            self.context.filename,
+                            Some(self.context.source_index.span(name.span())),
                         )
                         .with_hint(format!(
                             "Write the property name in camelCase, for example `prop:{}`.",
@@ -2070,7 +2107,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             return None;
         }
         let id = self.allocate_id();
-        let span = self.source_index.span(attribute.span);
+        let span = self.context.source_index.span(attribute.span);
 
         if once && !is_property && (name == "ref" || is_event_attribute_name(&name)) {
             self.invalid_once_target(container.span);
@@ -2105,14 +2142,14 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 None => name[2..].to_ascii_lowercase(),
             };
             if let Some(intended) = event_name.strip_prefix('-') {
-                self.diagnostics.push(
+                self.state.diagnostics.push(
                     CompilerDiagnostic::error(
                         "ZEUS_INVALID_EVENT_BINDING",
                         format!(
                             "{name} does not name an event: the event name would start with \"-\"."
                         ),
-                        self.filename,
-                        Some(self.source_index.span(attribute.name.span())),
+                        self.context.filename,
+                        Some(self.context.source_index.span(attribute.name.span())),
                     )
                     .with_hint(format!(
                         "Use on:{intended} to bind an event by its exact name."
@@ -2166,14 +2203,14 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     fn lower_child(&mut self, child: &JSXChild<'_>, lowered: &mut Vec<ChildIr>) {
         match child {
             JSXChild::Text(text) => {
-                let cooked = decode_jsx_entities(text.value.as_str(), self.allocator);
+                let cooked = decode_jsx_entities(text.value.as_str(), self.context.allocator);
                 let value = normalize_jsx_text(&cooked);
                 if !value.is_empty() {
                     lowered.push(ChildIr::Text(TextIr {
                         id: self.allocate_id(),
                         kind: "Text".into(),
                         value,
-                        span: self.source_index.span(text.span),
+                        span: self.context.source_index.span(text.span),
                     }));
                 }
             }
@@ -2201,7 +2238,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 } else {
                     (expression, false)
                 };
-                let diagnostic_count = self.diagnostics.len();
+                let diagnostic_count = self.state.diagnostics.len();
                 if let Some(region) = self.lower_dynamic_region(expression) {
                     if once {
                         self.invalid_once_target(container.span);
@@ -2210,7 +2247,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     lowered.push(ChildIr::DynamicRegion(region));
                     return;
                 }
-                if contains_jsx(expression) && self.diagnostics.len() == diagnostic_count {
+                if contains_jsx(expression) && self.state.diagnostics.len() == diagnostic_count {
                     self.unsupported(
                         "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
                         "Nested JSX expressions are not supported by this compiler slice.",
@@ -2243,7 +2280,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     },
                     expression,
                     once,
-                    span: self.source_index.span(container.span),
+                    span: self.context.source_index.span(container.span),
                 }));
             }
             JSXChild::Fragment(fragment) => {
@@ -2261,10 +2298,10 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         let diagnostic = CompilerDiagnostic::error(
             code,
             message,
-            self.filename,
-            Some(self.source_index.span(span)),
+            self.context.filename,
+            Some(self.context.source_index.span(span)),
         );
-        self.diagnostics.push(match unsupported_hint(code) {
+        self.state.diagnostics.push(match unsupported_hint(code) {
             Some(hint) => diagnostic.with_hint(hint),
             None => diagnostic,
         });
@@ -2276,14 +2313,14 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 || "A defineElement setup".to_owned(),
                 |name| format!("Component `{name}`"),
             );
-            self.diagnostics.push(
+            self.state.diagnostics.push(
                 CompilerDiagnostic::error(
                     "ZEUS_ASYNC_COMPONENT",
                     format!(
                         "{subject} is an async function or generator. Components run once synchronously and must return DOM, not a Promise or iterator."
                     ),
-                    self.filename,
-                    Some(self.source_index.span(component.span)),
+                    self.context.filename,
+                    Some(self.context.source_index.span(component.span)),
                 )
                 .with_hint(
                     "Make the component synchronous and load data with createResource, rendering the pending state with <Show>.",
@@ -2298,14 +2335,14 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 AsyncExpressionKind::Await => "await",
                 AsyncExpressionKind::Yield => "yield",
             };
-            self.diagnostics.push(
+            self.state.diagnostics.push(
                 CompilerDiagnostic::error(
                     "ZEUS_UNSUPPORTED_ASYNC_EXPRESSION",
                     format!(
                         "`{keyword}` is not supported in JSX expressions; bindings are evaluated synchronously inside reactive getters."
                     ),
-                    self.filename,
-                    Some(self.source_index.span(span)),
+                    self.context.filename,
+                    Some(self.context.source_index.span(span)),
                 )
                 .with_hint(
                     "Load the value with createResource and read it in the expression, or await it inside an event handler.",
@@ -2315,12 +2352,12 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     }
 
     fn unsupported_for_callback_parameter(&mut self, span: Span) {
-        self.diagnostics.push(
+        self.state.diagnostics.push(
             CompilerDiagnostic::error(
                 "ZEUS_UNSUPPORTED_FOR_CALLBACK_PARAMETER",
                 "<For> callback accepts at most two plain identifier parameters; destructuring, default values, and rest parameters are not supported.",
-                self.filename,
-                Some(self.source_index.span(span)),
+                self.context.filename,
+                Some(self.context.source_index.span(span)),
             )
             .with_hint("Use a callback shaped like `(item, index) => ...`."),
         );
@@ -2329,15 +2366,15 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     fn lower_expression(&self, expression: &Expression<'_>) -> ExpressionIr {
         let span = expression.span();
         let mut collector = ForAccessorReferenceCollector {
-            scoping: &self.scoping,
+            scoping: &self.context.scoping,
             referenced_symbols: HashSet::new(),
         };
         collector.visit_expression(expression);
         let for_accessors = self.for_accessors_from_symbols(&collector.referenced_symbols);
         ExpressionIr {
             kind: "Expression".into(),
-            code: span.source_text(self.source).to_owned(),
-            span: self.source_index.span(span),
+            code: span.source_text(self.context.source).to_owned(),
+            span: self.context.source_index.span(span),
             form: expression_form(expression),
             for_accessors,
         }
@@ -2345,14 +2382,14 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
 
     fn lower_call_expression(&self, expression: &CallExpression<'_>) -> ExpressionIr {
         let mut collector = ForAccessorReferenceCollector {
-            scoping: &self.scoping,
+            scoping: &self.context.scoping,
             referenced_symbols: HashSet::new(),
         };
         collector.visit_call_expression(expression);
         ExpressionIr {
             kind: "Expression".into(),
-            code: expression.span.source_text(self.source).to_owned(),
-            span: self.source_index.span(expression.span),
+            code: expression.span.source_text(self.context.source).to_owned(),
+            span: self.context.source_index.span(expression.span),
             form: ExpressionForm::Value,
             for_accessors: self.for_accessors_from_symbols(&collector.referenced_symbols),
         }
@@ -2362,7 +2399,8 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         &self,
         referenced_symbols: &HashSet<SymbolId>,
     ) -> Vec<ForAccessorIr> {
-        self.for_accessor_scopes
+        self.state
+            .for_accessor_scopes
             .iter()
             .filter_map(|scope| {
                 let item = scope
@@ -2465,12 +2503,12 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     }
 
     fn removed_once_marker(&mut self, span: Span) {
-        self.diagnostics.push(
+        self.state.diagnostics.push(
             CompilerDiagnostic::error(
                 "ZEUS_INVALID_ONCE_TARGET",
                 "The @once comment syntax is no longer accepted; use once(expression) in a native DOM binding.",
-                self.filename,
-                Some(self.source_index.span(span)),
+                self.context.filename,
+                Some(self.context.source_index.span(span)),
             )
             .with_hint("Replace `{/* @once */ value}` with `{once(value)}` and use `once(value)` for DOM attributes or properties."),
         );
@@ -2482,7 +2520,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         };
         let start = container.span.start.saturating_add(1) as usize;
         let end = expression.span().start as usize;
-        let Some(trivia) = self.source.get(start..end) else {
+        let Some(trivia) = self.context.source.get(start..end) else {
             return false;
         };
 
@@ -2498,7 +2536,11 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         };
         identifier.name.as_str() == "once"
             && identifier.reference_id.get().is_some_and(|reference| {
-                self.scoping.get_reference(reference).symbol_id().is_none()
+                self.context
+                    .scoping
+                    .get_reference(reference)
+                    .symbol_id()
+                    .is_none()
             })
     }
 
@@ -2522,7 +2564,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     fn has_once_spread_marker(&self, attribute: &JSXSpreadAttribute<'_>) -> bool {
         let start = attribute.span.start as usize;
         let end = attribute.argument.span().start as usize;
-        let Some(prefix) = self.source.get(start..end) else {
+        let Some(prefix) = self.context.source.get(start..end) else {
             return false;
         };
         let Some(spread_start) = prefix.find("...") else {
