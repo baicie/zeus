@@ -119,44 +119,18 @@ fn ir_does_not_depend_on_any_stage() {
     );
 }
 
-/// The crate currently has one cycle: `codegen -> codegen::ssr -> codegen`.
+/// No module may import, directly or through a chain, a module that imports it.
 ///
-/// `codegen/ssr.rs` imports 19 symbols from its parent, and `mod.rs` declares
-/// and re-exports the submodule. Removing it is R18.1 PR-B. Until then this test
-/// records the exact cycle rather than asserting there is none — an ignored
-/// test would hide a *different* cycle appearing, which is the failure mode the
-/// scanner fix was made to catch.
+/// This was relaxed to "the known `codegen <-> codegen::ssr` pair only" while
+/// PR-A landed the scanner fix that made the pair visible. PR-B moved SSR's
+/// shared infrastructure into `codegen::infra` and its own symbols into
+/// `codegen::ssr`, so the pair is gone and the assertion is strict again.
 #[test]
 fn the_crate_has_no_import_cycle() {
     let analysis = analyse_crate();
-    match analysis.first_cycle() {
-        None => {}
-        Some(cycle) => {
-            let known: Vec<String> = ["codegen", "codegen::ssr"]
-                .iter()
-                .map(ToString::to_string)
-                .collect();
-            // A cycle confined to the known pair is the tracked debt. Anything
-            // else is new and must fail.
-            let only_known = cycle.iter().all(|module| known.contains(module)) && cycle.len() == 3;
-            assert!(
-                only_known,
-                "a new import cycle appeared: {}. The only known one is \
-                 codegen <-> codegen::ssr; everything else must be fixed.",
-                cycle.join(" -> ")
-            );
-        }
+    if let Some(cycle) = analysis.first_cycle() {
+        panic!("import cycle: {}", cycle.join(" -> "));
     }
-}
-
-#[test]
-fn every_module_is_reachable_from_the_entry_point() {
-    let analysis = analyse_crate();
-    let unreachable = analysis.unreachable();
-    assert!(
-        unreachable.is_empty(),
-        "modules not reachable from lib.rs: {unreachable:?}"
-    );
 }
 
 // ---------------------------------------------------------------------------

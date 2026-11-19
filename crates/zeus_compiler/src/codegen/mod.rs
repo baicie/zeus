@@ -5,9 +5,16 @@
 //! own emitter so a change to one is not read as a change to both.
 
 mod analysis;
+mod infra;
 mod ssr;
 
 pub(crate) use ssr::{SsrModuleOptions, emit_ssr_module};
+
+use infra::{
+    CodeWriter, ForAccessorScope, NameAllocator, attribute_key, build_source_map,
+    element_has_spread, escape_html_attribute, escape_html_text, is_static_expression,
+    is_unescaped_raw_text, object_key, quote_js, root_span,
+};
 
 use analysis::{
     RuntimeHelper, allocate_locator_attribute, collect_delegated_events, is_delegatable_event,
@@ -15,10 +22,8 @@ use analysis::{
 
 use std::collections::{HashMap, HashSet};
 
-use oxc_sourcemap::SourceMapBuilder;
-
 use crate::{
-    PureDefineElementMode, RawSourceMap, TransformModuleResult,
+    PureDefineElementMode, TransformModuleResult,
     ir::{
         AttributeIr, ChildIr, ComponentBindingIr, ComponentIr, ComponentPropIr,
         ComponentPropValueIr, DynamicRegionExpressionIr, DynamicRegionIr, DynamicRegionValueIr,
@@ -26,7 +31,7 @@ use crate::{
         ForBindingIr, FragmentIr, ModuleIr, NodeId, RootIr, ShowBindingIr, StaticAttributeValue,
         TransitionBindingIr, TransitionOptionIr, is_children_expression,
     },
-    lower::{HmrInfo, SsrImportReplacement, SsrImportRewrite},
+    lower::HmrInfo,
     span::SourceIndex,
     support::html::{is_raw_text_element, is_svg_element, is_void_element},
     support::hydration::{
@@ -117,7 +122,7 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
         &source_insertions,
         false,
     );
-    if cursor > 0 && !writer.code.ends_with('\n') {
+    if cursor > 0 && !writer.ends_with_newline() {
         writer.push("\n");
     }
     if !module.components.is_empty() {
@@ -164,10 +169,10 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
     );
     emit_delegated_events(&mut writer, &runtime, &delegated_event_names);
 
-    let map = source_map.then(|| build_source_map(filename, source, &writer.mappings));
+    let map = source_map.then(|| build_source_map(filename, source, writer.recorded_mappings()));
 
     TransformModuleResult {
-        code: writer.code,
+        code: writer.into_generated(),
         map,
         diagnostics: Vec::new(),
         hydration_plan: None,
@@ -308,20 +313,6 @@ struct ComponentEmitter<'a> {
     locator_attribute: &'a str,
     names: &'a mut NameAllocator,
     auto_hydrate: bool,
-}
-
-/// Closes an SSR dynamic text node; `hydrate` in `@zeus-js/runtime-dom` reads
-/// it as `zeus:hydrate:/`.
-pub(super) const SSR_TEXT_END_MARKER: &str = "<!--zeus:hydrate:/-->";
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum SsrTextContext {
-    Normal,
-    Raw,
-    Rcdata,
-    /// `<script>`/`<style>` inside SVG. The HTML parser does not treat those
-    /// as raw text in foreign content, so the content uses ordinary escaping.
-    ForeignRaw,
 }
 
 fn emit_components(
@@ -474,7 +465,7 @@ fn emit_hmr_boundary(
     if !enabled || hmr.manual_boundary || disposers.is_empty() {
         return;
     }
-    if !writer.code.ends_with('\n') {
+    if !writer.ends_with_newline() {
         writer.push("\n");
     }
     writer.push("const ");
@@ -502,7 +493,7 @@ fn emit_delegated_events(
     if delegated_events.is_empty() {
         return;
     }
-    if !writer.code.ends_with('\n') {
+    if !writer.ends_with_newline() {
         writer.push("\n");
     }
     writer.push(runtime.delegate_events());
@@ -1324,44 +1315,6 @@ fn emit_event_binding(
     writer.push(");\n");
 }
 
-fn emit_event_handler(writer: &mut CodeWriter, handler: &ExpressionIr, names: &mut NameAllocator) {
-    if !writer.expression_uses_for_accessors(handler) && handler.form != ExpressionForm::Member {
-        writer.push_mapped(&handler.code, handler);
-        return;
-    }
-
-    if writer.expression_uses_for_accessors(handler) {
-        let invoke = names.allocate("$zeusInvoke");
-        let receiver = names.allocate("$zeusReceiver");
-        let invoke_arguments = names.allocate("$zeusInvokeArgs");
-        let event_arguments = names.allocate("$zeusEventArgs");
-        writer.push("(() => {\nconst ");
-        writer.push(&invoke);
-        writer.push(" = (");
-        writer.push(&receiver);
-        writer.push(", ");
-        writer.push(&invoke_arguments);
-        writer.push(") => ");
-        writer.push_dom_invocation(handler, &invoke_arguments, &receiver, true);
-        writer.push(";\nreturn function (...");
-        writer.push(&event_arguments);
-        writer.push(") { return ");
-        writer.push(&invoke);
-        writer.push("(this, ");
-        writer.push(&event_arguments);
-        writer.push("); };\n})()");
-        return;
-    }
-
-    let event_name = names.allocate("$zeusEvent");
-    writer.push(&event_name);
-    writer.push(" => (");
-    writer.push_mapped(&handler.code, handler);
-    writer.push(")?.(");
-    writer.push(&event_name);
-    writer.push(")");
-}
-
 fn emit_element_targets(
     writer: &mut CodeWriter,
     component: &GeneratedComponent,
@@ -2059,39 +2012,6 @@ fn emit_inline_root(
     writer.push(";\n})()");
 }
 
-pub(super) fn object_key(name: &str) -> String {
-    if is_valid_identifier(name) {
-        name.to_owned()
-    } else {
-        quote_js(name)
-    }
-}
-
-fn is_valid_identifier(name: &str) -> bool {
-    let mut chars = name.chars();
-    let Some(first) = chars.next() else {
-        return false;
-    };
-    (first == '_' || first == '$' || first.is_ascii_alphabetic())
-        && chars.all(|character| {
-            character == '_' || character == '$' || character.is_ascii_alphanumeric()
-        })
-}
-
-pub(super) fn is_static_expression(expression: &ExpressionIr) -> bool {
-    expression.form == ExpressionForm::Value
-        && (expression.code == "true"
-            || expression.code == "false"
-            || expression.code == "null"
-            || expression.code.starts_with('"')
-            || expression.code.starts_with('\'')
-            || expression
-                .code
-                .chars()
-                .next()
-                .is_some_and(|c| c.is_ascii_digit()))
-}
-
 fn emit_text_binding(
     writer: &mut CodeWriter,
     expression: &ExpressionIr,
@@ -2249,61 +2169,6 @@ fn emit_ref_binding(
     writer.push(");\n");
 }
 
-pub(super) fn emit_attribute_sources(
-    writer: &mut CodeWriter,
-    attributes: &[AttributeIr],
-    mut names: Option<&mut NameAllocator>,
-) {
-    writer.push("[");
-    for (index, attribute) in attributes.iter().enumerate() {
-        if index > 0 {
-            writer.push(", ");
-        }
-        writer.push("() => (");
-        if let AttributeIr::Spread(spread) = attribute {
-            writer.push_dom_expression(&spread.expression);
-        } else {
-            writer.push("{");
-            let name = match attribute {
-                AttributeIr::Static(attr) => attr.name.clone(),
-                AttributeIr::Dynamic(attr) => attr.name.clone(),
-                AttributeIr::Property(attr) => format!("prop:{}", attr.name),
-                AttributeIr::Event(attr) => format!("on{}", attr.event_name),
-                AttributeIr::Ref(_) => "ref".into(),
-                AttributeIr::Spread(_) => unreachable!(),
-            };
-            writer.push(&quote_js(&name));
-            writer.push(": ");
-            match attribute {
-                AttributeIr::Static(attr) => match &attr.value {
-                    StaticAttributeValue::String(value) => writer.push(&quote_js(value)),
-                    StaticAttributeValue::Boolean => writer.push("true"),
-                },
-                AttributeIr::Dynamic(attr) => writer.push_dom_expression(&attr.expression),
-                AttributeIr::Property(attr) => writer.push_dom_expression(&attr.expression),
-                AttributeIr::Event(attr) => {
-                    if let Some(names) = names.as_deref_mut() {
-                        emit_event_handler(writer, &attr.handler, names);
-                    } else {
-                        writer.push("undefined");
-                    }
-                }
-                AttributeIr::Ref(attr) => {
-                    if names.is_some() {
-                        writer.push_dom_expression(&attr.expression);
-                    } else {
-                        writer.push("undefined");
-                    }
-                }
-                AttributeIr::Spread(_) => unreachable!(),
-            }
-            writer.push("}");
-        }
-        writer.push(")");
-    }
-    writer.push("]");
-}
-
 fn emit_getter(writer: &mut CodeWriter, expression: &ExpressionIr) {
     writer.push("() => (");
     writer.push_dom_expression(expression);
@@ -2432,13 +2297,6 @@ fn collect_root_dynamic_bindings(root: &RootIr) -> Vec<DynamicBinding> {
         | RootIr::ErrorBoundary(_)
         | RootIr::Transition(_) => Vec::new(),
     }
-}
-
-pub(super) fn element_has_spread(element: &ElementIr) -> bool {
-    element
-        .attributes
-        .iter()
-        .any(|attribute| matches!(attribute, AttributeIr::Spread(_)))
 }
 
 fn collect_element_bindings(element: &ElementIr, bindings: &mut Vec<DynamicBinding>) {
@@ -2586,26 +2444,6 @@ fn has_dynamic_raw_text(element: &ElementIr) -> bool {
         .any(|child| matches!(child, ChildIr::DynamicText(_)))
 }
 
-pub(super) fn is_unescaped_raw_text(tag_name: &str) -> bool {
-    tag_name.eq_ignore_ascii_case("script") || tag_name.eq_ignore_ascii_case("style")
-}
-
-pub(super) fn ssr_text_context(element: &ElementIr) -> SsrTextContext {
-    if is_unescaped_raw_text(&element.tag_name) {
-        if element.namespace == "svg" {
-            SsrTextContext::ForeignRaw
-        } else {
-            SsrTextContext::Raw
-        }
-    } else if element.tag_name.eq_ignore_ascii_case("textarea")
-        || element.tag_name.eq_ignore_ascii_case("title")
-    {
-        SsrTextContext::Rcdata
-    } else {
-        SsrTextContext::Normal
-    }
-}
-
 fn collect_text_content_parts(element: &ElementIr) -> Vec<TextContentPart> {
     element
         .children
@@ -2626,47 +2464,6 @@ fn collect_text_content_parts(element: &ElementIr) -> Vec<TextContentPart> {
             | ChildIr::Transition(_) => None,
         })
         .collect()
-}
-
-pub(super) fn build_source_map(filename: &str, source: &str, mappings: &[Mapping]) -> RawSourceMap {
-    let mut builder = SourceMapBuilder::default();
-    builder.set_file(filename);
-    let source_name = filename
-        .rsplit(['/', '\\'])
-        .next()
-        .filter(|name| !name.is_empty())
-        .unwrap_or(filename);
-    let source_id = builder.add_source_and_content(source_name, source);
-
-    for mapping in mappings {
-        let (original_line, original_column) = mapping.original.unwrap_or_default();
-        builder.add_token(
-            mapping.generated_line,
-            mapping.generated_column,
-            original_line,
-            original_column,
-            mapping.original.map(|_| source_id),
-            None,
-        );
-    }
-
-    serde_json::from_str(&builder.into_sourcemap().to_json_string())
-        .expect("oxc_sourcemap always emits valid Source Map v3 JSON")
-}
-
-pub(super) fn quote_js(value: &str) -> String {
-    serde_json::to_string(value).expect("strings always serialize as JSON")
-}
-
-pub(super) fn escape_html_text(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-}
-
-pub(super) fn escape_html_attribute(value: &str) -> String {
-    escape_html_text(value).replace('"', "&quot;")
 }
 
 enum RootBuiltin {
@@ -2690,18 +2487,6 @@ struct GeneratedComponent {
     root_builtin: Option<RootBuiltin>,
     bindings: Vec<DynamicBinding>,
     targets: Vec<ElementTarget>,
-}
-
-pub(super) fn root_span(root: &RootIr) -> &crate::support::span::SourceSpan {
-    match root {
-        RootIr::Element(element) => &element.span,
-        RootIr::Fragment(fragment) => &fragment.span,
-        RootIr::Component(component) => &component.span,
-        RootIr::Show(show) => &show.span,
-        RootIr::For(for_binding) => &for_binding.span,
-        RootIr::ErrorBoundary(boundary) => &boundary.span,
-        RootIr::Transition(transition) => &transition.span,
-    }
 }
 
 impl GeneratedComponent {
@@ -3292,102 +3077,6 @@ struct RuntimeNames {
     enable_delegation: bool,
 }
 
-pub(super) struct SsrRuntimeNames {
-    static_text: String,
-    text: String,
-    element: String,
-    attr: String,
-    prop: String,
-    component: String,
-    show: String,
-    for_each: String,
-    spread: String,
-    merge_props: String,
-    hydration_marker: String,
-    define_element: String,
-    host: String,
-    slot: String,
-    auto_hydrate: bool,
-}
-
-impl SsrRuntimeNames {
-    fn allocate(names: &mut NameAllocator, auto_hydrate: bool) -> Self {
-        Self {
-            static_text: names.allocate("$zeusSsrStatic"),
-            text: names.allocate("$zeusSsrText"),
-            element: names.allocate("$zeusSsrElement"),
-            attr: names.allocate("$zeusSsrAttr"),
-            prop: names.allocate("$zeusSsrProp"),
-            component: names.allocate("$zeusSsrComponent"),
-            show: names.allocate("$zeusSsrShow"),
-            for_each: names.allocate("$zeusSsrFor"),
-            spread: names.allocate("$zeusSsrSpread"),
-            merge_props: names.allocate("$zeusMergeProps"),
-            hydration_marker: names.allocate("$zeusHydrationMarker"),
-            define_element: names.allocate("$zeusSsrDefineElement"),
-            host: names.allocate("$zeusSsrHost"),
-            slot: names.allocate("$zeusSsrSlot"),
-            auto_hydrate,
-        }
-    }
-
-    fn entries(&self) -> [(&'static str, &str); 14] {
-        [
-            ("ssrStatic", &self.static_text),
-            ("ssrText", &self.text),
-            ("ssrElement", &self.element),
-            ("ssrAttr", &self.attr),
-            ("ssrProp", &self.prop),
-            ("ssrComponent", &self.component),
-            ("ssrShow", &self.show),
-            ("ssrFor", &self.for_each),
-            ("ssrSpread", &self.spread),
-            ("mergeProps", &self.merge_props),
-            ("ssrHydrationMarker", &self.hydration_marker),
-            ("defineElement", &self.define_element),
-            ("Host", &self.host),
-            ("Slot", &self.slot),
-        ]
-    }
-
-    fn static_text(&self) -> &str {
-        &self.static_text
-    }
-    fn text(&self) -> &str {
-        &self.text
-    }
-    fn element(&self) -> &str {
-        &self.element
-    }
-    fn attr(&self) -> &str {
-        &self.attr
-    }
-    fn prop(&self) -> &str {
-        &self.prop
-    }
-    fn component(&self) -> &str {
-        &self.component
-    }
-    fn show(&self) -> &str {
-        &self.show
-    }
-    fn for_each(&self) -> &str {
-        &self.for_each
-    }
-    fn hydration_marker(&self) -> &str {
-        &self.hydration_marker
-    }
-    fn define_element(&self) -> &str {
-        &self.define_element
-    }
-    fn host(&self) -> &str {
-        &self.host
-    }
-    fn slot(&self) -> &str {
-        &self.slot
-    }
-}
-
 impl RuntimeNames {
     fn allocate(
         usage: &HelperUsage,
@@ -3517,335 +3206,90 @@ impl RuntimeNames {
     }
 }
 
-#[derive(Clone)]
-pub(super) struct ForAccessorScope {
-    for_id: NodeId,
-    item: String,
-    index: Option<String>,
-    item_accessor: String,
-    index_accessor: Option<String>,
+fn emit_event_handler(writer: &mut CodeWriter, handler: &ExpressionIr, names: &mut NameAllocator) {
+    if !writer.expression_uses_for_accessors(handler) && handler.form != ExpressionForm::Member {
+        writer.push_mapped(&handler.code, handler);
+        return;
+    }
+
+    if writer.expression_uses_for_accessors(handler) {
+        let invoke = names.allocate("$zeusInvoke");
+        let receiver = names.allocate("$zeusReceiver");
+        let invoke_arguments = names.allocate("$zeusInvokeArgs");
+        let event_arguments = names.allocate("$zeusEventArgs");
+        writer.push("(() => {\nconst ");
+        writer.push(&invoke);
+        writer.push(" = (");
+        writer.push(&receiver);
+        writer.push(", ");
+        writer.push(&invoke_arguments);
+        writer.push(") => ");
+        writer.push_dom_invocation(handler, &invoke_arguments, &receiver, true);
+        writer.push(";\nreturn function (...");
+        writer.push(&event_arguments);
+        writer.push(") { return ");
+        writer.push(&invoke);
+        writer.push("(this, ");
+        writer.push(&event_arguments);
+        writer.push("); };\n})()");
+        return;
+    }
+
+    let event_name = names.allocate("$zeusEvent");
+    writer.push(&event_name);
+    writer.push(" => (");
+    writer.push_mapped(&handler.code, handler);
+    writer.push(")?.(");
+    writer.push(&event_name);
+    writer.push(")");
 }
 
-pub(super) struct ForAccessorUse {
-    scope: ForAccessorScope,
-    item: bool,
-    index: bool,
-}
-
-#[derive(Default)]
-pub(super) struct CodeWriter {
-    code: String,
-    line: u32,
-    column: u32,
-    mappings: Vec<Mapping>,
-    for_accessor_scopes: Vec<ForAccessorScope>,
-}
-
-impl CodeWriter {
-    fn push(&mut self, value: &str) {
-        self.code.push_str(value);
-        for character in value.chars() {
-            if character == '\n' {
-                self.line = self.line.saturating_add(1);
-                self.column = 0;
-            } else {
-                self.column = self
-                    .column
-                    .saturating_add(u32::try_from(character.len_utf16()).unwrap_or(u32::MAX));
-            }
+pub(super) fn emit_attribute_sources(
+    writer: &mut CodeWriter,
+    attributes: &[AttributeIr],
+    mut names: Option<&mut NameAllocator>,
+) {
+    writer.push("[");
+    for (index, attribute) in attributes.iter().enumerate() {
+        if index > 0 {
+            writer.push(", ");
         }
-    }
-
-    /// Copies `start..end` of the original source verbatim, mapping the first
-    /// token of every line and every identifier back to its original position.
-    fn push_original(&mut self, source_index: &SourceIndex<'_>, start: usize, end: usize) {
-        if start >= end {
-            return;
-        }
-        let origin = source_index.position(u32::try_from(start).unwrap_or(u32::MAX));
-        let mut original_line = origin.line.saturating_sub(1);
-        let mut original_column = origin.column;
-        let mut at_line_start = true;
-        let mut in_identifier = false;
-        for character in source_index.source()[start..end].chars() {
-            let identifier = character == '_' || character == '$' || character.is_alphanumeric();
-            if (at_line_start && !character.is_whitespace()) || (identifier && !in_identifier) {
-                self.mappings.push(Mapping {
-                    generated_line: self.line,
-                    generated_column: self.column,
-                    original: Some((original_line, original_column)),
-                });
-                at_line_start = false;
-            }
-            in_identifier = identifier;
-            self.code.push(character);
-            if character == '\n' {
-                self.line = self.line.saturating_add(1);
-                self.column = 0;
-                original_line = original_line.saturating_add(1);
-                original_column = 0;
-                at_line_start = true;
-            } else {
-                let width = u32::try_from(character.len_utf16()).unwrap_or(u32::MAX);
-                self.column = self.column.saturating_add(width);
-                original_column = original_column.saturating_add(width);
-            }
-        }
-        self.end_mapping();
-    }
-
-    /// Stops attributing the generated code that follows on this line to the
-    /// last original token.
-    fn end_mapping(&mut self) {
-        let Some(last) = self.mappings.last() else {
-            return;
-        };
-        if last.original.is_none() || last.generated_line != self.line {
-            return;
-        }
-        if last.generated_column == self.column {
-            self.mappings.pop();
-        }
-        self.mappings.push(Mapping {
-            generated_line: self.line,
-            generated_column: self.column,
-            original: None,
-        });
-    }
-
-    fn push_mapped(&mut self, value: &str, expression: &ExpressionIr) {
-        self.mappings.push(Mapping {
-            generated_line: self.line,
-            generated_column: self.column,
-            original: Some((
-                expression.span.start.line.saturating_sub(1),
-                expression.span.start.column,
-            )),
-        });
-        if value == expression.code {
-            for offset in identifier_offsets(value) {
-                if offset == 0 {
-                    continue;
-                }
-                let (generated_line, generated_column) =
-                    advance_position(self.line, self.column, &value[..offset]);
-                let (original_line, original_column) = advance_position(
-                    expression.span.start.line.saturating_sub(1),
-                    expression.span.start.column,
-                    &expression.code[..offset],
-                );
-                self.mappings.push(Mapping {
-                    generated_line,
-                    generated_column,
-                    original: Some((original_line, original_column)),
-                });
-            }
-        }
-        self.push(value);
-        self.end_mapping();
-    }
-
-    fn push_for_accessor_scope(&mut self, scope: ForAccessorScope) {
-        self.for_accessor_scopes.push(scope);
-    }
-
-    fn pop_for_accessor_scope(&mut self) {
-        self.for_accessor_scopes
-            .pop()
-            .expect("For accessor scopes must be balanced");
-    }
-
-    fn for_accessor_uses(&self, expression: &ExpressionIr) -> Vec<ForAccessorUse> {
-        expression
-            .for_accessors
-            .iter()
-            .filter_map(|accessor| {
-                self.for_accessor_scopes
-                    .iter()
-                    .find(|scope| scope.for_id == accessor.for_id)
-                    .map(|scope| ForAccessorUse {
-                        scope: scope.clone(),
-                        item: accessor.item,
-                        index: accessor.index,
-                    })
-            })
-            .collect()
-    }
-
-    fn expression_uses_for_accessors(&self, expression: &ExpressionIr) -> bool {
-        !self.for_accessor_uses(expression).is_empty()
-    }
-
-    fn push_for_accessor_prefix(&mut self, uses: &[ForAccessorUse]) {
-        for usage in uses {
-            self.push("((");
-            let mut needs_separator = false;
-            if usage.item {
-                self.push(&usage.scope.item);
-                needs_separator = true;
-            }
-            if usage.index {
-                if needs_separator {
-                    self.push(", ");
-                }
-                self.push(
-                    usage
-                        .scope
-                        .index
-                        .as_deref()
-                        .expect("an index use must have an index binding"),
-                );
-            }
-            self.push(") => (");
-        }
-    }
-
-    fn push_for_accessor_suffix(&mut self, uses: &[ForAccessorUse]) {
-        for usage in uses.iter().rev() {
-            self.push("))(");
-            let mut needs_separator = false;
-            if usage.item {
-                self.push(&usage.scope.item_accessor);
-                self.push("()");
-                needs_separator = true;
-            }
-            if usage.index {
-                if needs_separator {
-                    self.push(", ");
-                }
-                self.push(
-                    usage
-                        .scope
-                        .index_accessor
-                        .as_deref()
-                        .expect("an index use must have an index accessor"),
-                );
-                self.push("()");
-            }
-            self.push(")");
-        }
-    }
-
-    fn push_dom_expression(&mut self, expression: &ExpressionIr) {
-        let uses = self.for_accessor_uses(expression);
-        self.push_for_accessor_prefix(&uses);
-
-        self.push_mapped(&expression.code, expression);
-        self.push_for_accessor_suffix(&uses);
-    }
-
-    fn push_dom_invocation(
-        &mut self,
-        expression: &ExpressionIr,
-        arguments: &str,
-        receiver: &str,
-        optional: bool,
-    ) {
-        let uses = self.for_accessor_uses(expression);
-        self.push_for_accessor_prefix(&uses);
-
-        self.push("(");
-        self.push_mapped(&expression.code, expression);
-        self.push(")");
-        if optional && expression.form != ExpressionForm::Member {
-            self.push("?.apply(");
-            self.push(receiver);
-            self.push(", ");
-            self.push(arguments);
-            self.push(")");
-        } else if optional {
-            self.push("?.(");
-            self.push("...");
-            self.push(arguments);
-            self.push(")");
+        writer.push("() => (");
+        if let AttributeIr::Spread(spread) = attribute {
+            writer.push_dom_expression(&spread.expression);
         } else {
-            self.push("(");
-            self.push("...");
-            self.push(arguments);
-            self.push(")");
-        }
-        self.push_for_accessor_suffix(&uses);
-    }
-}
-
-fn identifier_offsets(value: &str) -> Vec<usize> {
-    let bytes = value.as_bytes();
-    let mut offsets = Vec::new();
-    let mut index = 0;
-    while index < bytes.len() {
-        let is_start =
-            bytes[index] == b'_' || bytes[index] == b'$' || bytes[index].is_ascii_alphabetic();
-        if !is_start {
-            index += 1;
-            continue;
-        }
-        offsets.push(index);
-        index += 1;
-        while index < bytes.len()
-            && (bytes[index] == b'_'
-                || bytes[index] == b'$'
-                || bytes[index].is_ascii_alphanumeric())
-        {
-            index += 1;
-        }
-    }
-    offsets
-}
-
-fn advance_position(line: u32, column: u32, value: &str) -> (u32, u32) {
-    let mut line = line;
-    let mut column = column;
-    for character in value.chars() {
-        if character == '\n' {
-            line = line.saturating_add(1);
-            column = 0;
-        } else {
-            column =
-                column.saturating_add(u32::try_from(character.len_utf16()).unwrap_or(u32::MAX));
-        }
-    }
-    (line, column)
-}
-
-pub(super) struct Mapping {
-    generated_line: u32,
-    generated_column: u32,
-    /// `None` marks the start of generated code that has no original source.
-    original: Option<(u32, u32)>,
-}
-
-pub(super) struct NameAllocator {
-    used: HashSet<String>,
-    /// Next suffix to try for a base name. Without it, allocating the same
-    /// base N times rescans suffixes 0..N and makes deep regions quadratic.
-    next_suffix: HashMap<String, u32>,
-}
-
-impl NameAllocator {
-    fn new(reserved_names: &[String]) -> Self {
-        Self {
-            used: reserved_names.iter().cloned().collect(),
-            next_suffix: HashMap::new(),
-        }
-    }
-
-    fn allocate(&mut self, base: &str) -> String {
-        if self.used.insert(base.to_owned()) {
-            self.next_suffix.entry(base.to_owned()).or_insert(0);
-            return base.to_owned();
-        }
-
-        let suffix = self.next_suffix.entry(base.to_owned()).or_insert(0);
-        loop {
-            let candidate = format!("{base}{suffix}");
-            *suffix = suffix
-                .checked_add(1)
-                .expect("u32 identifier suffixes cannot be exhausted in one module");
-            if self.used.insert(candidate.clone()) {
-                return candidate;
+            writer.push("{");
+            let name = attribute_key(attribute);
+            writer.push(&quote_js(&name));
+            writer.push(": ");
+            match attribute {
+                AttributeIr::Static(attr) => match &attr.value {
+                    StaticAttributeValue::String(value) => writer.push(&quote_js(value)),
+                    StaticAttributeValue::Boolean => writer.push("true"),
+                },
+                AttributeIr::Dynamic(attr) => writer.push_dom_expression(&attr.expression),
+                AttributeIr::Property(attr) => writer.push_dom_expression(&attr.expression),
+                AttributeIr::Event(attr) => {
+                    if let Some(names) = names.as_deref_mut() {
+                        emit_event_handler(writer, &attr.handler, names);
+                    } else {
+                        writer.push("undefined");
+                    }
+                }
+                AttributeIr::Ref(attr) => {
+                    if names.is_some() {
+                        writer.push_dom_expression(&attr.expression);
+                    } else {
+                        writer.push("undefined");
+                    }
+                }
+                AttributeIr::Spread(_) => unreachable!(),
             }
+            writer.push("}");
         }
+        writer.push(")");
     }
+    writer.push("]");
 }
 
 #[cfg(test)]

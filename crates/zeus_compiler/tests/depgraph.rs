@@ -36,6 +36,10 @@ pub enum Resolution {
     External,
     /// A path the checker could not classify. Reported, never dropped.
     Unresolved(&'static str),
+    /// A path whose module prefix is decided after the module set is known.
+    /// The string is the longest plausible module path, e.g.
+    /// `support::html::is_raw_text_element`.
+    PrefixCandidates(String),
 }
 
 /// A parsed crate.
@@ -146,6 +150,7 @@ impl Analysis {
 #[must_use]
 pub fn analyse(root: &Path) -> Analysis {
     let mut analysis = Analysis::default();
+    let mut pending_prefixes: Vec<(String, String, String)> = Vec::new();
     let files = rust_files(root);
     if files.is_empty() {
         return analysis;
@@ -193,6 +198,9 @@ pub fn analyse(root: &Path) -> Analysis {
                                     .insert(target);
                             }
                             Resolution::External => {}
+                            Resolution::PrefixCandidates(deepest) => {
+                                pending_prefixes.push((module.clone(), deepest, path));
+                            }
                             Resolution::Unresolved(reason) => analysis
                                 .unresolved
                                 .push(format!("{module}: {path} ({reason})")),
@@ -200,6 +208,32 @@ pub fn analyse(root: &Path) -> Analysis {
                     }
                 }
                 _ => {}
+            }
+        }
+    }
+
+    // `crate::a::b::c` may end at any of `crate::a`, `crate::a::b`, …: the rest
+    // is an item inside that module. The deepest prefix that names a real module
+    // is the dependency; if none does, the path is dangling and is reported.
+    let known_modules: BTreeSet<String> = analysis.modules.clone();
+    for (module, deepest, original) in pending_prefixes {
+        let mut candidate = deepest.as_str();
+        loop {
+            if known_modules.contains(candidate) {
+                analysis
+                    .edges
+                    .entry(module.clone())
+                    .or_default()
+                    .insert(candidate.to_string());
+                break;
+            }
+            if let Some((prefix, _)) = candidate.rsplit_once("::") {
+                candidate = prefix;
+            } else {
+                analysis
+                    .unresolved
+                    .push(format!("{module}: {original} (no module prefix exists)"));
+                break;
             }
         }
     }
@@ -366,7 +400,27 @@ fn resolve_use(module: &str, path: &str) -> Resolution {
                 other if other.chars().next().is_some_and(|c| c.is_ascii_uppercase()) => {
                     return Resolution::External;
                 }
-                other => other.to_string(),
+                // `crate::codegen::infra::name` names the *deepest module* on
+                // the path, not the first segment. Stopping at `codegen` would
+                // report an import of the emitter when the code imports a leaf
+                // module under it — the difference between a cycle and a clean
+                // dependency. The deepest module is decided against the module
+                // set after parsing (see `resolve_prefixes`), because only then
+                // is it known where the module path ends and the item begins.
+                other => {
+                    let mut deepest = other.to_string();
+                    for segment in parts {
+                        if segment
+                            .chars()
+                            .next()
+                            .is_some_and(|c| c.is_ascii_uppercase())
+                        {
+                            break;
+                        }
+                        deepest = format!("{deepest}::{segment}");
+                    }
+                    return Resolution::PrefixCandidates(deepest);
+                }
             }
         }
         "super" => {
@@ -435,9 +489,11 @@ mod tests {
             resolve_use("lower", "crate::span::SourceSpan"),
             Resolution::Module(m) if m == "support::span"
         ));
+        // `ir` is a module and `ModuleIr` is an item in it; the path resolves
+        // to the module.
         assert!(matches!(
             resolve_use("lower", "crate::ir::ModuleIr"),
-            Resolution::Module(m) if m == "ir"
+            Resolution::PrefixCandidates(p) if p == "ir"
         ));
     }
 
