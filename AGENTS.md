@@ -697,3 +697,63 @@ packages/
 如果出现歧义，请记住：
 
 **Zeus 是一个编译器优先、细粒度、直接操作 DOM 的框架，采用显式运行时响应式，并在未来提供友好的编译期语法糖；它不是 Virtual DOM 框架，也不是从第一天起就依赖 JavaScript 语义魔法实验的框架。**
+
+---
+
+## 16. 编译器阶段约束（R17.0）
+
+编译器实现在 `crates/zeus_compiler`，两个宿主共用 `transform_module`：
+Node 侧 `packages/core/compiler-native`（napi），浏览器侧
+`packages/core/compiler-wasm`。
+
+### 16.1 阶段职责
+
+| 阶段          | 位置                   | 只做一件事                    |
+| ------------- | ---------------------- | ----------------------------- |
+| Nesting guard | `support/nesting.rs`   | 在 Oxc 之前拒绝会耗尽栈的输入 |
+| Frontend      | `lower.rs`             | 解析 + 语义分析，产出事实     |
+| Lowering      | `lower.rs`             | JSX 语义 → `ModuleIr`         |
+| Validation    | `ssr.rs`               | 目标相关的拒绝规则            |
+| Analysis      | `codegen/analysis.rs`  | 读 IR 得出 codegen 需要的事实 |
+| Codegen       | `codegen/{dom,ssr}.rs` | 事实 → JavaScript             |
+| Support       | `support/`             | 跨阶段叶子能力                |
+
+**核心规则：一个阶段可以计算事实并记录下来，但不得回头到后续阶段重新推导。**
+
+### 16.2 必须遵守
+
+1. **Rust IR 是编译语义的唯一事实来源。** `crates/zeus_compiler/src/ir.rs`。
+   `packages/core/compiler-shared` 是历史遗留，无源码消费者，不要为它同步新增字段。
+2. **Lowering 不关心代码如何输出。** 需要输出信息就通过 IR 传递。
+3. **Codegen 不重新分析语义。** 需要的事实由 analysis 预先算出。
+4. **Native 与 WASM 必须基于同一套核心语义。** 两个宿主都编译
+   `zeus_compiler`，不得为某一侧复制编译逻辑。
+5. **新增 JSX 语义的顺序：** 先加黄金 fixture，再改 lowering，再改两侧 emitter。
+6. **新增 Diagnostic：** `CompilerDiagnostic::error("ZEUS_*", message, file, span)`，
+   code 稳定，位置精确。
+7. **新增优化：** 写成对 `ModuleIr` 的独立函数，放在 emission 之前，
+   不要写进 emitter 内部。
+8. **升级 Oxc：** 先 `cargo check`。若报 `JSStr` 或 `Option<&str>` 错误，
+   说明 MSRV 已提升，必须同时升级 toolchain、CI 与七平台矩阵，
+   不能只改 `Cargo.toml`。记录在 `docs/architecture/compiler/dependency-upgrade-plan.md`。
+9. **验证 Source Map：** 用黄金 fixture（`tests/golden.rs`）比对 `map` 字段，
+   不要只测长度或非空。
+10. **编译结果等价性：** `ZEUS_UPDATE_GOLDEN=1` 只在确认变更是有意的时候使用，
+    每次重新生成都必须在提交信息里说明原因。为了让重构通过而刷新快照不构成验证。
+
+### 16.3 黄金基线
+
+`crates/zeus_compiler/tests/golden.rs` 快照了编译器的全部可观察输出——
+生成代码、Source Map、Diagnostics、Hydration Plan、HMR Plan——共 45 个用例。
+
+任何改变这些输出的改动都会失败并指出具体字段。这是重构的安全网，
+也是"编译输出等价"这一要求的实际执行方式。
+
+### 16.4 当前未完成（不要误以为已完成）
+
+- `lower.rs`（3,564 行）尚未拆分，是最大剩余技术债。
+- `codegen/mod.rs`（3,957 行）仍包含 DOM 发射、模板渲染、Hydration 与 HMR 发射。
+- 没有 `pipeline.rs`，阶段顺序仍在 `lib.rs` 的 `transform_module` 中。
+- 七平台矩阵、WASM 运行时一致性、浏览器门禁尚未在本轮验证。
+
+详见 `docs/architecture/compiler/migration-report.md`。

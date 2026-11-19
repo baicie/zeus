@@ -1,12 +1,12 @@
 //! SSR-only validation over the target-neutral IR.
 
 use crate::{
-    diagnostic::CompilerDiagnostic,
-    html::is_custom_element,
     ir::{
         AttributeIr, ChildIr, ComponentPropIr, ComponentPropValueIr, DynamicRegionExpressionIr,
         DynamicRegionValueIr, ElementIr, ErrorBoundaryFallbackIr, ModuleIr, RootIr,
     },
+    support::diagnostic::CompilerDiagnostic,
+    support::html::is_custom_element,
 };
 
 /// Reports `prop:` bindings on native elements that have no deterministic HTML

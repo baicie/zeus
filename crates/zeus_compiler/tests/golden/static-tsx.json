@@ -1,0 +1,71 @@
+{
+  "purpose": "static element becomes a cached template with no bindings",
+  "source": "export function App() {\n  return <div class=\"card\"><h1>Hello</h1><p>World</p></div>\n}\n",
+  "filename": "static.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "import { template as $zeusTemplate } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<div class=\\\"card\\\"><h1>Hello</h1><p>World</p></div>\");\nexport function App() {\n  return $zeusTmpl().firstChild\n}\n",
+    "map": {
+      "version": 3,
+      "file": "static.tsx",
+      "sources": ["static.tsx"],
+      "sourcesContent": [
+        "export function App() {\n  return <div class=\"card\"><h1>Hello</h1><p>World</p></div>\n}\n"
+      ],
+      "names": [],
+      "mappings": ";;AAAA,OAAO,SAAS;EACd,O;AACF"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e2",
+              "kind": "element",
+              "nodeId": 2,
+              "optional": false,
+              "tagName": "div"
+            },
+            {
+              "bindings": [],
+              "id": "c1.e4",
+              "kind": "element",
+              "nodeId": 4,
+              "optional": false,
+              "tagName": "h1"
+            },
+            {
+              "bindings": [],
+              "id": "c1.e6",
+              "kind": "element",
+              "nodeId": 6,
+              "optional": false,
+              "tagName": "p"
+            }
+          ],
+          "templateId": "c1.root"
+        }
+      ],
+      "version": 1
+    },
+    "hmrPlan": null
+  }
+}

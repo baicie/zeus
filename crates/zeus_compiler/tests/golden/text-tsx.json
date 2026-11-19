@@ -1,0 +1,68 @@
+{
+  "purpose": "dynamic text binds to a single text node",
+  "source": "export function App(props) {\n  return <p>count: {props.count}</p>\n}\n",
+  "filename": "text.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "import { template as $zeusTemplate, insert as $zeusInsert, bindText as $zeusBindText } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<p>count: <!></p>\");\nexport function App(props) {\n  return (() => {\nconst $zeusEl = $zeusTmpl().firstChild;\nconst $zeusWalker = $zeusEl.ownerDocument.createTreeWalker($zeusEl, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\nconst $zeusText = $zeusMarker.ownerDocument.createTextNode(\"\");\n$zeusInsert($zeusMarker.parentNode, $zeusText, $zeusMarker);\n$zeusMarker.remove();\n$zeusBindText($zeusText, () => (props.count));\nreturn $zeusEl;\n})()\n}\n",
+    "map": {
+      "version": 3,
+      "file": "text.tsx",
+      "sources": ["text.tsx"],
+      "sourcesContent": [
+        "export function App(props) {\n  return <p>count: {props.count}</p>\n}\n"
+      ],
+      "names": [],
+      "mappings": ";;AAAA,OAAO,SAAS,IAAI;EAClB,O;;;;;;;gCAAkB,MAAM,K;;;AAC1B"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e2",
+              "kind": "element",
+              "nodeId": 2,
+              "optional": false,
+              "tagName": "p"
+            },
+            {
+              "bindings": [
+                {
+                  "id": 4,
+                  "kind": "text",
+                  "once": false
+                }
+              ],
+              "id": "c1.t4",
+              "kind": "text",
+              "nodeId": 4,
+              "optional": false
+            }
+          ],
+          "templateId": "c1.root"
+        }
+      ],
+      "version": 1
+    },
+    "hmrPlan": null
+  }
+}

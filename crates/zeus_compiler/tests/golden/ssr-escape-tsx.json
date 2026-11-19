@@ -1,0 +1,83 @@
+{
+  "purpose": "SSR escapes text and attribute values",
+  "source": "export function App(props) {\n  return <div title={props.t}><span>{props.text}</span></div>\n}\n",
+  "filename": "ssr-escape.tsx",
+  "options": {
+    "target": "ssr",
+    "runtimeModule": "zeus/server",
+    "delegateEvents": false,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "import { ssrStatic as $zeusSsrStatic, ssrText as $zeusSsrText, ssrElement as $zeusSsrElement, ssrAttr as $zeusSsrAttr, ssrProp as $zeusSsrProp, ssrComponent as $zeusSsrComponent, ssrShow as $zeusSsrShow, ssrFor as $zeusSsrFor, ssrSpread as $zeusSsrSpread, mergeProps as $zeusMergeProps, ssrHydrationMarker as $zeusHydrationMarker, defineElement as $zeusSsrDefineElement, Host as $zeusSsrHost, Slot as $zeusSsrSlot } from \"zeus/server\";\nexport function App(props) {\n  return [$zeusHydrationMarker(\"c1.root\"), [$zeusHydrationMarker(\"c1.e2\"), $zeusSsrElement(\"div\", [$zeusSsrAttr(\"title\", props.t)], [$zeusHydrationMarker(\"c1.e4\"), $zeusSsrElement(\"span\", [], [$zeusHydrationMarker(\"c1.t5\"), $zeusSsrText(props.text), $zeusSsrStatic(\"<!--zeus:hydrate:/-->\")])])]]\n}\n",
+    "map": {
+      "version": 3,
+      "file": "ssr-escape.tsx",
+      "sources": ["ssr-escape.tsx"],
+      "sourcesContent": [
+        "export function App(props) {\n  return <div title={props.t}><span>{props.text}</span></div>\n}\n"
+      ],
+      "names": [],
+      "mappings": ";AAAA,OAAO,SAAS,IAAI;EAClB,O,gHAAmB,MAAM,C,6GAAU,MAAM,I;AAC3C"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [
+                {
+                  "id": 3,
+                  "kind": "attr",
+                  "name": "title",
+                  "once": false
+                }
+              ],
+              "id": "c1.e2",
+              "kind": "element",
+              "nodeId": 2,
+              "optional": false,
+              "tagName": "div"
+            },
+            {
+              "bindings": [],
+              "id": "c1.e4",
+              "kind": "element",
+              "nodeId": 4,
+              "optional": false,
+              "tagName": "span"
+            },
+            {
+              "bindings": [
+                {
+                  "id": 5,
+                  "kind": "text",
+                  "once": false
+                }
+              ],
+              "id": "c1.t5",
+              "kind": "text",
+              "nodeId": 5,
+              "optional": false
+            }
+          ],
+          "templateId": "c1.root"
+        }
+      ],
+      "version": 1
+    },
+    "hmrPlan": null
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "purpose": "SSR Show and For",
+  "source": "export function App(props) {\n  return <div><Show when={props.open}><b>y</b></Show><For each={props.items}>{i => <i>{i}</i>}</For></div>\n}\n",
+  "filename": "ssr-flow.tsx",
+  "options": {
+    "target": "ssr",
+    "runtimeModule": "zeus/server",
+    "delegateEvents": false,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "",
+    "map": null,
+    "diagnostics": [
+      {
+        "code": "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
+        "message": "Nested JSX expressions are not supported by this compiler slice.",
+        "severity": "error",
+        "filename": "ssr-flow.tsx",
+        "hint": "Move the JSX into a component or a variable, or use <Show> and <For> for conditions and lists.",
+        "span": {
+          "start": {
+            "offset": 106,
+            "line": 2,
+            "column": 77
+          },
+          "end": {
+            "offset": 123,
+            "line": 2,
+            "column": 94
+          }
+        }
+      }
+    ],
+    "hydrationPlan": null,
+    "hmrPlan": null
+  }
+}

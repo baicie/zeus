@@ -1,0 +1,92 @@
+{
+  "purpose": "nested elements keep their DOM path stable",
+  "source": "export function App(props) {\n  return <div><section><article><span>{props.value}</span></article></section></div>\n}\n",
+  "filename": "nested.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "import { template as $zeusTemplate, insert as $zeusInsert, bindText as $zeusBindText } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<div><section><article><span><!></span></article></section></div>\");\nexport function App(props) {\n  return (() => {\nconst $zeusEl = $zeusTmpl().firstChild;\nconst $zeusWalker = $zeusEl.ownerDocument.createTreeWalker($zeusEl, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\nconst $zeusText = $zeusMarker.ownerDocument.createTextNode(\"\");\n$zeusInsert($zeusMarker.parentNode, $zeusText, $zeusMarker);\n$zeusMarker.remove();\n$zeusBindText($zeusText, () => (props.value));\nreturn $zeusEl;\n})()\n}\n",
+    "map": {
+      "version": 3,
+      "file": "nested.tsx",
+      "sources": ["nested.tsx"],
+      "sourcesContent": [
+        "export function App(props) {\n  return <div><section><article><span>{props.value}</span></article></section></div>\n}\n"
+      ],
+      "names": [],
+      "mappings": ";;AAAA,OAAO,SAAS,IAAI;EAClB,O;;;;;;;gCAAqC,MAAM,K;;;AAC7C"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e2",
+              "kind": "element",
+              "nodeId": 2,
+              "optional": false,
+              "tagName": "div"
+            },
+            {
+              "bindings": [],
+              "id": "c1.e3",
+              "kind": "element",
+              "nodeId": 3,
+              "optional": false,
+              "tagName": "section"
+            },
+            {
+              "bindings": [],
+              "id": "c1.e4",
+              "kind": "element",
+              "nodeId": 4,
+              "optional": false,
+              "tagName": "article"
+            },
+            {
+              "bindings": [],
+              "id": "c1.e5",
+              "kind": "element",
+              "nodeId": 5,
+              "optional": false,
+              "tagName": "span"
+            },
+            {
+              "bindings": [
+                {
+                  "id": 6,
+                  "kind": "text",
+                  "once": false
+                }
+              ],
+              "id": "c1.t6",
+              "kind": "text",
+              "nodeId": 6,
+              "optional": false
+            }
+          ],
+          "templateId": "c1.root"
+        }
+      ],
+      "version": 1
+    },
+    "hmrPlan": null
+  }
+}

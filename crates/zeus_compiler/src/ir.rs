@@ -5,7 +5,7 @@ use serde::{
     de::{self, Visitor},
 };
 
-use crate::span::SourceSpan;
+use crate::support::span::SourceSpan;
 
 pub type NodeId = u32;
 

@@ -1,0 +1,62 @@
+{
+  "purpose": "SSR rejects a property with no HTML equivalent",
+  "source": "export function App(props) {\n  return <input value={props.v} />\n}\n",
+  "filename": "ssr-bad-prop.tsx",
+  "options": {
+    "target": "ssr",
+    "runtimeModule": "zeus/server",
+    "delegateEvents": false,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "import { ssrStatic as $zeusSsrStatic, ssrText as $zeusSsrText, ssrElement as $zeusSsrElement, ssrAttr as $zeusSsrAttr, ssrProp as $zeusSsrProp, ssrComponent as $zeusSsrComponent, ssrShow as $zeusSsrShow, ssrFor as $zeusSsrFor, ssrSpread as $zeusSsrSpread, mergeProps as $zeusMergeProps, ssrHydrationMarker as $zeusHydrationMarker, defineElement as $zeusSsrDefineElement, Host as $zeusSsrHost, Slot as $zeusSsrSlot } from \"zeus/server\";\nexport function App(props) {\n  return [$zeusHydrationMarker(\"c1.root\"), [$zeusHydrationMarker(\"c1.e2\"), $zeusSsrElement(\"input\", [$zeusSsrAttr(\"value\", props.v)], undefined, true)]]\n}\n",
+    "map": {
+      "version": 3,
+      "file": "ssr-bad-prop.tsx",
+      "sources": ["ssr-bad-prop.tsx"],
+      "sourcesContent": [
+        "export function App(props) {\n  return <input value={props.v} />\n}\n"
+      ],
+      "names": [],
+      "mappings": ";AAAA,OAAO,SAAS,IAAI;EAClB,O,kHAAqB,MAAM,C;AAC7B"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [
+                {
+                  "id": 3,
+                  "kind": "attr",
+                  "name": "value",
+                  "once": false
+                }
+              ],
+              "id": "c1.e2",
+              "kind": "element",
+              "nodeId": 2,
+              "optional": false,
+              "tagName": "input"
+            }
+          ],
+          "templateId": "c1.root"
+        }
+      ],
+      "version": 1
+    },
+    "hmrPlan": null
+  }
+}

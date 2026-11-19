@@ -1,19 +1,16 @@
 mod codegen;
-pub mod hmr;
-mod html;
-pub mod hydration;
-pub mod nesting;
-
-pub mod diagnostic;
 pub mod ir;
 pub mod lower;
-pub mod span;
 mod ssr;
+pub mod support;
+
+pub use support::{diagnostic, span};
+pub use support::{hmr, hydration, nesting};
 
 use serde::{Deserialize, Serialize};
 
-use diagnostic::CompilerDiagnostic;
-use hydration::HydrationPlan;
+use support::diagnostic::CompilerDiagnostic;
+use support::hydration::HydrationPlan;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

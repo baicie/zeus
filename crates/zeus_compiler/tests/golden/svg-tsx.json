@@ -1,0 +1,70 @@
+{
+  "purpose": "SVG keeps namespaced attributes",
+  "source": "export function App(props) {\n  return <svg viewBox=\"0 0 10 10\"><path d={props.d} /></svg>\n}\n",
+  "filename": "svg.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "import { template as $zeusTemplate, bindAttr as $zeusBindAttr } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<svg viewBox=\\\"0 0 10 10\\\"><path data-zeus-node=\\\"4\\\"></path></svg>\", false, true);\nexport function App(props) {\n  return (() => {\nconst $zeusEl = $zeusTmpl().firstChild;\nconst $zeusNode = $zeusEl.querySelector(\"[data-zeus-node=\\\"4\\\"]\");\n$zeusNode.removeAttribute(\"data-zeus-node\");\n$zeusBindAttr($zeusNode, \"d\", () => (props.d));\nreturn $zeusEl;\n})()\n}\n",
+    "map": {
+      "version": 3,
+      "file": "svg.tsx",
+      "sources": ["svg.tsx"],
+      "sourcesContent": [
+        "export function App(props) {\n  return <svg viewBox=\"0 0 10 10\"><path d={props.d} /></svg>\n}\n"
+      ],
+      "names": [],
+      "mappings": ";;AAAA,OAAO,SAAS,IAAI;EAClB,O;;;;qCAAyC,MAAM,C;;;AACjD"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e2",
+              "kind": "element",
+              "nodeId": 2,
+              "optional": false,
+              "tagName": "svg"
+            },
+            {
+              "bindings": [
+                {
+                  "id": 5,
+                  "kind": "attr",
+                  "name": "d",
+                  "once": false
+                }
+              ],
+              "id": "c1.e4",
+              "kind": "element",
+              "nodeId": 4,
+              "optional": false,
+              "tagName": "path"
+            }
+          ],
+          "templateId": "c1.root"
+        }
+      ],
+      "version": 1
+    },
+    "hmrPlan": null
+  }
+}

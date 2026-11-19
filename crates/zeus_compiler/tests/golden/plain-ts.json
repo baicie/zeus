@@ -1,0 +1,21 @@
+{
+  "purpose": "a module with no JSX is returned untouched",
+  "source": "export const answer = 42\nexport function double(n) { return n * 2 }\n",
+  "filename": "plain.ts",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "export const answer = 42\nexport function double(n) { return n * 2 }\n",
+    "map": null,
+    "diagnostics": [],
+    "hydrationPlan": null,
+    "hmrPlan": null
+  }
+}

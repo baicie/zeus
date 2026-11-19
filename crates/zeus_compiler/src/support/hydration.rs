@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-use crate::html::is_raw_text_element;
 use crate::ir::{
     AttributeIr, ChildIr, ComponentBindingIr, ComponentPropIr, ComponentPropValueIr,
     DynamicRegionExpressionIr, DynamicRegionIr, DynamicRegionValueIr, ElementIr, ForBindingIr,
     ModuleIr, RootIr, ShowBindingIr, TransitionBindingIr,
 };
+use crate::support::html::is_raw_text_element;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

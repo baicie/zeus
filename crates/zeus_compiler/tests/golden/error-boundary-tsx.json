@@ -1,0 +1,41 @@
+{
+  "purpose": "ErrorBoundary with fallback",
+  "source": "export function App() {\n  return <ErrorBoundary fallback={err => <p>{err.message}</p>}><Child /></ErrorBoundary>\n}\n",
+  "filename": "error-boundary.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "",
+    "map": null,
+    "diagnostics": [
+      {
+        "code": "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE",
+        "message": "JSX values inside component props are not supported.",
+        "severity": "error",
+        "filename": "error-boundary.tsx",
+        "hint": "Pass the JSX as children, or wrap it in a component and pass that component.",
+        "span": {
+          "start": {
+            "offset": 57,
+            "line": 2,
+            "column": 33
+          },
+          "end": {
+            "offset": 86,
+            "line": 2,
+            "column": 62
+          }
+        }
+      }
+    ],
+    "hydrationPlan": null,
+    "hmrPlan": null
+  }
+}

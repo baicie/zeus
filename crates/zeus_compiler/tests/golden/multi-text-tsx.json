@@ -1,0 +1,94 @@
+{
+  "purpose": "multiple dynamic texts in one element",
+  "source": "export function App(props) {\n  return <p>{props.a} and {props.b} and {props.c}</p>\n}\n",
+  "filename": "multi-text.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "import { template as $zeusTemplate, insert as $zeusInsert, bindText as $zeusBindText } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<p><!> and <!> and <!></p>\");\nexport function App(props) {\n  return (() => {\nconst $zeusEl = $zeusTmpl().firstChild;\nconst $zeusWalker = $zeusEl.ownerDocument.createTreeWalker($zeusEl, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\nconst $zeusMarker0 = $zeusWalker.nextNode();\nconst $zeusMarker1 = $zeusWalker.nextNode();\nconst $zeusText = $zeusMarker.ownerDocument.createTextNode(\"\");\n$zeusInsert($zeusMarker.parentNode, $zeusText, $zeusMarker);\n$zeusMarker.remove();\n$zeusBindText($zeusText, () => (props.a));\nconst $zeusText0 = $zeusMarker0.ownerDocument.createTextNode(\"\");\n$zeusInsert($zeusMarker0.parentNode, $zeusText0, $zeusMarker0);\n$zeusMarker0.remove();\n$zeusBindText($zeusText0, () => (props.b));\nconst $zeusText1 = $zeusMarker1.ownerDocument.createTextNode(\"\");\n$zeusInsert($zeusMarker1.parentNode, $zeusText1, $zeusMarker1);\n$zeusMarker1.remove();\n$zeusBindText($zeusText1, () => (props.c));\nreturn $zeusEl;\n})()\n}\n",
+    "map": {
+      "version": 3,
+      "file": "multi-text.tsx",
+      "sources": ["multi-text.tsx"],
+      "sourcesContent": [
+        "export function App(props) {\n  return <p>{props.a} and {props.b} and {props.c}</p>\n}\n"
+      ],
+      "names": [],
+      "mappings": ";;AAAA,OAAO,SAAS,IAAI;EAClB,O;;;;;;;;;gCAAW,MAAM,C;;;;iCAAQ,MAAM,C;;;;iCAAQ,MAAM,C;;;AAC/C"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e2",
+              "kind": "element",
+              "nodeId": 2,
+              "optional": false,
+              "tagName": "p"
+            },
+            {
+              "bindings": [
+                {
+                  "id": 3,
+                  "kind": "text",
+                  "once": false
+                }
+              ],
+              "id": "c1.t3",
+              "kind": "text",
+              "nodeId": 3,
+              "optional": false
+            },
+            {
+              "bindings": [
+                {
+                  "id": 5,
+                  "kind": "text",
+                  "once": false
+                }
+              ],
+              "id": "c1.t5",
+              "kind": "text",
+              "nodeId": 5,
+              "optional": false
+            },
+            {
+              "bindings": [
+                {
+                  "id": 7,
+                  "kind": "text",
+                  "once": false
+                }
+              ],
+              "id": "c1.t7",
+              "kind": "text",
+              "nodeId": 7,
+              "optional": false
+            }
+          ],
+          "templateId": "c1.root"
+        }
+      ],
+      "version": 1
+    },
+    "hmrPlan": null
+  }
+}

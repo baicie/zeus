@@ -1,0 +1,62 @@
+{
+  "purpose": "spread attributes are collected as one source",
+  "source": "export function App(props) {\n  return <div {...props.attrs} id=\"x\" />\n}\n",
+  "filename": "spread.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "import { template as $zeusTemplate, bindSpread as $zeusBindSpread } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<div data-zeus-node=\\\"2\\\"></div>\");\nexport function App(props) {\n  return (() => {\nconst $zeusEl = $zeusTmpl().firstChild;\n$zeusEl.removeAttribute(\"data-zeus-node\");\n$zeusBindSpread($zeusEl, [() => (props.attrs), () => ({\"id\": \"x\"})]);\nreturn $zeusEl;\n})()\n}\n",
+    "map": {
+      "version": 3,
+      "file": "spread.tsx",
+      "sources": ["spread.tsx"],
+      "sourcesContent": [
+        "export function App(props) {\n  return <div {...props.attrs} id=\"x\" />\n}\n"
+      ],
+      "names": [],
+      "mappings": ";;AAAA,OAAO,SAAS,IAAI;EAClB,O;;;iCAAgB,MAAM,K;;;AACxB"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [
+                {
+                  "id": 3,
+                  "kind": "spread",
+                  "name": "native",
+                  "once": false
+                }
+              ],
+              "id": "c1.e2",
+              "kind": "element",
+              "nodeId": 2,
+              "optional": false,
+              "tagName": "div"
+            }
+          ],
+          "templateId": "c1.root"
+        }
+      ],
+      "version": 1
+    },
+    "hmrPlan": null
+  }
+}

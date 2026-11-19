@@ -1,11 +1,25 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+//! Code emission.
+//!
+//! DOM and SSR targets share `CodeWriter` (positions and source map mappings)
+//! and `NameAllocator` (identifiers), and nothing else. Each target keeps its
+//! own emitter so a change to one is not read as a change to both.
+
+mod analysis;
+mod ssr;
+
+pub(crate) use ssr::{SsrModuleOptions, emit_ssr_module};
+
+use analysis::{
+    allocate_locator_attribute, collect_delegated_events, collect_error_boundary_helper_usage,
+    is_delegatable_event,
+};
+
+use std::collections::{HashMap, HashSet};
 
 use oxc_sourcemap::SourceMapBuilder;
 
 use crate::{
     PureDefineElementMode, RawSourceMap, TransformModuleResult,
-    html::{is_custom_element, is_raw_text_element, is_svg_element, is_void_element},
-    hydration::{component_root_marker_id, element_marker_id, node_marker_id, text_marker_id},
     ir::{
         AttributeIr, ChildIr, ComponentBindingIr, ComponentIr, ComponentPropIr,
         ComponentPropValueIr, DynamicRegionExpressionIr, DynamicRegionIr, DynamicRegionValueIr,
@@ -15,6 +29,10 @@ use crate::{
     },
     lower::{HmrInfo, SsrImportReplacement, SsrImportRewrite},
     span::SourceIndex,
+    support::html::{is_raw_text_element, is_svg_element, is_void_element},
+    support::hydration::{
+        component_root_marker_id, element_marker_id, node_marker_id, text_marker_id,
+    },
 };
 
 #[derive(Clone, Copy)]
@@ -160,7 +178,7 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
 
 struct HmrModule {
     module: ModuleIr,
-    plan: crate::hmr::HmrPlan,
+    plan: crate::support::hmr::HmrPlan,
     state_name: String,
 }
 
@@ -191,7 +209,7 @@ fn prepare_hmr_module(
     }
     let state_name = names.allocate("_zeusHmrState");
     let mut module = options.module.clone();
-    let plan = crate::hmr::prepare(
+    let plan = crate::support::hmr::prepare(
         &mut module,
         options.source,
         options.runtime_module,
@@ -295,10 +313,10 @@ struct ComponentEmitter<'a> {
 
 /// Closes an SSR dynamic text node; `hydrate` in `@zeus-js/runtime-dom` reads
 /// it as `zeus:hydrate:/`.
-const SSR_TEXT_END_MARKER: &str = "<!--zeus:hydrate:/-->";
+pub(super) const SSR_TEXT_END_MARKER: &str = "<!--zeus:hydrate:/-->";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SsrTextContext {
+pub(super) enum SsrTextContext {
     Normal,
     Raw,
     Rcdata,
@@ -475,746 +493,6 @@ fn emit_hmr_boundary(
         writer.push(&format!("    {}.dispose()\n", state.state_name));
     }
     writer.push("  })\n}\n");
-}
-
-pub(crate) struct SsrModuleOptions<'a> {
-    pub(crate) source: &'a str,
-    pub(crate) filename: &'a str,
-    pub(crate) runtime_module: &'a str,
-    pub(crate) source_map: bool,
-    pub(crate) module: &'a ModuleIr,
-    pub(crate) reserved_names: &'a [String],
-    pub(crate) define_element_calls: &'a [oxc_span::Span],
-    pub(crate) ssr_runtime_imports: &'a [SsrImportRewrite],
-    pub(crate) auto_hydrate: bool,
-}
-
-pub(crate) fn emit_ssr_module(options: &SsrModuleOptions<'_>) -> TransformModuleResult {
-    let SsrModuleOptions {
-        source,
-        filename,
-        runtime_module,
-        source_map,
-        module,
-        reserved_names,
-        define_element_calls,
-        ssr_runtime_imports,
-        auto_hydrate,
-    } = *options;
-    let mut names = NameAllocator::new(reserved_names);
-    let runtime = SsrRuntimeNames::allocate(&mut names, auto_hydrate);
-    let source_index = SourceIndex::new(source);
-    let source_emitter = SsrSourceEmitter {
-        source,
-        source_index: &source_index,
-        runtime_module,
-        define_element_calls,
-        ssr_runtime_imports,
-        runtime: &runtime,
-    };
-    let mut writer = CodeWriter::default();
-    let mut cursor = usize::try_from(module.preamble_end)
-        .unwrap_or(usize::MAX)
-        .min(source.len());
-    source_emitter.emit(&mut writer, 0, cursor);
-    if cursor > 0 && !writer.code.ends_with('\n') {
-        writer.push("\n");
-    }
-    writer.push("import { ");
-    for (index, (exported, local)) in runtime.entries().iter().enumerate() {
-        if index > 0 {
-            writer.push(", ");
-        }
-        writer.push(exported);
-        writer.push(" as ");
-        writer.push(local);
-    }
-    writer.push(" } from ");
-    writer.push(&quote_js(runtime_module));
-    writer.push(";\n");
-
-    for component in &module.components {
-        let start = usize::try_from(root_span(&component.root).start.offset).unwrap_or(usize::MAX);
-        let end = usize::try_from(root_span(&component.root).end.offset).unwrap_or(usize::MAX);
-        if start < cursor || end > source.len() {
-            continue;
-        }
-        source_emitter.emit(&mut writer, cursor, start);
-        emit_ssr_root(
-            &mut writer,
-            &component.root,
-            &runtime,
-            component.id,
-            auto_hydrate,
-        );
-        cursor = end;
-    }
-    source_emitter.emit(&mut writer, cursor, source.len());
-
-    let map = source_map.then(|| build_source_map(filename, source, &writer.mappings));
-    TransformModuleResult {
-        code: writer.code,
-        map,
-        diagnostics: Vec::new(),
-        hydration_plan: None,
-        hmr_plan: None,
-    }
-}
-
-struct SsrSourceEmitter<'a> {
-    source: &'a str,
-    source_index: &'a SourceIndex<'a>,
-    runtime_module: &'a str,
-    define_element_calls: &'a [oxc_span::Span],
-    ssr_runtime_imports: &'a [SsrImportRewrite],
-    runtime: &'a SsrRuntimeNames,
-}
-
-impl SsrSourceEmitter<'_> {
-    fn emit(&self, writer: &mut CodeWriter, start: usize, end: usize) {
-        let mut replacements = self
-            .define_element_calls
-            .iter()
-            .filter_map(|span| {
-                let start = usize::try_from(span.start).ok()?;
-                let name_end = identifier_end(self.source, start, self.source.len())?;
-                Some((start, name_end, self.runtime.define_element().to_string()))
-            })
-            .chain(self.ssr_runtime_imports.iter().filter_map(|rewrite| {
-                let start = usize::try_from(rewrite.span.start).ok()?;
-                let end = usize::try_from(rewrite.span.end).ok()?;
-                let replacement = match &rewrite.replacement {
-                    SsrImportReplacement::ModuleSource => quote_js(self.runtime_module),
-                    SsrImportReplacement::Split {
-                        facade,
-                        client,
-                        module,
-                    } => format!(
-                        "import {{ {} }} from {}; import {{ {} }} from {};",
-                        facade.join(", "),
-                        quote_js(self.runtime_module),
-                        client.join(", "),
-                        quote_js(module),
-                    ),
-                };
-                Some((start, end, replacement))
-            }))
-            .filter(|(replacement_start, replacement_end, _)| {
-                *replacement_start >= start
-                    && *replacement_start < end
-                    && *replacement_end <= end
-                    && *replacement_end > *replacement_start
-            })
-            .collect::<Vec<_>>();
-        replacements.sort_by_key(|replacement| replacement.0);
-
-        let mut cursor = start;
-        for (replacement_start, replacement_end, replacement) in replacements {
-            if replacement_start < cursor {
-                continue;
-            }
-            writer.push_original(self.source_index, cursor, replacement_start);
-            writer.push(&replacement);
-            cursor = replacement_end;
-        }
-        writer.push_original(self.source_index, cursor, end);
-    }
-}
-
-fn identifier_end(source: &str, start: usize, limit: usize) -> Option<usize> {
-    let mut end = start;
-    for (offset, character) in source[start..limit].char_indices() {
-        let valid = if offset == 0 {
-            character == '_' || character == '$' || character.is_alphabetic()
-        } else {
-            character == '_' || character == '$' || character.is_alphanumeric()
-        };
-        if !valid {
-            break;
-        }
-        end = start + offset + character.len_utf8();
-    }
-    (end > start).then_some(end)
-}
-
-fn emit_ssr_root(
-    writer: &mut CodeWriter,
-    root: &RootIr,
-    runtime: &SsrRuntimeNames,
-    component_id: NodeId,
-    auto_hydrate: bool,
-) {
-    writer.push("[");
-    emit_ssr_marker(writer, runtime, &component_root_marker_id(component_id));
-    writer.push(", ");
-    match root {
-        RootIr::Element(element) => emit_ssr_element(writer, element, runtime, component_id),
-        RootIr::Fragment(fragment) => {
-            emit_ssr_children(
-                writer,
-                &fragment.children,
-                runtime,
-                SsrTextContext::Normal,
-                component_id,
-            );
-        }
-        RootIr::Component(component) => {
-            emit_ssr_component(writer, component, runtime, component_id);
-        }
-        RootIr::Show(show) => emit_ssr_show(writer, show, runtime, component_id),
-        RootIr::For(for_binding) => emit_ssr_for(writer, for_binding, runtime, component_id),
-        RootIr::Transition(transition) => {
-            emit_ssr_transition(writer, transition, runtime, component_id);
-        }
-        RootIr::ErrorBoundary(_) => unreachable!("ErrorBoundary SSR is rejected before codegen"),
-    }
-    if auto_hydrate {
-        writer.push(", ");
-        emit_ssr_close_marker(writer, runtime, &component_root_marker_id(component_id));
-    }
-    writer.push("]");
-}
-
-fn emit_ssr_child(
-    writer: &mut CodeWriter,
-    child: &ChildIr,
-    runtime: &SsrRuntimeNames,
-    text_context: SsrTextContext,
-    component_id: NodeId,
-) {
-    match child {
-        ChildIr::Element(element) => {
-            emit_ssr_element(writer, element, runtime, component_id);
-        }
-        ChildIr::Fragment(fragment) => {
-            emit_ssr_children(
-                writer,
-                &fragment.children,
-                runtime,
-                text_context,
-                component_id,
-            );
-        }
-        ChildIr::Text(text) => {
-            if text_context == SsrTextContext::Raw {
-                writer.push(&quote_js(&text.value));
-            } else {
-                writer.push(runtime.static_text());
-                writer.push("(");
-                writer.push(&quote_js(&escape_html_text(&text.value)));
-                writer.push(")");
-            }
-        }
-        ChildIr::DynamicText(text) => match text_context {
-            SsrTextContext::Raw => {
-                writer.push_mapped(&text.expression.code, &text.expression);
-            }
-            // Foreign content is escaped like text, even though the tag name is
-            // `script` or `style`: the parser reads it as ordinary markup there.
-            // RCDATA content is bound through textContent on the client, so it
-            // is escaped like normal text but carries no hydration marker.
-            SsrTextContext::ForeignRaw | SsrTextContext::Rcdata => {
-                writer.push(runtime.text());
-                writer.push("(");
-                writer.push_mapped(&text.expression.code, &text.expression);
-                writer.push(")");
-            }
-            // The end boundary keeps the HTML parser from merging the value
-            // with adjacent static text and gives an empty value a position.
-            SsrTextContext::Normal => {
-                writer.push("[");
-                emit_ssr_marker(
-                    writer,
-                    runtime,
-                    &text_marker_id(component_id, text.reference.node_id),
-                );
-                writer.push(", ");
-                writer.push(runtime.text());
-                writer.push("(");
-                writer.push_mapped(&text.expression.code, &text.expression);
-                writer.push("), ");
-                writer.push(runtime.static_text());
-                writer.push("(");
-                writer.push(&quote_js(SSR_TEXT_END_MARKER));
-                writer.push(")]");
-            }
-        },
-        ChildIr::Component(component) => {
-            emit_ssr_component(writer, component, runtime, component_id);
-        }
-        ChildIr::Show(show) => emit_ssr_show(writer, show, runtime, component_id),
-        ChildIr::For(for_binding) => {
-            emit_ssr_for(writer, for_binding, runtime, component_id);
-        }
-        ChildIr::Transition(transition) => {
-            emit_ssr_transition(writer, transition, runtime, component_id);
-        }
-        ChildIr::ErrorBoundary(_) => unreachable!("ErrorBoundary SSR is rejected before codegen"),
-        ChildIr::DynamicRegion(region) => {
-            emit_ssr_dynamic_region(writer, region, runtime, component_id);
-        }
-    }
-}
-
-fn emit_ssr_children(
-    writer: &mut CodeWriter,
-    children: &[ChildIr],
-    runtime: &SsrRuntimeNames,
-    text_context: SsrTextContext,
-    component_id: NodeId,
-) {
-    if children.len() == 1 {
-        emit_ssr_child(writer, &children[0], runtime, text_context, component_id);
-        return;
-    }
-    writer.push("[");
-    for (index, child) in children.iter().enumerate() {
-        if index > 0 {
-            writer.push(", ");
-        }
-        emit_ssr_child(writer, child, runtime, text_context, component_id);
-    }
-    writer.push("]");
-}
-
-fn emit_ssr_dynamic_region(
-    writer: &mut CodeWriter,
-    region: &DynamicRegionIr,
-    runtime: &SsrRuntimeNames,
-    component_id: NodeId,
-) {
-    writer.push("[");
-    emit_ssr_marker(
-        writer,
-        runtime,
-        &node_marker_id(component_id, "region", region.id),
-    );
-    writer.push(", ");
-    match &region.expression {
-        DynamicRegionExpressionIr::Value { expression } => {
-            writer.push_mapped(&expression.code, expression);
-        }
-        DynamicRegionExpressionIr::Conditional {
-            test,
-            consequent,
-            alternate,
-        } => {
-            writer.push("(");
-            writer.push_mapped(&test.code, test);
-            writer.push(" ? ");
-            emit_ssr_dynamic_region_value(writer, consequent, runtime, component_id);
-            writer.push(" : ");
-            emit_ssr_dynamic_region_value(writer, alternate, runtime, component_id);
-            writer.push(")");
-        }
-        DynamicRegionExpressionIr::Logical {
-            left,
-            operator,
-            right,
-        } => {
-            writer.push("(");
-            writer.push_mapped(&left.code, left);
-            writer.push(" ");
-            writer.push(operator);
-            writer.push(" ");
-            emit_ssr_dynamic_region_value(writer, right, runtime, component_id);
-            writer.push(")");
-        }
-        DynamicRegionExpressionIr::ArrayMap {
-            each,
-            item,
-            index,
-            body,
-        } => {
-            writer.push("(");
-            writer.push_mapped(&each.code, each);
-            writer.push(" ?? []).map((");
-            writer.push(item);
-            if let Some(index) = index {
-                writer.push(", ");
-                writer.push(index);
-            }
-            writer.push(") => ");
-            emit_ssr_children(writer, body, runtime, SsrTextContext::Normal, component_id);
-            writer.push(")");
-        }
-        DynamicRegionExpressionIr::ArrayLiteral { items } => {
-            writer.push("[");
-            for (index, item) in items.iter().enumerate() {
-                if index > 0 {
-                    writer.push(", ");
-                }
-                emit_ssr_dynamic_region_value(writer, item, runtime, component_id);
-            }
-            writer.push("]");
-        }
-    }
-    if runtime.auto_hydrate {
-        writer.push(", ");
-        emit_ssr_close_marker(
-            writer,
-            runtime,
-            &node_marker_id(component_id, "region", region.id),
-        );
-    }
-    writer.push("]");
-}
-
-fn emit_ssr_dynamic_region_value(
-    writer: &mut CodeWriter,
-    value: &DynamicRegionValueIr,
-    runtime: &SsrRuntimeNames,
-    component_id: NodeId,
-) {
-    match value {
-        DynamicRegionValueIr::Expression(expression) => {
-            writer.push_mapped(&expression.code, expression);
-        }
-        DynamicRegionValueIr::Children(children) => {
-            emit_ssr_children(
-                writer,
-                children,
-                runtime,
-                SsrTextContext::Normal,
-                component_id,
-            );
-        }
-    }
-}
-
-fn emit_ssr_element(
-    writer: &mut CodeWriter,
-    element: &ElementIr,
-    runtime: &SsrRuntimeNames,
-    component_id: NodeId,
-) {
-    writer.push("[");
-    emit_ssr_marker(
-        writer,
-        runtime,
-        &element_marker_id(component_id, element.reference.node_id),
-    );
-    writer.push(", ");
-    writer.push(runtime.element());
-    writer.push("(");
-    writer.push(&quote_js(&element.tag_name));
-    writer.push(", ");
-    if element_has_spread(element) {
-        writer.push(&runtime.spread);
-        writer.push("(");
-        emit_attribute_sources(writer, &element.attributes, None);
-        writer.push(")");
-    } else {
-        writer.push("[");
-        let mut first = true;
-        for attribute in &element.attributes {
-            match attribute {
-                AttributeIr::Static(attribute) => {
-                    if !first {
-                        writer.push(", ");
-                    }
-                    first = false;
-                    writer.push(runtime.attr());
-                    writer.push("(");
-                    writer.push(&quote_js(&attribute.name));
-                    writer.push(", ");
-                    match &attribute.value {
-                        StaticAttributeValue::String(value) => writer.push(&quote_js(value)),
-                        StaticAttributeValue::Boolean => writer.push("true"),
-                    }
-                    writer.push(")");
-                }
-                AttributeIr::Dynamic(attribute) => {
-                    if !first {
-                        writer.push(", ");
-                    }
-                    first = false;
-                    writer.push(runtime.attr());
-                    writer.push("(");
-                    writer.push(&quote_js(&attribute.name));
-                    writer.push(", ");
-                    emit_ssr_expression_value(writer, &attribute.expression);
-                    writer.push(")");
-                }
-                // Custom element properties are client-only on the server.
-                AttributeIr::Property(_) if is_custom_element(&element.tag_name) => {}
-                AttributeIr::Property(attribute) => {
-                    if !first {
-                        writer.push(", ");
-                    }
-                    first = false;
-                    writer.push(runtime.prop());
-                    writer.push("(");
-                    writer.push(&quote_js(&attribute.name));
-                    writer.push(", ");
-                    emit_ssr_expression_value(writer, &attribute.expression);
-                    writer.push(")");
-                }
-                AttributeIr::Event(_) | AttributeIr::Ref(_) | AttributeIr::Spread(_) => {}
-            }
-        }
-        writer.push("]");
-    }
-    if !element.children.is_empty() && !is_void_element(&element.tag_name) {
-        writer.push(", ");
-        emit_ssr_children(
-            writer,
-            &element.children,
-            runtime,
-            ssr_text_context(element),
-            component_id,
-        );
-    } else if is_void_element(&element.tag_name) {
-        writer.push(", undefined, true");
-    }
-    if element.namespace == "svg" && is_unescaped_raw_text(&element.tag_name) {
-        // Foreign `<script>`/`<style>` are ordinary elements to the parser, so
-        // the runtime must use text escaping instead of raw-text rewriting.
-        writer.push(", undefined, undefined, true");
-    }
-    writer.push(")");
-    writer.push("]");
-}
-
-fn emit_ssr_expression_value(writer: &mut CodeWriter, expression: &ExpressionIr) {
-    writer.push_mapped(&expression.code, expression);
-}
-
-fn emit_ssr_marker(writer: &mut CodeWriter, runtime: &SsrRuntimeNames, id: &str) {
-    writer.push(runtime.hydration_marker());
-    writer.push("(");
-    writer.push(&quote_js(id));
-    writer.push(")");
-}
-
-fn emit_ssr_close_marker(writer: &mut CodeWriter, runtime: &SsrRuntimeNames, id: &str) {
-    writer.push(runtime.static_text());
-    writer.push("(");
-    writer.push(&quote_js(&format!("<!--zeus:hydrate:/{id}-->")));
-    writer.push(")");
-}
-
-fn emit_ssr_component(
-    writer: &mut CodeWriter,
-    component: &ComponentBindingIr,
-    runtime: &SsrRuntimeNames,
-    component_id: NodeId,
-) {
-    writer.push("[");
-    emit_ssr_marker(
-        writer,
-        runtime,
-        &node_marker_id(component_id, "component", component.id),
-    );
-    writer.push(", ");
-    let builtin = match component.kind.as_str() {
-        "Host" => Some(runtime.host()),
-        "Slot" => Some(runtime.slot()),
-        _ => None,
-    };
-    writer.push(builtin.unwrap_or_else(|| runtime.component()));
-    writer.push("(");
-    if builtin.is_none() {
-        writer.push_mapped(&component.callee.code, &component.callee);
-        writer.push(", ");
-    }
-    let spread = component
-        .props
-        .iter()
-        .any(|prop| matches!(prop, ComponentPropIr::Spread(_)));
-    if spread {
-        writer.push(&runtime.merge_props);
-        writer.push("([");
-    } else {
-        writer.push("{");
-    }
-    for (index, entry) in component.props.iter().enumerate() {
-        if index > 0 {
-            writer.push(", ");
-        }
-        match entry {
-            ComponentPropIr::Spread(prop) => {
-                writer.push("() => (");
-                writer.push_dom_expression(&prop.expression);
-                writer.push(")");
-            }
-            ComponentPropIr::Named(prop) => {
-                if spread {
-                    writer.push("() => ({");
-                }
-                match &prop.value {
-                    ComponentPropValueIr::Expression(expression)
-                        if is_static_expression(expression) =>
-                    {
-                        writer.push(&object_key(&prop.name));
-                        writer.push(": ");
-                        writer.push_mapped(&expression.code, expression);
-                    }
-                    ComponentPropValueIr::Expression(expression) => {
-                        writer.push("get ");
-                        writer.push(&object_key(&prop.name));
-                        writer.push("() { return ");
-                        emit_ssr_expression_value(writer, expression);
-                        writer.push(" }");
-                    }
-                    ComponentPropValueIr::Children(children) => {
-                        writer.push("get ");
-                        writer.push(&object_key(&prop.name));
-                        writer.push("() { return ");
-                        emit_ssr_children(
-                            writer,
-                            children,
-                            runtime,
-                            SsrTextContext::Normal,
-                            component_id,
-                        );
-                        writer.push(" }");
-                    }
-                }
-
-                if spread {
-                    writer.push("})");
-                }
-            }
-        }
-    }
-    if spread {
-        writer.push("])");
-    } else {
-        writer.push("}");
-    }
-    writer.push(")");
-    writer.push("]");
-}
-fn emit_ssr_show(
-    writer: &mut CodeWriter,
-    show: &ShowBindingIr,
-    runtime: &SsrRuntimeNames,
-    component_id: NodeId,
-) {
-    writer.push("[");
-    emit_ssr_marker(
-        writer,
-        runtime,
-        &node_marker_id(component_id, "show", show.id),
-    );
-    writer.push(", ");
-    writer.push(runtime.show());
-    writer.push("(() => ");
-    writer.push_mapped(&show.when.code, &show.when);
-    writer.push(", () => ");
-    emit_ssr_children(
-        writer,
-        &show.children,
-        runtime,
-        SsrTextContext::Normal,
-        component_id,
-    );
-    if let Some(fallback) = &show.fallback {
-        writer.push(", () => ");
-        match fallback {
-            ComponentPropValueIr::Expression(expression) => {
-                emit_ssr_expression_value(writer, expression);
-            }
-            ComponentPropValueIr::Children(children) => {
-                emit_ssr_children(
-                    writer,
-                    children,
-                    runtime,
-                    SsrTextContext::Normal,
-                    component_id,
-                );
-            }
-        }
-    }
-    writer.push(")");
-    if runtime.auto_hydrate {
-        writer.push(", ");
-        emit_ssr_close_marker(
-            writer,
-            runtime,
-            &node_marker_id(component_id, "show", show.id),
-        );
-    }
-    writer.push("]");
-}
-
-fn emit_ssr_for(
-    writer: &mut CodeWriter,
-    for_binding: &ForBindingIr,
-    runtime: &SsrRuntimeNames,
-    component_id: NodeId,
-) {
-    writer.push("[");
-    emit_ssr_marker(
-        writer,
-        runtime,
-        &node_marker_id(component_id, "for", for_binding.id),
-    );
-    writer.push(", ");
-    writer.push(runtime.for_each());
-    writer.push("(() => ");
-    writer.push_mapped(&for_binding.each.code, &for_binding.each);
-    writer.push(", (");
-    writer.push(&for_binding.item);
-    if let Some(index) = &for_binding.index {
-        writer.push(", ");
-        writer.push(index);
-    }
-    writer.push(") => ");
-    emit_ssr_children(
-        writer,
-        &for_binding.body,
-        runtime,
-        SsrTextContext::Normal,
-        component_id,
-    );
-    writer.push(")");
-    if runtime.auto_hydrate {
-        writer.push(", ");
-        emit_ssr_close_marker(
-            writer,
-            runtime,
-            &node_marker_id(component_id, "for", for_binding.id),
-        );
-    }
-    writer.push("]");
-}
-
-fn emit_ssr_transition(
-    writer: &mut CodeWriter,
-    transition: &TransitionBindingIr,
-    runtime: &SsrRuntimeNames,
-    component_id: NodeId,
-) {
-    // SSR has no animation lifecycle. Preserve the runtime's initial visibility
-    // decision and serialize only the mounted branch.
-    writer.push("[");
-    emit_ssr_marker(
-        writer,
-        runtime,
-        &node_marker_id(component_id, "transition", transition.id),
-    );
-    writer.push(", (");
-    writer.push_mapped(&transition.when.code, &transition.when);
-    writer.push(" ? ");
-    emit_ssr_children(
-        writer,
-        &transition.children,
-        runtime,
-        SsrTextContext::Normal,
-        component_id,
-    );
-    writer.push(" : null)");
-    if runtime.auto_hydrate {
-        writer.push(", ");
-        emit_ssr_close_marker(
-            writer,
-            runtime,
-            &node_marker_id(component_id, "transition", transition.id),
-        );
-    }
-    writer.push("]");
 }
 
 fn emit_delegated_events(
@@ -2782,7 +2060,7 @@ fn emit_inline_root(
     writer.push(";\n})()");
 }
 
-fn object_key(name: &str) -> String {
+pub(super) fn object_key(name: &str) -> String {
     if is_valid_identifier(name) {
         name.to_owned()
     } else {
@@ -2801,7 +2079,7 @@ fn is_valid_identifier(name: &str) -> bool {
         })
 }
 
-fn is_static_expression(expression: &ExpressionIr) -> bool {
+pub(super) fn is_static_expression(expression: &ExpressionIr) -> bool {
     expression.form == ExpressionForm::Value
         && (expression.code == "true"
             || expression.code == "false"
@@ -2972,7 +2250,7 @@ fn emit_ref_binding(
     writer.push(");\n");
 }
 
-fn emit_attribute_sources(
+pub(super) fn emit_attribute_sources(
     writer: &mut CodeWriter,
     attributes: &[AttributeIr],
     mut names: Option<&mut NameAllocator>,
@@ -3157,7 +2435,7 @@ fn collect_root_dynamic_bindings(root: &RootIr) -> Vec<DynamicBinding> {
     }
 }
 
-fn element_has_spread(element: &ElementIr) -> bool {
+pub(super) fn element_has_spread(element: &ElementIr) -> bool {
     element
         .attributes
         .iter()
@@ -3309,11 +2587,11 @@ fn has_dynamic_raw_text(element: &ElementIr) -> bool {
         .any(|child| matches!(child, ChildIr::DynamicText(_)))
 }
 
-fn is_unescaped_raw_text(tag_name: &str) -> bool {
+pub(super) fn is_unescaped_raw_text(tag_name: &str) -> bool {
     tag_name.eq_ignore_ascii_case("script") || tag_name.eq_ignore_ascii_case("style")
 }
 
-fn ssr_text_context(element: &ElementIr) -> SsrTextContext {
+pub(super) fn ssr_text_context(element: &ElementIr) -> SsrTextContext {
     if is_unescaped_raw_text(&element.tag_name) {
         if element.namespace == "svg" {
             SsrTextContext::ForeignRaw
@@ -3351,388 +2629,7 @@ fn collect_text_content_parts(element: &ElementIr) -> Vec<TextContentPart> {
         .collect()
 }
 
-fn collect_delegated_events(module: &ModuleIr, enable_delegation: bool) -> Vec<String> {
-    if !enable_delegation {
-        return Vec::new();
-    }
-
-    let mut names = BTreeSet::new();
-    for component in &module.components {
-        collect_root_delegated_events(&component.root, &mut names);
-    }
-    names.into_iter().collect()
-}
-
-fn collect_root_delegated_events(root: &RootIr, names: &mut BTreeSet<String>) {
-    match root {
-        RootIr::Element(element) => collect_element_delegated_events(element, names),
-        RootIr::Fragment(fragment) => collect_child_delegated_events(&fragment.children, names),
-        RootIr::Component(component) => collect_component_delegated_events(component, names),
-        RootIr::ErrorBoundary(boundary) => collect_error_boundary_delegated_events(boundary, names),
-        RootIr::Show(show) => collect_show_delegated_events(show, names),
-        RootIr::For(for_binding) => collect_child_delegated_events(&for_binding.body, names),
-        RootIr::Transition(transition) => {
-            collect_child_delegated_events(&transition.children, names);
-        }
-    }
-}
-
-fn collect_element_delegated_events(element: &ElementIr, names: &mut BTreeSet<String>) {
-    for attribute in &element.attributes {
-        if let AttributeIr::Event(event) = attribute
-            && is_delegatable_event(&event.event_name)
-        {
-            names.insert(event.event_name.clone());
-        }
-    }
-    collect_child_delegated_events(&element.children, names);
-}
-
-/// Events that do not bubble to `document` (or only fire on `window`) cannot be
-/// observed by the delegated document listener and are bound on the element.
-/// Hyphenated or case-sensitive names are custom events, which the dispatcher
-/// may send without bubbling, so they are bound on the element too.
-fn is_delegatable_event(event_name: &str) -> bool {
-    if event_name
-        .bytes()
-        .any(|byte| byte == b'-' || byte.is_ascii_uppercase())
-    {
-        return false;
-    }
-    !matches!(
-        event_name,
-        "abort"
-            | "beforeprint"
-            | "beforetoggle"
-            | "beforeunload"
-            | "cancel"
-            | "canplay"
-            | "canplaythrough"
-            | "close"
-            | "cuechange"
-            | "durationchange"
-            | "emptied"
-            | "ended"
-            | "error"
-            | "invalid"
-            | "load"
-            | "loadeddata"
-            | "loadedmetadata"
-            | "loadend"
-            | "loadstart"
-            | "mouseenter"
-            | "mouseleave"
-            | "pause"
-            | "play"
-            | "playing"
-            | "pointerenter"
-            | "pointerleave"
-            | "progress"
-            | "ratechange"
-            | "resize"
-            | "scroll"
-            | "scrollend"
-            | "seeked"
-            | "seeking"
-            | "slotchange"
-            | "stalled"
-            | "suspend"
-            | "timeupdate"
-            | "toggle"
-            | "unload"
-            | "volumechange"
-            | "waiting"
-    )
-}
-
-fn collect_component_delegated_events(
-    component: &ComponentBindingIr,
-    names: &mut BTreeSet<String>,
-) {
-    for prop in component.props.iter().filter_map(ComponentPropIr::named) {
-        if let ComponentPropValueIr::Children(children) = &prop.value {
-            collect_child_delegated_events(children, names);
-        }
-    }
-}
-
-fn collect_error_boundary_delegated_events(
-    boundary: &ErrorBoundaryBindingIr,
-    names: &mut BTreeSet<String>,
-) {
-    collect_child_delegated_events(&boundary.children, names);
-    if let ErrorBoundaryFallbackIr::Render(render) = &boundary.fallback {
-        collect_child_delegated_events(&render.body, names);
-    }
-}
-
-fn collect_error_boundary_attribute_names(
-    boundary: &ErrorBoundaryBindingIr,
-    names: &mut HashSet<String>,
-) {
-    collect_builtin_attribute_names(&boundary.children, names);
-    if let ErrorBoundaryFallbackIr::Render(render) = &boundary.fallback {
-        collect_builtin_attribute_names(&render.body, names);
-    }
-}
-
-fn collect_error_boundary_helper_usage(
-    boundary: &ErrorBoundaryBindingIr,
-    usage: &mut HashSet<RuntimeHelper>,
-) {
-    usage.insert(RuntimeHelper::ErrorBoundary);
-    collect_builtin_helper_usage(&boundary.children, usage);
-    if let ErrorBoundaryFallbackIr::Render(render) = &boundary.fallback {
-        collect_builtin_helper_usage(&render.body, usage);
-    }
-}
-
-fn collect_show_delegated_events(show: &ShowBindingIr, names: &mut BTreeSet<String>) {
-    collect_child_delegated_events(&show.children, names);
-    if let Some(ComponentPropValueIr::Children(children)) = &show.fallback {
-        collect_child_delegated_events(children, names);
-    }
-}
-
-fn collect_child_delegated_events(children: &[ChildIr], names: &mut BTreeSet<String>) {
-    for child in children {
-        match child {
-            ChildIr::Element(element) => collect_element_delegated_events(element, names),
-            ChildIr::Fragment(fragment) => {
-                collect_child_delegated_events(&fragment.children, names);
-            }
-            ChildIr::Component(component) => collect_component_delegated_events(component, names),
-            ChildIr::ErrorBoundary(boundary) => {
-                collect_error_boundary_delegated_events(boundary, names);
-            }
-            ChildIr::Show(show) => collect_show_delegated_events(show, names),
-            ChildIr::For(for_binding) => {
-                collect_child_delegated_events(&for_binding.body, names);
-            }
-            ChildIr::Transition(transition) => {
-                collect_child_delegated_events(&transition.children, names);
-            }
-            ChildIr::DynamicRegion(region) => {
-                collect_dynamic_region_delegated_events(region, names);
-            }
-            ChildIr::Text(_) | ChildIr::DynamicText(_) => {}
-        }
-    }
-}
-
-fn collect_dynamic_region_delegated_events(region: &DynamicRegionIr, names: &mut BTreeSet<String>) {
-    match &region.expression {
-        DynamicRegionExpressionIr::Value { .. } => {}
-        DynamicRegionExpressionIr::Conditional {
-            consequent,
-            alternate,
-            ..
-        } => {
-            collect_dynamic_region_value_delegated_events(consequent, names);
-            collect_dynamic_region_value_delegated_events(alternate, names);
-        }
-        DynamicRegionExpressionIr::Logical { right, .. } => {
-            collect_dynamic_region_value_delegated_events(right, names);
-        }
-        DynamicRegionExpressionIr::ArrayMap { body, .. } => {
-            collect_child_delegated_events(body, names);
-        }
-        DynamicRegionExpressionIr::ArrayLiteral { items } => {
-            for item in items {
-                collect_dynamic_region_value_delegated_events(item, names);
-            }
-        }
-    }
-}
-
-fn collect_dynamic_region_value_delegated_events(
-    value: &DynamicRegionValueIr,
-    names: &mut BTreeSet<String>,
-) {
-    if let DynamicRegionValueIr::Children(children) = value {
-        collect_child_delegated_events(children, names);
-    }
-}
-
-fn allocate_locator_attribute(module: &ModuleIr) -> String {
-    let mut used = HashSet::new();
-    for component in &module.components {
-        collect_root_attribute_names(&component.root, &mut used);
-    }
-
-    let base = "data-zeus-node";
-    if !used.contains(base) {
-        return base.into();
-    }
-    for suffix in 0_u32.. {
-        let candidate = format!("{base}-{suffix}");
-        if !used.contains(&candidate) {
-            return candidate;
-        }
-    }
-
-    unreachable!("u32 locator suffixes cannot be exhausted in one module")
-}
-
-fn collect_root_attribute_names(root: &RootIr, names: &mut HashSet<String>) {
-    match root {
-        RootIr::Element(element) => collect_attribute_names(element, names),
-        RootIr::Fragment(fragment) => collect_fragment_attribute_names(fragment, names),
-        RootIr::Component(component) => collect_component_attribute_names(component, names),
-        RootIr::ErrorBoundary(boundary) => collect_error_boundary_attribute_names(boundary, names),
-        RootIr::Show(show) => collect_show_attribute_names(show, names),
-        RootIr::For(for_binding) => collect_builtin_attribute_names(&for_binding.body, names),
-        RootIr::Transition(transition) => {
-            collect_builtin_attribute_names(&transition.children, names);
-        }
-    }
-}
-
-fn collect_attribute_names(element: &ElementIr, names: &mut HashSet<String>) {
-    for attribute in &element.attributes {
-        let name = match attribute {
-            AttributeIr::Static(attribute) => &attribute.name,
-            AttributeIr::Dynamic(attribute) => &attribute.name,
-            AttributeIr::Property(attribute) => &attribute.name,
-            AttributeIr::Event(_) | AttributeIr::Ref(_) | AttributeIr::Spread(_) => continue,
-        };
-        names.insert(name.to_ascii_lowercase());
-    }
-    for child in &element.children {
-        if let ChildIr::Element(element) = child {
-            collect_attribute_names(element, names);
-        } else if let ChildIr::Fragment(fragment) = child {
-            collect_fragment_attribute_names(fragment, names);
-        } else if let ChildIr::Component(component) = child {
-            collect_component_attribute_names(component, names);
-        } else if let ChildIr::ErrorBoundary(boundary) = child {
-            collect_error_boundary_attribute_names(boundary, names);
-        } else if let ChildIr::Show(show) = child {
-            collect_show_attribute_names(show, names);
-        } else if let ChildIr::For(for_binding) = child {
-            collect_builtin_attribute_names(&for_binding.body, names);
-        } else if let ChildIr::Transition(transition) = child {
-            collect_builtin_attribute_names(&transition.children, names);
-        } else if let ChildIr::DynamicRegion(region) = child {
-            collect_dynamic_region_attribute_names(region, names);
-        }
-    }
-}
-
-fn collect_fragment_attribute_names(fragment: &FragmentIr, names: &mut HashSet<String>) {
-    for child in &fragment.children {
-        match child {
-            ChildIr::Element(element) => collect_attribute_names(element, names),
-            ChildIr::Fragment(fragment) => collect_fragment_attribute_names(fragment, names),
-            ChildIr::Component(component) => collect_component_attribute_names(component, names),
-            ChildIr::ErrorBoundary(boundary) => {
-                collect_error_boundary_attribute_names(boundary, names);
-            }
-            ChildIr::Show(show) => collect_show_attribute_names(show, names),
-            ChildIr::For(for_binding) => collect_builtin_attribute_names(&for_binding.body, names),
-            ChildIr::Transition(transition) => {
-                collect_builtin_attribute_names(&transition.children, names);
-            }
-            ChildIr::DynamicRegion(region) => collect_dynamic_region_attribute_names(region, names),
-            ChildIr::Text(_) | ChildIr::DynamicText(_) => {}
-        }
-    }
-}
-
-fn collect_component_attribute_names(component: &ComponentBindingIr, names: &mut HashSet<String>) {
-    for prop in component.props.iter().filter_map(ComponentPropIr::named) {
-        if let ComponentPropValueIr::Children(children) = &prop.value {
-            for child in children {
-                match child {
-                    ChildIr::Element(element) => collect_attribute_names(element, names),
-                    ChildIr::Fragment(fragment) => {
-                        collect_fragment_attribute_names(fragment, names);
-                    }
-                    ChildIr::Component(component) => {
-                        collect_component_attribute_names(component, names);
-                    }
-                    ChildIr::ErrorBoundary(boundary) => {
-                        collect_error_boundary_attribute_names(boundary, names);
-                    }
-                    ChildIr::Show(show) => collect_show_attribute_names(show, names),
-                    ChildIr::For(for_binding) => {
-                        collect_builtin_attribute_names(&for_binding.body, names);
-                    }
-                    ChildIr::Transition(transition) => {
-                        collect_builtin_attribute_names(&transition.children, names);
-                    }
-                    ChildIr::DynamicRegion(region) => {
-                        collect_dynamic_region_attribute_names(region, names);
-                    }
-                    ChildIr::Text(_) | ChildIr::DynamicText(_) => {}
-                }
-            }
-        }
-    }
-}
-
-fn collect_builtin_attribute_names(children: &[ChildIr], names: &mut HashSet<String>) {
-    for child in children {
-        match child {
-            ChildIr::Element(element) => collect_attribute_names(element, names),
-            ChildIr::Fragment(fragment) => collect_fragment_attribute_names(fragment, names),
-            ChildIr::Component(component) => collect_component_attribute_names(component, names),
-            ChildIr::ErrorBoundary(boundary) => {
-                collect_error_boundary_attribute_names(boundary, names);
-            }
-            ChildIr::Show(show) => collect_show_attribute_names(show, names),
-            ChildIr::For(for_binding) => collect_builtin_attribute_names(&for_binding.body, names),
-            ChildIr::Transition(transition) => {
-                collect_builtin_attribute_names(&transition.children, names);
-            }
-            ChildIr::DynamicRegion(region) => collect_dynamic_region_attribute_names(region, names),
-            ChildIr::Text(_) | ChildIr::DynamicText(_) => {}
-        }
-    }
-}
-
-fn collect_show_attribute_names(show: &ShowBindingIr, names: &mut HashSet<String>) {
-    collect_builtin_attribute_names(&show.children, names);
-    if let Some(ComponentPropValueIr::Children(fallback)) = &show.fallback {
-        collect_builtin_attribute_names(fallback, names);
-    }
-}
-
-fn collect_dynamic_region_attribute_names(region: &DynamicRegionIr, names: &mut HashSet<String>) {
-    match &region.expression {
-        DynamicRegionExpressionIr::Value { .. } => {}
-        DynamicRegionExpressionIr::Conditional {
-            consequent,
-            alternate,
-            ..
-        } => {
-            collect_dynamic_region_value_attribute_names(consequent, names);
-            collect_dynamic_region_value_attribute_names(alternate, names);
-        }
-        DynamicRegionExpressionIr::Logical { right, .. } => {
-            collect_dynamic_region_value_attribute_names(right, names);
-        }
-        DynamicRegionExpressionIr::ArrayMap { body, .. } => {
-            collect_builtin_attribute_names(body, names);
-        }
-        DynamicRegionExpressionIr::ArrayLiteral { items } => {
-            for item in items {
-                collect_dynamic_region_value_attribute_names(item, names);
-            }
-        }
-    }
-}
-
-fn collect_dynamic_region_value_attribute_names(
-    value: &DynamicRegionValueIr,
-    names: &mut HashSet<String>,
-) {
-    if let DynamicRegionValueIr::Children(children) = value {
-        collect_builtin_attribute_names(children, names);
-    }
-}
-
-fn build_source_map(filename: &str, source: &str, mappings: &[Mapping]) -> RawSourceMap {
+pub(super) fn build_source_map(filename: &str, source: &str, mappings: &[Mapping]) -> RawSourceMap {
     let mut builder = SourceMapBuilder::default();
     builder.set_file(filename);
     let source_name = filename
@@ -3758,18 +2655,18 @@ fn build_source_map(filename: &str, source: &str, mappings: &[Mapping]) -> RawSo
         .expect("oxc_sourcemap always emits valid Source Map v3 JSON")
 }
 
-fn quote_js(value: &str) -> String {
+pub(super) fn quote_js(value: &str) -> String {
     serde_json::to_string(value).expect("strings always serialize as JSON")
 }
 
-fn escape_html_text(value: &str) -> String {
+pub(super) fn escape_html_text(value: &str) -> String {
     value
         .replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
 }
 
-fn escape_html_attribute(value: &str) -> String {
+pub(super) fn escape_html_attribute(value: &str) -> String {
     escape_html_text(value).replace('"', "&quot;")
 }
 
@@ -3796,7 +2693,7 @@ struct GeneratedComponent {
     targets: Vec<ElementTarget>,
 }
 
-fn root_span(root: &RootIr) -> &crate::span::SourceSpan {
+pub(super) fn root_span(root: &RootIr) -> &crate::support::span::SourceSpan {
     match root {
         RootIr::Element(element) => &element.span,
         RootIr::Fragment(fragment) => &fragment.span,
@@ -4225,7 +3122,10 @@ fn collect_component_helper_usage(
     }
 }
 
-fn collect_builtin_helper_usage(children: &[ChildIr], usage: &mut HashSet<RuntimeHelper>) {
+pub(super) fn collect_builtin_helper_usage(
+    children: &[ChildIr],
+    usage: &mut HashSet<RuntimeHelper>,
+) {
     for child in children {
         match child {
             ChildIr::Element(element) => {
@@ -4382,7 +3282,7 @@ struct RuntimeNames {
     enable_delegation: bool,
 }
 
-struct SsrRuntimeNames {
+pub(super) struct SsrRuntimeNames {
     static_text: String,
     text: String,
     element: String,
@@ -4608,7 +3508,7 @@ impl RuntimeNames {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum RuntimeHelper {
+pub(super) enum RuntimeHelper {
     Template,
     AutoHydrateComponent,
     CreateComponent,
@@ -4711,7 +3611,7 @@ impl RuntimeHelper {
 }
 
 #[derive(Clone)]
-struct ForAccessorScope {
+pub(super) struct ForAccessorScope {
     for_id: NodeId,
     item: String,
     index: Option<String>,
@@ -4719,14 +3619,14 @@ struct ForAccessorScope {
     index_accessor: Option<String>,
 }
 
-struct ForAccessorUse {
+pub(super) struct ForAccessorUse {
     scope: ForAccessorScope,
     item: bool,
     index: bool,
 }
 
 #[derive(Default)]
-struct CodeWriter {
+pub(super) struct CodeWriter {
     code: String,
     line: u32,
     column: u32,
@@ -5000,14 +3900,14 @@ fn advance_position(line: u32, column: u32, value: &str) -> (u32, u32) {
     (line, column)
 }
 
-struct Mapping {
+pub(super) struct Mapping {
     generated_line: u32,
     generated_column: u32,
     /// `None` marks the start of generated code that has no original source.
     original: Option<(u32, u32)>,
 }
 
-struct NameAllocator {
+pub(super) struct NameAllocator {
     used: HashSet<String>,
     /// Next suffix to try for a base name. Without it, allocating the same
     /// base N times rescans suffixes 0..N and makes deep regions quadratic.
