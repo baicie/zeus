@@ -22,7 +22,7 @@ const VITE_PLUGIN_PACKAGE = '@zeus-js/vite-plugin'
 const DEFAULT_PACKAGE_ROOT = 'packages'
 const DEFAULT_TEMPLATES_ROOT = path.join(
   'packages',
-  'devtools',
+  'create',
   'create-zeus',
   'templates',
 )
@@ -85,7 +85,7 @@ export interface VersionRehearsalOptions {
   readonly fixedPackages?: readonly string[]
   /** Defaults to `<root>/packages`. */
   readonly packageRoot?: string
-  /** Defaults to `<root>/packages/devtools/create-zeus/templates`. */
+  /** Defaults to `<root>/packages/create/create-zeus/templates`. */
   readonly templatesRoot?: string
 }
 

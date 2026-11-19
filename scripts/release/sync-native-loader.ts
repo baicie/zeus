@@ -16,7 +16,7 @@ export async function syncNativeLoader(
     binaryName: 'zeus-compiler-native',
     packageName: '@zeus-js/compiler-native',
     version,
-    outputDir: path.join(root, 'packages/core/compiler-native'),
+    outputDir: path.join(root, 'packages/compiler/compiler-native'),
   })
 }
 

@@ -128,7 +128,7 @@ fn ir_owned_schema_round_trips_through_json() {
 #[test]
 fn attribute_ir_matches_compiler_shared_canonical_json() {
     let fixture =
-        include_str!("../../../packages/core/compiler-shared/fixtures/attribute-bindings.json");
+        include_str!("../../../packages/compiler/compiler-shared/fixtures/attribute-bindings.json");
     let attributes: Vec<AttributeIr> = serde_json::from_str(fixture)
         .expect("canonical TypeScript IR fixture deserializes in Rust");
     let expected: serde_json::Value =

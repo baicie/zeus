@@ -219,12 +219,12 @@ function excludedPackages(): {
 }[] {
   const excluded: { name: string; version: string; reason: string }[] = []
   const candidates = [
-    'packages/devtools/vite-plugin',
-    'packages/devtools/create-zeus',
+    'packages/tooling/vite-plugin',
+    'packages/create/create-zeus',
     'packages/create/zeus-ui',
     'packages/create/registry',
-    'packages/devtools/consumer',
-    'packages/core/compiler-wasm',
+    'packages/tooling/consumer',
+    'packages/compiler/compiler-wasm',
   ]
   for (const relative of candidates) {
     const manifest = readJson<{
@@ -317,7 +317,7 @@ function nativeTargets(): NativeTarget[] {
     platform,
     arch,
     present: fs.existsSync(
-      path.join(root, 'packages/core', pkg, 'package.json'),
+      path.join(root, 'packages/compiler', pkg, 'package.json'),
     ),
   }))
 }

@@ -145,7 +145,7 @@ describe('checkZeusPackageVersions', () => {
       version: '0.1.0-beta.6',
     })
 
-    writePackage(root, 'packages/devtools/vite-plugin/package.json', {
+    writePackage(root, 'packages/tooling/vite-plugin/package.json', {
       name: '@zeus-js/vite-plugin',
       version: '0.0.2',
     })

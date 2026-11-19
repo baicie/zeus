@@ -133,7 +133,7 @@ importers:
         specifier: ^4.0.0
         version: 4.1.9
 
-  packages/core/i18n:
+  packages/features/i18n:
     dependencies:
       intl-messageformat:
         specifier: ^10.0.0
@@ -152,7 +152,7 @@ importers:
   it('lists only registry dependencies of published packages', () => {
     const deps = collectRuntimeDependencies(lockfile, {
       'packages/core/zeus': '@zeus-js/zeus',
-      'packages/core/i18n': '@zeus-js/i18n',
+      'packages/features/i18n': '@zeus-js/i18n',
     })
     expect(deps.map(dep => dep.name).sort()).toEqual([
       'intl-messageformat',
@@ -184,7 +184,7 @@ importers:
   it('records which published package requires each dependency', () => {
     const deps = collectRuntimeDependencies(lockfile, {
       'packages/core/zeus': '@zeus-js/zeus',
-      'packages/core/i18n': '@zeus-js/i18n',
+      'packages/features/i18n': '@zeus-js/i18n',
     })
     const i18n = deps.find(dep => dep.name === 'intl-messageformat')
     expect(i18n?.requiredBy).toEqual(['@zeus-js/i18n'])

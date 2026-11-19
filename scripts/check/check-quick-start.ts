@@ -13,7 +13,7 @@ const quickStart = readFileSync(
 )
 const templateRoot = path.join(
   root,
-  'packages/devtools/create-zeus/templates/component-library-ts',
+  'packages/create/create-zeus/templates/component-library-ts',
 )
 
 assertCodeBlock(

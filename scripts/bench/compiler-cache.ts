@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 
-import { createCompilerCache } from '../../packages/devtools/vite-plugin/src/cache'
+import { createCompilerCache } from '../../packages/tooling/vite-plugin/src/cache'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const moduleCount = 5_000

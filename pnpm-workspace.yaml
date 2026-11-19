@@ -1,7 +1,9 @@
 packages:
   - 'packages/core/*'
-  - 'packages/devtools/*'
+  - 'packages/compiler/*'
+  - 'packages/features/*'
   - 'packages/web-c/*'
+  - 'packages/tooling/*'
   - 'packages/create/*'
   - 'examples/*'
   - 'benchmarks/*'

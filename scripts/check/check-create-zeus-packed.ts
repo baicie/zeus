@@ -10,7 +10,7 @@ const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], {
   cwd: root,
   encoding: 'utf8',
 }).trim()
-const packageRoot = path.join(root, 'packages/devtools/create-zeus')
+const packageRoot = path.join(root, 'packages/create/create-zeus')
 const output = path.join(root, 'temp/create-zeus-packed')
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'zeus-create-packed-'))
 const archives = path.join(work, 'archives')

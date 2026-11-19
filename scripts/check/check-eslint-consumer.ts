@@ -8,7 +8,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const packageRoot = path.join(root, 'packages/devtools/eslint-plugin')
+const packageRoot = path.join(root, 'packages/tooling/eslint-plugin')
 const output = path.join(root, 'temp/eslint-consumer')
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'zeus-eslint-consumer-'))
 const archives = path.join(work, 'archives')

@@ -5,6 +5,8 @@ import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { gzipSync } from 'node:zlib'
 
+import { findWorkspacePackages } from '../shared/utils.ts'
+
 const root = path.resolve(import.meta.dirname, '../..')
 const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], {
   cwd: root,
@@ -25,28 +27,49 @@ const results: Array<{
 }> = []
 const bundles: Record<string, ConsumerBundle> = {}
 
+/**
+ * Package short names this gate packs.
+ *
+ * Resolved through `findWorkspacePackages()` rather than a written-out
+ * `core/…` / `devtools/…` list: that list was the third hand-maintained copy
+ * of the package layout, and after the six-domain move it pointed every entry
+ * at a directory that no longer existed — the script failed on its first
+ * `package.json` read, one second in, with no indication which path was wrong.
+ */
 const selected = [
-  'core/shared',
-  'core/signal',
-  'core/runtime-dom',
-  'core/runtime-ssr',
-  'core/zeus',
-  'core/i18n',
-  'core/compiler',
-  'core/compiler-native',
-  `core/compiler-native-${platformPackage()}`,
-  'devtools/vite-plugin',
-  'web-c/bundler-plugin',
-  'web-c/component-analyzer',
-  'web-c/component-dts',
-  'web-c/output-css',
-  'web-c/output-icons',
-  'web-c/output-wc',
-  'web-c/output-react-wrapper',
-  'web-c/output-vue-wrapper',
-  'web-c/web-c',
-  'web-c/web-c-runtime',
+  'shared',
+  'signal',
+  'runtime-dom',
+  'runtime-ssr',
+  'zeus',
+  'i18n',
+  'compiler',
+  'compiler-native',
+  `compiler-native-${platformPackage()}`,
+  'vite-plugin',
+  'bundler-plugin',
+  'component-analyzer',
+  'component-dts',
+  'output-css',
+  'output-icons',
+  'output-wc',
+  'output-react-wrapper',
+  'output-vue-wrapper',
+  'web-c',
+  'web-c-runtime',
 ]
+
+const workspace = findWorkspacePackages()
+
+function packageDirectory(shortName: string): string {
+  const found = workspace.find(pkg => pkg.shortName === shortName)
+  if (!found) {
+    throw new Error(
+      `${shortName} is not a workspace package; check-packed-consumers cannot pack it`,
+    )
+  }
+  return found.dir
+}
 const packages: Record<string, string> = {}
 const browsers = (readOption('--browsers') ?? 'chromium,firefox,webkit').split(
   ',',
@@ -61,7 +84,7 @@ if (
 
 try {
   for (const relative of selected) {
-    const directory = path.join(root, 'packages', relative)
+    const directory = packageDirectory(relative)
     const manifest = JSON.parse(
       fs.readFileSync(path.join(directory, 'package.json'), 'utf8'),
     )
@@ -173,6 +196,7 @@ try {
       path.join(project, 'entry.mjs'),
       `
 import { runConsumer } from './browser.mjs';
+
 ${mode === 'native' ? "import { runNativeChecks } from './native-checks.mjs';" : ''}
 window.packedResult = (async () => {
   const result = await runConsumer();
@@ -337,7 +361,10 @@ interface ConsumerBundle {
  */
 function inspectI18nTarball(archives: string): void {
   const manifest = JSON.parse(
-    fs.readFileSync(path.join(root, 'packages/core/i18n/package.json'), 'utf8'),
+    fs.readFileSync(
+      path.join(root, 'packages/features/i18n/package.json'),
+      'utf8',
+    ),
   ) as { name: string; version: string; exports: Record<string, unknown> }
 
   const archive = path.join(

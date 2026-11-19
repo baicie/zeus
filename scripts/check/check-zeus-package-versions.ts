@@ -45,12 +45,19 @@ interface DiscoveredPackage {
 
 const DEFAULT_PACKAGE_ROOTS = [
   'packages/core',
-  'packages/devtools',
+  'packages/compiler',
+  'packages/features',
+  'packages/tooling',
   'packages/web-c',
   'packages/create',
 ]
 
-const DEFAULT_REQUIRED_FIXED_PACKAGE_ROOTS = ['packages/core', 'packages/web-c']
+const DEFAULT_REQUIRED_FIXED_PACKAGE_ROOTS = [
+  'packages/core',
+  'packages/compiler',
+  'packages/features',
+  'packages/web-c',
+]
 
 const DEFAULT_ROOT_VERSION_PACKAGE = '@zeus-js/zeus'
 

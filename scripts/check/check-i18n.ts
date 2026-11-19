@@ -22,12 +22,12 @@ import { parseArgs } from 'node:util'
 import {
   checkMessageSyntax,
   messageArgumentNames,
-} from '../../packages/core/i18n/src/formatters'
+} from '../../packages/features/i18n/src/formatters'
 import {
   checkCatalog,
   type CatalogIssue,
   type MessageCatalog,
-} from '../../packages/core/i18n/src/message'
+} from '../../packages/features/i18n/src/message'
 
 const { values } = parseArgs({
   options: {

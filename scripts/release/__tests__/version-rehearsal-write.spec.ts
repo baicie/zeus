@@ -58,13 +58,13 @@ function fixture(): string {
     path.join(root, 'Cargo.toml'),
     '[workspace]\nmembers = ["crates/a"]\n\n[workspace.package]\nversion = "0.1.1-beta.0"\nedition = "2024"\n',
   )
-  writeJson(root, 'packages/devtools/vite-plugin/package.json', {
+  writeJson(root, 'packages/tooling/vite-plugin/package.json', {
     name: '@zeus-js/vite-plugin',
     version: '0.0.5',
   })
   writeJson(
     root,
-    'packages/devtools/create-zeus/templates/basic-ts/package.json',
+    'packages/create/create-zeus/templates/basic-ts/package.json',
     {
       name: 'my-zeus-app',
       dependencies: {
@@ -125,11 +125,11 @@ describe('the write pass', () => {
       fixedPackages: FIXED,
     })
     expect(plan.files.map(file => file.file)).not.toContain(
-      'packages/devtools/vite-plugin/package.json',
+      'packages/tooling/vite-plugin/package.json',
     )
-    expect(
-      readVersion(root, 'packages/devtools/vite-plugin/package.json'),
-    ).toBe('0.0.5')
+    expect(readVersion(root, 'packages/tooling/vite-plugin/package.json')).toBe(
+      '0.0.5',
+    )
   })
 
   /*
@@ -153,7 +153,7 @@ describe('the write pass', () => {
       fs.readFileSync(
         path.join(
           root,
-          'packages/devtools/create-zeus/templates/basic-ts/package.json',
+          'packages/create/create-zeus/templates/basic-ts/package.json',
         ),
         'utf8',
       ),

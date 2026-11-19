@@ -239,6 +239,14 @@ jobs:
       - name: Type check
         run: pnpm check
 
+      # The six-domain package layout. A package's directory states its role:
+      # `packages/core` is the runtime and nothing else, and a router, compiler
+      # adapter or test helper placed there is what let the layout drift before.
+      # The gate also holds the 38-package / 32-release / 8-native contract, so
+      # a package cannot be added or moved without a deliberate edit here.
+      - name: Package structure
+        run: pnpm check:structure
+
       # Key parity, ICU syntax and placeholder sets across every
       # `locales/en.*` + `locales/zh-CN.*` pair. A missing translation, a
       # Chinese message that drops `{count}`, or an unparseable plural all

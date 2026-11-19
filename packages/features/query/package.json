@@ -1,0 +1,48 @@
+{
+  "name": "@zeus-js/query",
+  "type": "module",
+  "version": "0.2.0-rc.3",
+  "description": "Fine-grained query-core adapter for Zeus",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/features/query"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/query.d.ts",
+      "module": "./dist/query.esm-bundler.js",
+      "import": "./dist/query.esm-bundler.js",
+      "require": {
+        "production": "./dist/query.prod.cjs",
+        "development": "./dist/query.cjs",
+        "default": "./index.cjs"
+      }
+    }
+  },
+  "files": [
+    "index.cjs",
+    "dist"
+  ],
+  "dependencies": {
+    "@tanstack/query-core": "^5.104.3",
+    "@zeus-js/runtime-dom": "workspace:*",
+    "@zeus-js/signal": "workspace:*"
+  },
+  "buildOptions": {
+    "name": "ZeusQuery",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
+  },
+  "main": "index.cjs",
+  "module": "dist/query.esm-bundler.js",
+  "types": "dist/query.d.ts"
+}

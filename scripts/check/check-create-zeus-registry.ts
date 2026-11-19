@@ -33,7 +33,7 @@ import {
   getTemplateVersionPolicyErrors,
   readTemplateRequirements,
 } from './check-template-dependencies'
-import { scaffold } from '../../packages/devtools/create-zeus/src/scaffold'
+import { scaffold } from '../../packages/create/create-zeus/src/scaffold'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const { values } = parseArgs({

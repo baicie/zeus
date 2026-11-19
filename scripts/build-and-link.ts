@@ -36,14 +36,14 @@ const PUBLIC_PACKAGES: Array<{ name: string; path: string }> = [
   { name: '@zeus-js/shared', path: 'packages/core/shared' },
   {
     name: '@zeus-js/compiler-shared',
-    path: 'packages/core/compiler-shared',
+    path: 'packages/compiler/compiler-shared',
   },
   { name: '@zeus-js/signal', path: 'packages/core/signal' },
   { name: '@zeus-js/runtime-dom', path: 'packages/core/runtime-dom' },
   { name: '@zeus-js/runtime-ssr', path: 'packages/core/runtime-ssr' },
-  { name: '@zeus-js/compiler', path: 'packages/core/compiler' },
+  { name: '@zeus-js/compiler', path: 'packages/compiler/compiler' },
   { name: '@zeus-js/zeus', path: 'packages/core/zeus' },
-  { name: '@zeus-js/vite-plugin', path: 'packages/devtools/vite-plugin' },
+  { name: '@zeus-js/vite-plugin', path: 'packages/tooling/vite-plugin' },
   { name: '@zeus-js/bundler-plugin', path: 'packages/web-c/bundler-plugin' },
   {
     name: '@zeus-js/component-analyzer',
@@ -63,7 +63,7 @@ const PUBLIC_PACKAGES: Array<{ name: string; path: string }> = [
   },
   { name: '@zeus-ui/registry', path: 'packages/create/registry' },
   // tsup packages (own build script)
-  { name: 'create-zeus', path: 'packages/devtools/create-zeus' },
+  { name: 'create-zeus', path: 'packages/create/create-zeus' },
   { name: 'zeus-ui', path: 'packages/create/zeus-ui' },
 ]
 
