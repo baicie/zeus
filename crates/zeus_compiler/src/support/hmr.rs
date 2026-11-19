@@ -7,9 +7,9 @@ use oxc_parser::Parser;
 use oxc_span::SourceType;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    html::{is_custom_element, is_raw_text_element},
-    ir::{AttributeIr, ChildIr, ComponentPropValueIr, ElementIr, ExpressionIr, ModuleIr, RootIr},
+use super::html::{is_custom_element, is_raw_text_element};
+use crate::ir::{
+    AttributeIr, ChildIr, ComponentPropValueIr, ElementIr, ExpressionIr, ModuleIr, RootIr,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

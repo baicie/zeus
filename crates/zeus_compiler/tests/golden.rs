@@ -23,9 +23,7 @@ use std::path::Path;
 
 use serde::Serialize;
 use zeus_compiler::diagnostic::CompilerDiagnostic;
-use zeus_compiler::{
-    transform_module, RawSourceMap, TransformModuleOptions, TransformTarget,
-};
+use zeus_compiler::{RawSourceMap, TransformModuleOptions, TransformTarget, transform_module};
 
 /// One compiler invocation and the complete result it must keep producing.
 #[derive(Debug, Serialize)]
@@ -42,6 +40,9 @@ struct GoldenCase {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+// These mirror `TransformModuleOptions`, whose switches are independent rather
+// than mutually exclusive — the same reason that type carries the allow.
+#[allow(clippy::struct_excessive_bools)]
 struct GoldenOptions {
     target: &'static str,
     runtime_module: &'static str,
@@ -469,6 +470,72 @@ fn sanitize(filename: &str) -> String {
     filename.replace(['/', '.'], "-")
 }
 
+/// Which output field moved. Naming the field turns a wall of JSON into a
+/// one-line failure a reviewer can act on.
+fn changed_field(expected: &serde_json::Value, actual: &serde_json::Value) -> &'static str {
+    if expected.pointer("/expected/code") != actual.pointer("/expected/code") {
+        return "code";
+    }
+    if expected.pointer("/expected/map") != actual.pointer("/expected/map") {
+        return "map";
+    }
+    if expected.pointer("/expected/diagnostics") != actual.pointer("/expected/diagnostics") {
+        return "diagnostics";
+    }
+    if expected.pointer("/expected/hydrationPlan") != actual.pointer("/expected/hydrationPlan") {
+        return "hydrationPlan";
+    }
+    if expected.pointer("/expected/hmrPlan") != actual.pointer("/expected/hmrPlan") {
+        return "hmrPlan";
+    }
+    "unknown"
+}
+
+fn side(document: &serde_json::Value, field: &str) -> String {
+    match field {
+        "code" => document
+            .pointer("/expected/code")
+            .and_then(|value| value.as_str())
+            .unwrap_or_default()
+            .to_string(),
+        "map" | "diagnostics" => document
+            .pointer(&format!("/expected/{field}"))
+            .map(ToString::to_string)
+            .unwrap_or_default(),
+        _ => document
+            .pointer("/expected")
+            .map(ToString::to_string)
+            .unwrap_or_default(),
+    }
+}
+
+fn compare_fixture(filename: &str, purpose: &str, serialized: &str, dir: &Path) -> Option<String> {
+    let path = dir.join(format!("{}.json", sanitize(filename)));
+    let Ok(existing) = fs::read_to_string(&path) else {
+        return Some(format!(
+            "{filename}: no fixture; run ZEUS_UPDATE_GOLDEN=1 to create it"
+        ));
+    };
+
+    // Compare parsed JSON, not text, so a formatter change does not fail a
+    // refactor while a real behaviour change always does.
+    let expected: serde_json::Value =
+        serde_json::from_str(&existing).expect("fixture is valid JSON");
+    let actual: serde_json::Value = serde_json::from_str(serialized).expect("valid JSON");
+    if expected == actual {
+        return None;
+    }
+
+    let field = changed_field(&expected, &actual);
+    Some(format!(
+        "{} ({}): {field} changed\n--- expected ---\n{}\n--- actual ---\n{}",
+        filename,
+        purpose,
+        side(&expected, field),
+        side(&actual, field),
+    ))
+}
+
 #[test]
 fn golden_output_is_unchanged() {
     let update = std::env::var("ZEUS_UPDATE_GOLDEN").is_ok();
@@ -477,12 +544,10 @@ fn golden_output_is_unchanged() {
         fs::create_dir_all(&dir).expect("create golden directory");
     }
 
-    let cases = cases();
     let mut failures = Vec::new();
     let mut written = 0;
 
-    for case in cases {
-        let path = dir.join(format!("{}.json", sanitize(case.filename)));
+    for case in cases() {
         let output = run(&case);
         let document = GoldenCase {
             purpose: case.purpose,
@@ -491,86 +556,21 @@ fn golden_output_is_unchanged() {
             options: case.options,
             expected: Some(output),
         };
-        let serialized =
-            serde_json::to_string_pretty(&document).expect("serialize golden case");
+        let serialized = serde_json::to_string_pretty(&document).expect("serialize golden case");
 
         if update {
+            let path = dir.join(format!("{}.json", sanitize(case.filename)));
             fs::write(&path, format!("{serialized}\n")).expect("write golden fixture");
             written += 1;
             continue;
         }
 
-        let Ok(existing) = fs::read_to_string(&path) else {
-            failures.push(format!(
-                "{}: no fixture; run ZEUS_UPDATE_GOLDEN=1 to create it",
-                case.filename
-            ));
-            continue;
-        };
-
-        // Compare parsed JSON, not text, so a formatter change does not fail a
-        // refactor while a real behaviour change always does.
-        let expected: serde_json::Value =
-            serde_json::from_str(&existing).expect("fixture is valid JSON");
-        let actual: serde_json::Value = serde_json::from_str(&serialized).expect("valid JSON");
-        if expected != actual {
-            let expected_code = expected
-                .pointer("/expected/code")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-            let actual_code = actual
-                .pointer("/expected/code")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-            let field = if expected_code != actual_code {
-                "code"
-            } else if expected.pointer("/expected/map") != actual.pointer("/expected/map") {
-                "map"
-            } else if expected.pointer("/expected/diagnostics")
-                != actual.pointer("/expected/diagnostics")
-            {
-                "diagnostics"
-            } else if expected.pointer("/expected/hydrationPlan")
-                != actual.pointer("/expected/hydrationPlan")
-            {
-                "hydrationPlan"
-            } else if expected.pointer("/expected/hmrPlan")
-                != actual.pointer("/expected/hmrPlan")
-            {
-                "hmrPlan"
-            } else {
-                "unknown"
-            };
-            failures.push(format!(
-                "{} ({}): {field} changed\n--- expected ---\n{}\n--- actual ---\n{}",
-                case.filename,
-                case.purpose,
-                match field {
-                    "code" => expected_code.to_string(),
-                    "map" => expected
-                        .pointer("/expected/map")
-                        .map(ToString::to_string)
-                        .unwrap_or_default(),
-                    "diagnostics" => expected
-                        .pointer("/expected/diagnostics")
-                        .map(ToString::to_string)
-                        .unwrap_or_default(),
-                    _ => expected.pointer("/expected").map(ToString::to_string).unwrap_or_default(),
-                },
-                match field {
-                    "code" => actual_code.to_string(),
-                    "map" => actual
-                        .pointer("/expected/map")
-                        .map(ToString::to_string)
-                        .unwrap_or_default(),
-                    "diagnostics" => actual
-                        .pointer("/expected/diagnostics")
-                        .map(ToString::to_string)
-                        .unwrap_or_default(),
-                    _ => actual.pointer("/expected").map(ToString::to_string).unwrap_or_default(),
-                },
-            ));
-        }
+        failures.extend(compare_fixture(
+            case.filename,
+            case.purpose,
+            &serialized,
+            &dir,
+        ));
     }
 
     if update {
@@ -578,15 +578,14 @@ fn golden_output_is_unchanged() {
         return;
     }
 
-    if !failures.is_empty() {
-        panic!(
-            "{} golden case(s) changed:\n\n{}\n\nA changed fixture means the compiler's observable \
-             output moved. If the change is intended, regenerate with ZEUS_UPDATE_GOLDEN=1 and \
-             explain it in the commit.",
-            failures.len(),
-            failures.join("\n\n")
-        );
-    }
+    assert!(
+        failures.is_empty(),
+        "{} golden case(s) changed:\n\n{}\n\nA changed fixture means the compiler's observable \
+         output moved. If the change is intended, regenerate with ZEUS_UPDATE_GOLDEN=1 and \
+         explain it in the commit.",
+        failures.len(),
+        failures.join("\n\n")
+    );
 }
 
 /// The fixture set is the refactor's safety net; a shrinking set is a quieter

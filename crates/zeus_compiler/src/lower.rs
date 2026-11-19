@@ -17,7 +17,7 @@ use oxc_syntax::scope::ScopeFlags;
 use oxc_syntax::symbol::SymbolId;
 use oxc_syntax::xml_entities::decode_entities;
 
-use crate::html::{
+use crate::support::html::{
     ElementNamespace, content_namespace, element_namespace, is_raw_text_element,
     is_unsupported_raw_text_element, is_void_element,
 };

@@ -4,8 +4,6 @@ use oxc_sourcemap::SourceMapBuilder;
 
 use crate::{
     PureDefineElementMode, RawSourceMap, TransformModuleResult,
-    html::{is_custom_element, is_raw_text_element, is_svg_element, is_void_element},
-    hydration::{component_root_marker_id, element_marker_id, node_marker_id, text_marker_id},
     ir::{
         AttributeIr, ChildIr, ComponentBindingIr, ComponentIr, ComponentPropIr,
         ComponentPropValueIr, DynamicRegionExpressionIr, DynamicRegionIr, DynamicRegionValueIr,
@@ -15,6 +13,10 @@ use crate::{
     },
     lower::{HmrInfo, SsrImportReplacement, SsrImportRewrite},
     span::SourceIndex,
+    support::html::{is_custom_element, is_raw_text_element, is_svg_element, is_void_element},
+    support::hydration::{
+        component_root_marker_id, element_marker_id, node_marker_id, text_marker_id,
+    },
 };
 
 #[derive(Clone, Copy)]
@@ -160,7 +162,7 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
 
 struct HmrModule {
     module: ModuleIr,
-    plan: crate::hmr::HmrPlan,
+    plan: crate::support::hmr::HmrPlan,
     state_name: String,
 }
 
@@ -191,7 +193,7 @@ fn prepare_hmr_module(
     }
     let state_name = names.allocate("_zeusHmrState");
     let mut module = options.module.clone();
-    let plan = crate::hmr::prepare(
+    let plan = crate::support::hmr::prepare(
         &mut module,
         options.source,
         options.runtime_module,
@@ -3796,7 +3798,7 @@ struct GeneratedComponent {
     targets: Vec<ElementTarget>,
 }
 
-fn root_span(root: &RootIr) -> &crate::span::SourceSpan {
+fn root_span(root: &RootIr) -> &crate::support::span::SourceSpan {
     match root {
         RootIr::Element(element) => &element.span,
         RootIr::Fragment(fragment) => &fragment.span,

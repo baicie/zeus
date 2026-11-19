@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::span::SourceSpan;
+use crate::support::span::SourceSpan;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
