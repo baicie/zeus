@@ -170,6 +170,46 @@ describe('runtime package paths resolve', () => {
   })
 })
 
+describe('package lists are resolved, not written out', () => {
+  /**
+   * A list like `['core/shared', 'devtools/vite-plugin']` joined with
+   * `packages/` is a fourth copy of the layout. `check-packed-consumers` and
+   * `check-hmr-packed` each had one, and after the six-domain move every entry
+   * pointed at a directory that no longer existed — the first `package.json`
+   * read failed one second in, naming no path.
+   *
+   * The earlier checks miss this because the strings do not contain
+   * `packages/`; this one looks for the shape directly.
+   */
+  const BARE_DOMAIN_PATH = /['"`](core|devtools)\/([a-z0-9][a-z0-9-]*)['"`]/g
+
+  it('has no domain-relative package path lists', () => {
+    const offenders: Offender[] = []
+
+    for (const file of runtimeFiles()) {
+      const source = fs.readFileSync(path.join(root, file), 'utf-8')
+      const withoutComments = source
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/^\s*\/\/.*$/gm, '')
+      withoutComments.split('\n').forEach((text, index) => {
+        BARE_DOMAIN_PATH.lastIndex = 0
+        if (BARE_DOMAIN_PATH.test(text)) {
+          offenders.push({ file, line: index + 1, text: text.trim() })
+        }
+      })
+    }
+
+    expect(
+      offenders,
+      offenders.length === 0
+        ? ''
+        : `These name a package as a domain-relative path, which is a hand-written copy of the layout that cannot survive a move. Resolve it from findWorkspacePackages() by short name instead:\n${offenders
+            .map(o => `${o.file}:${o.line}  ${o.text}`)
+            .join('\n')}`,
+    ).toEqual([])
+  })
+})
+
 describe('native artifact paths', () => {
   it('writes and restores to the same directory', async () => {
     const build = fs.readFileSync(
