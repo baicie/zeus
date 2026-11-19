@@ -43,6 +43,22 @@ const LITERAL_PACKAGE_PATH =
 const UNVERIFIABLE_PACKAGE_PATH =
   /packages\/(?:core|compiler|features|web-c|tooling|create)\/[^'"`\s]*\$\{/g
 
+/** Every workspace package manifest, excluding node_modules. */
+function packageManifests(): string[] {
+  const found: string[] = []
+  const packagesDir = path.join(root, 'packages')
+  for (const domain of fs.readdirSync(packagesDir, { withFileTypes: true })) {
+    if (!domain.isDirectory()) continue
+    const domainDir = path.join(packagesDir, domain.name)
+    for (const pkg of fs.readdirSync(domainDir, { withFileTypes: true })) {
+      if (!pkg.isDirectory() || pkg.name === 'node_modules') continue
+      const manifest = path.join(domainDir, pkg.name, 'package.json')
+      if (fs.existsSync(manifest)) found.push(manifest)
+    }
+  }
+  return found
+}
+
 interface Offender {
   readonly file: string
   readonly line: number
@@ -206,6 +222,147 @@ describe('package lists are resolved, not written out', () => {
         : `These name a package as a domain-relative path, which is a hand-written copy of the layout that cannot survive a move. Resolve it from findWorkspacePackages() by short name instead:\n${offenders
             .map(o => `${o.file}:${o.line}  ${o.text}`)
             .join('\n')}`,
+    ).toEqual([])
+  })
+})
+
+/**
+ * Documents that state where a package lives.
+ *
+ * AGENTS.md is the first file an agent reads, so a path in it that no longer
+ * exists sends the next session to a directory that was moved. That is not a
+ * stale comment; it is a contract that is wrong. The compiler docs made the
+ * same claim and drifted the same way after R16.0, which is why they are
+ * checked rather than trusted.
+ */
+const CONTRACT_DOCS = [
+  'AGENTS.md',
+  'docs/architecture/packages.md',
+  'docs/architecture/packages-migration-map.md',
+  'docs/architecture/compiler/README.md',
+  'docs/architecture/compiler/module-ownership.md',
+  'docs/architecture/compiler/ir-contract.md',
+  'docs/architecture/compiler/migration-report.md',
+  'docs/architecture/compiler/current-pipeline.md',
+  'docs/architecture/compiler/validation-matrix.md',
+  'docs/api/packages.md',
+]
+
+describe('contract documents name real paths', () => {
+  /**
+   * A retired path may appear only where the document is describing history:
+   * the retired-path list in `check-structure`, the migration map's old→new
+   * table, and the R16 audit. Everywhere else it is a stale instruction.
+   */
+  const RETIRED =
+    /packages\/(?:devtools\/|core\/(?:router|resource|query|i18n|testing|compiler))([a-z0-9-]*)/g
+
+  /** Lines that are explicitly about the old layout. */
+  const HISTORY_MARKERS = [
+    'packages/core/router` |',
+    '旧路径',
+    '原有',
+    '迁移前',
+    'retired',
+    'Retired',
+    'was `',
+    'were `',
+    '旧目录',
+  ]
+
+  it('mentions no retired package path in a current-state sentence', () => {
+    const offenders: Offender[] = []
+
+    for (const file of CONTRACT_DOCS) {
+      const absolute = path.join(root, file)
+      if (!fs.existsSync(absolute)) continue
+      const lines = fs.readFileSync(absolute, 'utf-8').split('\n')
+      lines.forEach((text, index) => {
+        RETIRED.lastIndex = 0
+        if (!RETIRED.test(text)) return
+        if (HISTORY_MARKERS.some(marker => text.includes(marker))) return
+        // A markdown table row shaped `| old | new |` is the migration map.
+        if (/^\s*\|.*\|.*\|\s*$/.test(text)) return
+        offenders.push({ file, line: index + 1, text: text.trim() })
+      })
+    }
+
+    expect(
+      offenders,
+      offenders.length === 0
+        ? ''
+        : `These name a package directory that was moved. Update the path, or mark the line as historical:\n${offenders
+            .map(o => `${o.file}:${o.line}  ${o.text}`)
+            .join('\n')}`,
+    ).toEqual([])
+  })
+})
+
+describe('package metadata is internally consistent', () => {
+  /**
+   * `homepage` and `repository.directory` are two statements of the same fact.
+   * The six-domain move updated the second and left the first pointing at the
+   * old directory in five packages, so a reader following the npm page landed
+   * on a 404. Deriving one from the other is the only version that cannot
+   * drift.
+   */
+  it('derives homepage from repository.directory', () => {
+    const offenders: string[] = []
+
+    for (const manifestPath of packageManifests()) {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as {
+        name?: string
+        homepage?: string
+        repository?: { directory?: string }
+      }
+      const directory = manifest.repository?.directory
+      const homepage = manifest.homepage
+      if (!directory || !homepage) continue
+      const expected = `https://github.com/baicie/zeus/tree/main/${directory}#readme`
+      if (homepage !== expected) {
+        offenders.push(
+          `${manifest.name}: homepage is "${homepage}" but repository.directory is "${directory}"`,
+        )
+      }
+    }
+
+    expect(
+      offenders,
+      offenders.length === 0
+        ? ''
+        : `homepage must be derived from repository.directory:\n${offenders.join('\n')}`,
+    ).toEqual([])
+  })
+
+  /**
+   * A `.prettierignore` entry for a path that no longer exists is not harmless:
+   * it means the file it was protecting is now being formatted, and the rule
+   * reads as if it still protects something.
+   */
+  it('has no prettier or eslint ignore entry for a path that does not exist', () => {
+    const ignoreFiles = ['.prettierignore']
+    const offenders: string[] = []
+
+    for (const file of ignoreFiles) {
+      const absolute = path.join(root, file)
+      if (!fs.existsSync(absolute)) continue
+      const lines = fs.readFileSync(absolute, 'utf-8').split('\n')
+      lines.forEach((raw, index) => {
+        const entry = raw.trim()
+        if (!entry || entry.startsWith('#')) return
+        if (!entry.startsWith('packages/')) return
+        if (entry.includes('*')) return
+        if (!fs.existsSync(path.join(root, entry))) {
+          offenders.push(`${file}:${index + 1}  ${entry}`)
+        }
+      })
+    }
+
+    expect(
+      offenders,
+      offenders.length === 0
+        ? ''
+        : `These ignore entries name paths that do not exist:\n${offenders.join('\n')}`,
     ).toEqual([])
   })
 })

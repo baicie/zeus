@@ -46,7 +46,7 @@
     ],
     "target": "es2022"
   },
-  "homepage": "https://github.com/baicie/zeus/tree/main/packages/core/testing#readme",
+  "homepage": "https://github.com/baicie/zeus/tree/main/packages/tooling/testing#readme",
   "keywords": [
     "zeus",
     "testing",

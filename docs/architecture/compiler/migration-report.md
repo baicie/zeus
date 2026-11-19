@@ -72,8 +72,8 @@ Unchanged.
 - `TransformModuleOptions` / `TransformModuleResult` / `RawSourceMap` /
   `TransformTarget` / `PureDefineElementMode` — same shape, same serde
   representation.
-- The napi binding (`packages/core/compiler-native`) and the WASM host
-  (`packages/core/compiler-wasm`) both compile against the new tree without
+- The napi binding (`packages/compiler/compiler-native`) and the WASM host
+  (`packages/compiler/compiler-wasm`) both compile against the new tree without
   changes.
 
 The internal visibility changes (`pub(super)` on writer and allocator types)
@@ -140,7 +140,7 @@ extractions, and they are harder than SSR because they share
 
 ### 3. The TypeScript IR is stale
 
-`packages/core/compiler-shared` has no source consumer, and its `HostIR`,
+`packages/compiler/compiler-shared` has no source consumer, and its `HostIR`,
 `SlotIR` and `DomPath` describe a compiler that no longer exists. Deliberately
 not deleted (it is in the 32-package release group and R16.0 moves it).
 Analysis and the recommended next step:

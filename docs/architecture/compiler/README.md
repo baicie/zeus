@@ -1,8 +1,8 @@
 # Zeus Compiler Architecture
 
 The compiler lives in `crates/zeus_compiler` and has two hosts: a napi binding
-for Node (`packages/core/compiler-native`) and a WASM build
-(`packages/core/compiler-wasm`). Both call the same `transform_module`.
+for Node (`packages/compiler/compiler-native`) and a WASM build
+(`packages/compiler/compiler-wasm`). Both call the same `transform_module`.
 
 ## Documents
 
@@ -25,7 +25,7 @@ input
   → lower                  lower.rs               JSX semantics → ModuleIr
   → validate               ssr.rs                 target-specific rejection
   → analyse                codegen/analysis.rs    which events delegate, which names collide
-  → emit                   codegen/{dom,ssr}.rs   ModuleIr + facts → JavaScript
+  → emit                   codegen/{mod,ssr}.rs  ModuleIr + facts → JavaScript
   → source map, plans      codegen, support       map, hydration plan, HMR plan
 ```
 

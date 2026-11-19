@@ -39,7 +39,7 @@
       "cjs"
     ]
   },
-  "homepage": "https://github.com/baicie/zeus/tree/main/packages/core/compiler-shared#readme",
+  "homepage": "https://github.com/baicie/zeus/tree/main/packages/compiler/compiler-shared#readme",
   "keywords": [
     "zeus",
     "compiler",

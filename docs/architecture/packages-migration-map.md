@@ -36,7 +36,7 @@ and kept their paths.
 | 20  | `@zeus-js/devtools-consumer`                | `packages/devtools/consumer`                     | `packages/tooling/consumer`                          |
 | 21  | `create-zeus`                               | `packages/devtools/create-zeus`                  | `packages/create/create-zeus`                        |
 
-The now-empty `packages/devtools/` directory was removed.
+The old `packages/devtools/` directory (retired path) was left empty by the move and was removed.
 
 ### Unchanged
 
@@ -119,7 +119,7 @@ points readers and provenance tooling at a directory that no longer exists;
 
 Every move used `git mv`, so `git log --follow` still traces each file through
 the reorganization. Use `git log --follow -- packages/features/router/src/index.ts`
-to see work done before the move under `packages/core/router/`.
+to see work done before the move (retired path: `packages/core/router/`).
 
 ---
 

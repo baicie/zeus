@@ -703,27 +703,28 @@ packages/
 ## 16. 编译器阶段约束（R17.0）
 
 编译器实现在 `crates/zeus_compiler`，两个宿主共用 `transform_module`：
-Node 侧 `packages/core/compiler-native`（napi），浏览器侧
-`packages/core/compiler-wasm`。
+Node 侧 `packages/compiler/compiler-native`（napi），浏览器侧
+`packages/compiler/compiler-wasm`。
 
 ### 16.1 阶段职责
 
-| 阶段          | 位置                   | 只做一件事                    |
-| ------------- | ---------------------- | ----------------------------- |
-| Nesting guard | `support/nesting.rs`   | 在 Oxc 之前拒绝会耗尽栈的输入 |
-| Frontend      | `lower.rs`             | 解析 + 语义分析，产出事实     |
-| Lowering      | `lower.rs`             | JSX 语义 → `ModuleIr`         |
-| Validation    | `ssr.rs`               | 目标相关的拒绝规则            |
-| Analysis      | `codegen/analysis.rs`  | 读 IR 得出 codegen 需要的事实 |
-| Codegen       | `codegen/{dom,ssr}.rs` | 事实 → JavaScript             |
-| Support       | `support/`             | 跨阶段叶子能力                |
+| 阶段          | 位置                               | 只做一件事                    |
+| ------------- | ---------------------------------- | ----------------------------- |
+| Nesting guard | `support/nesting.rs`               | 在 Oxc 之前拒绝会耗尽栈的输入 |
+| Frontend      | `lower.rs`                         | 解析 + 语义分析，产出事实     |
+| Lowering      | `lower.rs`                         | JSX 语义 → `ModuleIr`         |
+| Validation    | `ssr.rs`                           | 目标相关的拒绝规则            |
+| Analysis      | `codegen/analysis.rs`              | 读 IR 得出 codegen 需要的事实 |
+| Codegen       | `codegen/mod.rs`、`codegen/ssr.rs` | 事实 → JavaScript             |
+| Support       | `support/`                         | 跨阶段叶子能力                |
 
 **核心规则：一个阶段可以计算事实并记录下来，但不得回头到后续阶段重新推导。**
 
 ### 16.2 必须遵守
 
 1. **Rust IR 是编译语义的唯一事实来源。** `crates/zeus_compiler/src/ir.rs`。
-   `packages/core/compiler-shared` 是历史遗留，无源码消费者，不要为它同步新增字段。
+   `packages/compiler/compiler-shared` 是历史遗留，无源码消费者，不要为它同步新增字段；
+   它仍在 32 包固定发布组内，退役是独立的发布决策，不得作为重构副作用删除。
 2. **Lowering 不关心代码如何输出。** 需要输出信息就通过 IR 传递。
 3. **Codegen 不重新分析语义。** 需要的事实由 analysis 预先算出。
 4. **Native 与 WASM 必须基于同一套核心语义。** 两个宿主都编译
@@ -754,6 +755,7 @@ Node 侧 `packages/core/compiler-native`（napi），浏览器侧
 - `lower.rs`（3,564 行）尚未拆分，是最大剩余技术债。
 - `codegen/mod.rs`（3,957 行）仍包含 DOM 发射、模板渲染、Hydration 与 HMR 发射。
 - 没有 `pipeline.rs`，阶段顺序仍在 `lib.rs` 的 `transform_module` 中。
-- 七平台矩阵、WASM 运行时一致性、浏览器门禁尚未在本轮验证。
+- 七平台矩阵、WASM 运行时一致性、浏览器门禁已在 `bb478792` 上验证通过，
+  但每次改动仍需重新取证；R17.0 当时的「尚未验证」结论已过期。
 
 详见 `docs/architecture/compiler/migration-report.md`。
