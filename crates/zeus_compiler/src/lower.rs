@@ -1332,10 +1332,20 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             }
         }
         // Balanced by construction: this function has no early return between
-        // the push above and here. The assertion is a guard against a future
-        // edit introducing one, not a current possibility.
+        // the push above and here. The assertion guards against a future edit
+        // introducing one.
+        //
+        // `assert!`, not `debug_assert!`: the native compiler ships as a
+        // release build (`build-native-platform --release`), where
+        // `debug_assert!` is compiled out. An unbalanced stack would then be
+        // silent in exactly the build users run. The check is a branch on a
+        // `bool`, so the cost is not worth the lost guarantee.
         let popped = self.state.for_accessor_scopes.pop();
-        debug_assert!(popped.is_some(), "For accessor scopes must be balanced");
+        assert!(
+            popped.is_some(),
+            "For accessor scopes must be balanced: an early return was added between \
+             the push in `lower_for_callback` and this pop"
+        );
         (item, index, body)
     }
 

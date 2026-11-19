@@ -131,6 +131,9 @@ fn child_ids(child: &ChildIr, out: &mut Vec<u32>) {
 fn all_node_ids(module: &ModuleIr) -> Vec<u32> {
     let mut ids = Vec::new();
     for component in &module.components {
+        // `ComponentIr.id` is allocated before its root, so leaving it out
+        // would make the sequence look monotonic across a gap it actually has.
+        ids.push(component.id);
         node_ids(&component.root, &mut ids);
     }
     ids
@@ -186,38 +189,117 @@ fn diagnostics_from_one_module_do_not_reach_the_next() {
     assert!(clean.ir.is_some());
 }
 
+/// Every `For` in the module with the `for_id`s its body expressions resolve to.
+fn for_scopes(module: &ModuleIr) -> Vec<(u32, Vec<u32>)> {
+    let mut found = Vec::new();
+    for component in &module.components {
+        collect_for_scopes(&component.root, &mut found);
+    }
+    found
+}
+
+fn collect_for_scopes(root: &RootIr, out: &mut Vec<(u32, Vec<u32>)>) {
+    match root {
+        RootIr::For(binding) => {
+            out.push((binding.id, accessor_for_ids(&binding.body)));
+            for child in &binding.body {
+                child_for_scopes(child, out);
+            }
+        }
+        RootIr::Element(element) => {
+            for child in &element.children {
+                child_for_scopes(child, out);
+            }
+        }
+        RootIr::Fragment(fragment) => {
+            for child in &fragment.children {
+                child_for_scopes(child, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn child_for_scopes(child: &ChildIr, out: &mut Vec<(u32, Vec<u32>)>) {
+    match child {
+        ChildIr::For(binding) => {
+            out.push((binding.id, accessor_for_ids(&binding.body)));
+            for next in &binding.body {
+                child_for_scopes(next, out);
+            }
+        }
+        ChildIr::Element(element) => {
+            for next in &element.children {
+                child_for_scopes(next, out);
+            }
+        }
+        ChildIr::Fragment(fragment) => {
+            for next in &fragment.children {
+                child_for_scopes(next, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// The `for_id` each accessor in these children resolves to.
+fn accessor_for_ids(children: &[ChildIr]) -> Vec<u32> {
+    let mut ids = Vec::new();
+    for child in children {
+        if let ChildIr::DynamicText(text) = child {
+            ids.extend(text.expression.for_accessors.iter().map(|a| a.for_id));
+        }
+    }
+    ids
+}
+
 #[test]
-fn nested_for_scopes_restore_between_siblings() {
-    // Two sibling `For` elements each push an accessor scope. If the first did
-    // not pop, the second's accessor would resolve against the wrong frame and
-    // its expression would reference a stale accessor.
+fn sibling_for_scopes_each_resolve_to_their_own_for_id() {
+    // Two sibling `For`s each push an accessor scope. If the first did not pop,
+    // the second's expression would resolve against the first's frame and
+    // record the wrong `for_id` — visible in the IR, not just in the text.
     let module = ir_of(
         "import { For } from '@zeus-js/zeus';\nexport function App(props) {\n  return <div><For each={props.a}>{x => x.name}</For><For each={props.b}>{y => y.title}</For></div>\n}\n",
         "siblings.tsx",
     );
 
-    let text = format!("{module:?}");
-    assert!(
-        text.contains("x.name"),
-        "first For lost its accessor: {text}"
-    );
-    assert!(
-        text.contains("y.title"),
-        "second For lost its accessor: {text}"
-    );
+    let scopes = for_scopes(&module);
+    assert_eq!(scopes.len(), 2, "expected two For nodes, got {scopes:?}");
+    for (for_id, resolved) in &scopes {
+        assert_eq!(
+            resolved.as_slice(),
+            [*for_id].as_slice(),
+            "the body of For {for_id} must reference that For, not another"
+        );
+    }
+    assert_ne!(scopes[0].0, scopes[1].0, "the two Fors need distinct ids");
 }
 
 #[test]
-fn deeply_nested_for_scopes_resolve_the_correct_item() {
+fn nested_for_scopes_resolve_to_distinct_frames() {
+    // The inner body must resolve to the inner `For`, the outer body to the
+    // outer one. A single shared stack that never popped would collapse these.
     let module = ir_of(
-        "import { For } from '@zeus-js/zeus';\nexport function App(props) {\n  return <For each={props.rows}>{row => <For each={row.cells}>{(cell, index) => index() + cell.value}</For>}</For>\n}\n",
+        "import { For } from '@zeus-js/zeus';\nexport function App(props) {\n  return <For each={props.rows}>{row => <div><For each={row.cells}>{(cell, index) => index() + cell.value}</For></div>}</For>\n}\n",
         "nested.tsx",
     );
 
-    let text = format!("{module:?}");
-    assert!(text.contains("row.cells"), "outer accessor lost");
-    assert!(text.contains("cell.value"), "inner accessor lost");
-    assert!(text.contains("index()"), "inner index accessor lost");
+    let scopes = for_scopes(&module);
+    assert_eq!(
+        scopes.len(),
+        2,
+        "expected outer and inner For, got {scopes:?}"
+    );
+
+    let outer_id = scopes[0].0;
+    let inner_id = scopes[1].0;
+    let inner_resolved = &scopes[1].1;
+    assert_ne!(outer_id, inner_id, "outer and inner need distinct ids");
+    assert_eq!(
+        inner_resolved.as_slice(),
+        [inner_id].as_slice(),
+        "the inner body must reference the inner For {inner_id}, got {inner_resolved:?}"
+    );
 }
 
 #[test]
@@ -261,9 +343,8 @@ fn svg_namespace_does_not_leak_to_a_sibling_element() {
 #[test]
 fn a_slot_outside_a_host_is_rejected() {
     // `host_depth == 0` is what makes a `<Slot>` outside a `<Host>` an error
-    // (`ZEUS_INVALID_SLOT_USAGE`). The depth is raised while a `<Host>`'s
-    // children are lowered and restored by `HostDepthGuard`; this pins the
-    // observable rule the depth exists to enforce.
+    // (`ZEUS_INVALID_SLOT_USAGE`). The depth is saved, raised and restored
+    // inline in `lower_component_with_kind`; this pins the rule it enforces.
     let result = lower(
         "import { Host, Slot } from '@zeus-js/zeus';\nconst B = defineElement('z-b', { props: { n: Number } }, () => <div><Slot /></div>)\n",
         "slot-outside-host.tsx",
