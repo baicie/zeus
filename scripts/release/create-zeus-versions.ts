@@ -11,10 +11,10 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 
-const TEMPLATES = path.join('packages', 'devtools', 'create-zeus', 'templates')
+const TEMPLATES = path.join('packages', 'create', 'create-zeus', 'templates')
 const VITE_PLUGIN = path.join(
   'packages',
-  'devtools',
+  'tooling',
   'vite-plugin',
   'package.json',
 )

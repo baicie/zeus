@@ -241,9 +241,9 @@ export function assertCandidateInputsBuilt(
     path.join(coreRoot, 'packages/core/zeus/dist/zeus.d.ts'),
     path.join(
       coreRoot,
-      'packages/devtools/vite-plugin/dist/vite-plugin.esm-bundler.js',
+      'packages/tooling/vite-plugin/dist/vite-plugin.esm-bundler.js',
     ),
-    path.join(coreRoot, 'packages/devtools/vite-plugin/dist/vite-plugin.d.ts'),
+    path.join(coreRoot, 'packages/tooling/vite-plugin/dist/vite-plugin.d.ts'),
     ...(uiRoot
       ? [
           path.join(uiRoot, 'packages/primitives/button/dist/wc/index.js'),
@@ -269,7 +269,7 @@ export function assertCurrentNativeBinary(coreRoot: string): void {
       : process.platform === 'win32'
         ? `compiler-native-win32-${process.arch === 'arm64' ? 'arm64' : 'x64'}-msvc`
         : `compiler-native-linux-${process.arch === 'arm64' ? 'arm64' : 'x64'}-gnu`
-  const directory = path.join(coreRoot, 'packages/core', platformPackage)
+  const directory = path.join(coreRoot, 'packages/compiler', platformPackage)
   const binaries = fs
     .readdirSync(directory)
     .filter(file => file.endsWith('.node'))

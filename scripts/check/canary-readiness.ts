@@ -219,7 +219,7 @@ export function findUnexpectedPackageJsonRewrites(
 }
 
 export function isCreateZeusTemplatePackage(file: string): boolean {
-  return /^packages\/devtools\/create-zeus\/templates\/[^/]+\/package\.json$/.test(
+  return /^packages\/create\/create-zeus\/templates\/[^/]+\/package\.json$/.test(
     file.replace(/\\/g, '/'),
   )
 }
@@ -293,8 +293,8 @@ export function takeCanaryRewritePolicy(
   const exact = new Set([
     'package.json',
     'pnpm-lock.yaml',
-    'packages/core/compiler-native/index.js',
-    'packages/core/compiler-native/index.d.ts',
+    'packages/compiler/compiler-native/index.js',
+    'packages/compiler/compiler-native/index.d.ts',
   ])
   for (const pkg of findWorkspacePackages()) {
     if (!zeusFixedPackages.includes(pkg.name)) continue
@@ -304,15 +304,12 @@ export function takeCanaryRewritePolicy(
         .replace(/\\/g, '/'),
     )
   }
-  const templateRoot = path.join(
-    root,
-    'packages/devtools/create-zeus/templates',
-  )
+  const templateRoot = path.join(root, 'packages/create/create-zeus/templates')
   if (fs.existsSync(templateRoot)) {
     for (const entry of fs.readdirSync(templateRoot, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue
       exact.add(
-        `packages/devtools/create-zeus/templates/${entry.name}/package.json`,
+        `packages/create/create-zeus/templates/${entry.name}/package.json`,
       )
     }
   }
@@ -395,12 +392,12 @@ function hasHostNativeBinary(root: string): boolean {
   const candidates = [
     path.join(
       root,
-      'packages/core/compiler-native',
+      'packages/compiler/compiler-native',
       `zeus-compiler-native.${suffix}.node`,
     ),
     path.join(
       root,
-      'packages/core',
+      'packages/compiler',
       platform,
       `zeus-compiler-native.${suffix}.node`,
     ),

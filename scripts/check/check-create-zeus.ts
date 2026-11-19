@@ -13,7 +13,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { scaffold } from '../../packages/devtools/create-zeus/src/scaffold'
+import { scaffold } from '../../packages/create/create-zeus/src/scaffold'
 
 const rootDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -138,9 +138,9 @@ function linkWorkspacePackages(projectRoot: string): void {
     'runtime-ssr': 'packages/core/runtime-ssr',
     signal: 'packages/core/signal',
     shared: 'packages/core/shared',
-    compiler: 'packages/core/compiler',
-    'compiler-shared': 'packages/core/compiler-shared',
-    'vite-plugin': 'packages/devtools/vite-plugin',
+    compiler: 'packages/compiler/compiler',
+    'compiler-shared': 'packages/compiler/compiler-shared',
+    'vite-plugin': 'packages/tooling/vite-plugin',
     'web-c': 'packages/web-c/web-c',
     'output-react-wrapper': 'packages/web-c/output-react-wrapper',
     'output-vue-wrapper': 'packages/web-c/output-vue-wrapper',

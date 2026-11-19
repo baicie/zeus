@@ -183,7 +183,9 @@ export function assertCompilerOptimizationBudget(
 
 function loadNativeTransform(): TransformModule {
   const require = createRequire(import.meta.url)
-  const native = require(path.join(root, 'packages/core/compiler-native')) as {
+  const native = require(
+    path.join(root, 'packages/compiler/compiler-native'),
+  ) as {
     transformModule: TransformModule
   }
   return native.transformModule

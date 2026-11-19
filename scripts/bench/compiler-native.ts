@@ -5,7 +5,9 @@ import { performance } from 'node:perf_hooks'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const require = createRequire(import.meta.url)
-const native = require(path.join(root, 'packages/core/compiler-native')) as {
+const native = require(
+  path.join(root, 'packages/compiler/compiler-native'),
+) as {
   transformModule(options: {
     source: string
     filename: string
@@ -40,7 +42,7 @@ for (let index = 0; index < 100; index++) {
 }
 const warmMs = (performance.now() - warmStart) / 100
 
-const binarySizes = collectSizes('packages/core/compiler-native*', '.node')
+const binarySizes = collectSizes('packages/compiler/compiler-native*', '.node')
 const report = {
   generatedAt: new Date().toISOString(),
   node: process.version,

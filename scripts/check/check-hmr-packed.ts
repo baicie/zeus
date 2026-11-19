@@ -6,23 +6,37 @@ import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 
+import { findWorkspacePackages } from '../shared/utils.ts'
+
 const root = path.resolve(import.meta.dirname, '../..')
 const output = path.join(root, 'temp/hmr-packed')
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'zeus-hmr-packed-'))
 const archives = path.join(work, 'tarballs')
 const project = path.join(work, 'app')
 const platform = platformPackage()
+// Short names resolved from the workspace; a written-out `core/…` list is how
+// this gate and `check-packed-consumers` broke on the six-domain move.
 const selected = [
-  'core/shared',
-  'core/signal',
-  'core/runtime-dom',
-  'core/runtime-ssr',
-  'core/zeus',
-  'core/compiler',
-  'core/compiler-native',
-  `core/compiler-native-${platform}`,
-  'devtools/vite-plugin',
+  'shared',
+  'signal',
+  'runtime-dom',
+  'runtime-ssr',
+  'zeus',
+  'compiler',
+  'compiler-native',
+  `compiler-native-${platform}`,
+  'vite-plugin',
 ]
+
+const workspacePackages = findWorkspacePackages()
+
+function packageDirectory(shortName: string): string {
+  const found = workspacePackages.find(pkg => pkg.shortName === shortName)
+  if (!found) {
+    throw new Error(`${shortName} is not a workspace package`)
+  }
+  return found.dir
+}
 const packages: Record<string, string> = {}
 const hashes: Record<string, string> = {}
 const installed: Record<string, { version: string; entry: string }> = {}
@@ -44,7 +58,7 @@ delete env.TSX_TSCONFIG_PATH
 try {
   const binary = path.join(
     root,
-    'packages/core',
+    'packages/compiler',
     `compiler-native-${platform}`,
     `zeus-compiler-native.${platform}.node`,
   )
@@ -53,7 +67,7 @@ try {
     `Build the host platform package before this gate: missing ${binary}`,
   )
   for (const directory of selected) {
-    const cwd = path.join(root, 'packages', directory)
+    const cwd = packageDirectory(directory)
     const manifest = JSON.parse(
       fs.readFileSync(path.join(cwd, 'package.json'), 'utf8'),
     )

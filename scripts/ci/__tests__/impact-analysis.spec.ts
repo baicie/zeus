@@ -69,7 +69,7 @@ describe('classifyChanges — named scenarios', () => {
 
   it('compiler-only reaches wasm and consumers', () => {
     const result = classifyChanges({
-      changedFiles: ['packages/core/compiler/src/index.ts'],
+      changedFiles: ['packages/compiler/compiler/src/index.ts'],
     })
     expect(result.areas).toContain('compiler')
     expect(result.areas).toContain('wasm')
@@ -194,7 +194,7 @@ describe('planJobs', () => {
       ['examples/admin/src/pages.tsx'],
       ['examples/playground/src/app.tsx'],
       ['packages/core/runtime-dom/src/insert.ts'],
-      ['packages/core/compiler/src/index.ts'],
+      ['packages/compiler/compiler/src/index.ts'],
       ['scripts/check/check-admin.ts'],
       ['crates/compiler/src/lib.rs'],
       ['docs/guide/state.md'],

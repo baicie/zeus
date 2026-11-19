@@ -1,7 +1,23 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { findWorkspacePackages } from '../shared/utils.ts'
+
 const root = path.resolve(import.meta.dirname, '../..')
+
+/**
+ * Resolves a package directory from the workspace rather than a written-out
+ * path. This is the copy that broke every native CI job after the six-domain
+ * move; `build-native-platform` uses the same resolver so the two cannot
+ * disagree about where a platform package lives.
+ */
+function packageDir(shortName: string): string {
+  const found = findWorkspacePackages().find(pkg => pkg.shortName === shortName)
+  if (!found) {
+    throw new Error(`${shortName} is not a workspace package`)
+  }
+  return found.dir
+}
 const artifactRoot = path.resolve(
   root,
   readOption('--from') ?? 'temp/native-artifacts',
@@ -48,8 +64,8 @@ for (const [target, packageName, platformName] of targets) {
     throw new Error(`Missing native artifact for ${target} in ${artifactDir}`)
   }
   const destination = path.join(
-    root,
-    `packages/core/${packageName}/zeus-compiler-native.${platformName}.node`,
+    packageDir(packageName),
+    `zeus-compiler-native.${platformName}.node`,
   )
   fs.copyFileSync(binary, destination)
   console.log(

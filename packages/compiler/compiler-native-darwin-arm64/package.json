@@ -1,0 +1,45 @@
+{
+  "name": "@zeus-js/compiler-native-darwin-arm64",
+  "version": "0.2.0-rc.3",
+  "description": "Zeus Rust compiler native binary for macOS arm64",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/compiler/compiler-native-darwin-arm64"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "require": "./index.js",
+      "default": "./index.js"
+    },
+    "./package.json": {
+      "types": "./index.d.ts",
+      "require": "./package.json",
+      "default": "./package.json"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "zeus-compiler-native.darwin-arm64.node",
+    "README.md",
+    "LICENSE"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
+  },
+  "main": "index.js",
+  "os": [
+    "darwin"
+  ],
+  "types": "index.d.ts"
+}

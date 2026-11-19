@@ -7,12 +7,14 @@ import { syncNativeLoader } from '../sync-native-loader'
 describe('syncNativeLoader', () => {
   it('generates a strict native package version check for the release version', async () => {
     const root = mkdtempSync(join(tmpdir(), 'zeus-native-loader-'))
-    mkdirSync(join(root, 'packages/core/compiler-native'), { recursive: true })
+    mkdirSync(join(root, 'packages/compiler/compiler-native'), {
+      recursive: true,
+    })
 
     try {
       await syncNativeLoader('0.1.1-beta.1', root)
       const loader = readFileSync(
-        join(root, 'packages/core/compiler-native/index.js'),
+        join(root, 'packages/compiler/compiler-native/index.js'),
         'utf8',
       )
 

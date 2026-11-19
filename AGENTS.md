@@ -646,17 +646,49 @@ Zeus 应优先给出清晰的编译期诊断，而不是依赖沉默的魔法行
 
 ---
 
-## 14. 推荐的近期下一步
+## 14. Package 架构约束
 
-当前最重要的具体交付物是：
+`packages/` 按六个领域组织，**包的物理位置就是它的架构身份**，不是归档便利。
 
-1. `RFC-001`：组件执行与更新模型
-2. `RFC-002`：JSX 到 IR 结构
-3. `RFC-003`：Web Components 语义
-4. `packages/core`：signal + owner + cleanup 基线
-5. `packages/runtime-dom`：template + text + attr + event helpers
-6. `packages/compiler-shared`：IR 定义
-7. `packages/compiler-babel`：最小 JSX -> IR pass
+```
+packages/
+├── core/       框架运行时内核
+├── compiler/   编译器 IR、Rust 引擎、Native/WASM 分发
+├── features/   官方可选能力
+├── web-c/      Web Components 编译与输出工具链
+├── tooling/    开发工具与测试支持
+└── create/     项目脚手架与组件 Registry
+```
+
+### 14.1 领域职责
+
+| 领域       | 包含                                                                  | 允许依赖                                |
+| ---------- | --------------------------------------------------------------------- | --------------------------------------- |
+| `core`     | shared、signal、runtime-dom、runtime-ssr、zeus                        | 无                                      |
+| `compiler` | compiler、compiler-shared、compiler-native、compiler-wasm、7 个平台包 | 无                                      |
+| `features` | router、resource、query、i18n                                         | `core`                                  |
+| `web-c`    | 10 个 Web Components 相关包                                           | `core`、`compiler`                      |
+| `tooling`  | vite-plugin、eslint-plugin、testing、playground-engine、consumer      | `core`、`compiler`、`features`、`web-c` |
+| `create`   | create-zeus、zeus-ui、registry                                        | 上述全部                                |
+
+### 14.2 强制规则
+
+1. **新包必须明确归属领域。** 不能"因为挨着方便"就放到某个目录。
+2. **核心运行时不容纳可选生态能力。** router、query、i18n、testing 不属于 `core`，
+   这是本架构存在的原因——它们曾经在 `core` 里，目录因此不再描述框架本身。
+3. **编译器独立维护。** Rust 源码留在 `crates/`，npm 包放在 `packages/compiler/`。
+4. **`core` 与 `compiler` 不依赖任何其他领域。** 如果需要向上依赖，说明包放错了领域。
+5. **正式发布包不得依赖 private 包。** 消费者从 npm 装不到，安装即失败。
+6. **必须维护包清单。** 新增包要同步 `scripts/check/check-structure.ts` 的领域列表与计数。
+7. **必须执行 `pnpm check:structure`。** 该门禁校验目录完整性、依赖方向、发布组、
+   已废弃路径与包总数，CI 已在 `pnpm check` 后执行。
+8. **发布包数量与版本策略不随目录调整变化。** 32 包固定发布组、8 包 Native 组、
+   vite-plugin / compiler-wasm / create-zeus / zeus-ui 的独立版本线都必须保持。
+9. **不得用旧路径兼容层长期维持错误结构。** 迁移完成后不留空目录、转发文件或
+   旧路径 re-export；`check:structure` 会把旧路径重现判为失败。
+
+完整说明见 `docs/architecture/packages.md`，迁移清单见
+`docs/architecture/packages-migration-map.md`。
 
 ---
 

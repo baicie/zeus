@@ -10,13 +10,13 @@ import path from 'node:path'
 
 import { chromium, firefox, webkit } from '@playwright/test'
 
-import type { TransformModuleOptions } from '../../packages/core/compiler-wasm/index'
+import type { TransformModuleOptions } from '../../packages/compiler/compiler-wasm/index'
 
 const root = path.resolve(import.meta.dirname, '../..')
-const packageDirectory = path.join(root, 'packages/core/compiler-wasm')
+const packageDirectory = path.join(root, 'packages/compiler/compiler-wasm')
 const output = path.join(root, 'temp/compiler-wasm')
 const require = createRequire(import.meta.url)
-const native = require('../../packages/core/compiler-native/index.js') as {
+const native = require('../../packages/compiler/compiler-native/index.js') as {
   transformModule(options: TransformModuleOptions): unknown
 }
 

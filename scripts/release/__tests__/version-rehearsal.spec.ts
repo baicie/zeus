@@ -68,13 +68,13 @@ function fixture(): string {
     path.join(root, 'Cargo.toml'),
     '[workspace]\nmembers = ["crates/a"]\n\n[workspace.package]\nversion = "0.1.1-beta.0"\nedition = "2024"\n',
   )
-  writeJson(root, 'packages/devtools/vite-plugin/package.json', {
+  writeJson(root, 'packages/tooling/vite-plugin/package.json', {
     name: '@zeus-js/vite-plugin',
     version: '0.0.5',
   })
   writeJson(
     root,
-    'packages/devtools/create-zeus/templates/basic-ts/package.json',
+    'packages/create/create-zeus/templates/basic-ts/package.json',
     {
       name: 'my-zeus-app',
       dependencies: {
@@ -90,7 +90,7 @@ function fixture(): string {
   )
   writeJson(
     root,
-    'packages/devtools/create-zeus/templates/webc-consumer-ts/package.json',
+    'packages/create/create-zeus/templates/webc-consumer-ts/package.json',
     {
       name: 'my-zeus-webc-consumer',
       dependencies: { '@zeus-web/button': '0.1.0-beta.34' },
@@ -137,7 +137,7 @@ describe('version rehearsal', () => {
      * `devtools-release.yml`) and stays where it is across a Core switch.
      */
     expect(
-      readJson(root, 'packages/devtools/vite-plugin/package.json').version,
+      readJson(root, 'packages/tooling/vite-plugin/package.json').version,
     ).toBe('0.0.5')
     expect(readJson(root, 'packages/core/not-fixed/package.json').version).toBe(
       '0.1.1-beta.20',
@@ -184,7 +184,7 @@ describe('version rehearsal', () => {
 
     const basic = readJson(
       root,
-      'packages/devtools/create-zeus/templates/basic-ts/package.json',
+      'packages/create/create-zeus/templates/basic-ts/package.json',
     )
     expect(basic.dependencies?.['@zeus-js/zeus']).toBe('0.2.0-rc.0')
     expect(basic.dependencies?.['@zeus-web/button']).toBe('0.1.0-beta.34')
@@ -199,7 +199,7 @@ describe('version rehearsal', () => {
 
     const consumer = readJson(
       root,
-      'packages/devtools/create-zeus/templates/webc-consumer-ts/package.json',
+      'packages/create/create-zeus/templates/webc-consumer-ts/package.json',
     )
     expect(consumer.dependencies?.['@zeus-web/button']).toBe('0.1.0-beta.34')
   })
@@ -219,7 +219,7 @@ describe('version rehearsal', () => {
       'package.json',
       'packages/core/signal/package.json',
       'packages/core/zeus/package.json',
-      'packages/devtools/create-zeus/templates/basic-ts/package.json',
+      'packages/create/create-zeus/templates/basic-ts/package.json',
     ])
 
     const zeusEdit = report.edits.find(
@@ -237,7 +237,7 @@ describe('version rehearsal', () => {
         edit.kind === 'template-pin' && edit.packageName === '@zeus-js/zeus',
     )
     expect(templateEdit).toMatchObject({
-      file: 'packages/devtools/create-zeus/templates/basic-ts/package.json',
+      file: 'packages/create/create-zeus/templates/basic-ts/package.json',
       field: 'dependencies.@zeus-js/zeus',
       before: '0.1.1-beta.20',
       after: '0.2.0-rc.0',
@@ -285,7 +285,7 @@ describe('version rehearsal', () => {
     const root = fixture()
     writeJson(
       root,
-      'packages/devtools/create-zeus/templates/basic-ts/package.json',
+      'packages/create/create-zeus/templates/basic-ts/package.json',
       {
         name: 'my-zeus-app',
         dependencies: { '@zeus-js/zeus': 'workspace:*' },
@@ -301,11 +301,11 @@ describe('version rehearsal', () => {
     expect(
       readJson(
         root,
-        'packages/devtools/create-zeus/templates/basic-ts/package.json',
+        'packages/create/create-zeus/templates/basic-ts/package.json',
       ).dependencies?.['@zeus-js/zeus'],
     ).toBe('workspace:*')
     expect(report.skippedPins).toContainEqual({
-      file: 'packages/devtools/create-zeus/templates/basic-ts/package.json',
+      file: 'packages/create/create-zeus/templates/basic-ts/package.json',
       packageName: '@zeus-js/zeus',
       field: 'dependencies',
       before: 'workspace:*',

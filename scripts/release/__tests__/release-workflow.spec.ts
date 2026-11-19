@@ -506,8 +506,8 @@ describe('release workflows', () => {
       expect(pullBlock).toBeDefined()
       for (const path of [
         'crates/**',
-        'packages/core/compiler/**',
-        'packages/core/compiler-native/**',
+        'packages/compiler/compiler/**',
+        'packages/compiler/compiler-native/**',
         'scripts/release.config.ts',
         'pnpm-lock.yaml',
       ]) {

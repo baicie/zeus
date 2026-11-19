@@ -51,7 +51,7 @@ export default defineConfig({
       reporter: ['text', 'html'],
       include: [
         'packages/core/*/src/**',
-        'packages/devtools/*/src/**',
+        'packages/tooling/*/src/**',
         'packages/web-c/*/src/**',
         'examples/headless/src/**',
       ],
@@ -63,7 +63,7 @@ export default defineConfig({
         exclude: [
           ...configDefaults.exclude,
           'packages/create/**',
-          'packages/devtools/create-zeus/templates/**',
+          'packages/create/create-zeus/templates/**',
         ],
         ...(project.name === 'bench' ? { mode: 'benchmark' } : {}),
       },

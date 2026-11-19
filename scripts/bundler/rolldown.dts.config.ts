@@ -41,7 +41,7 @@ const targetPackages = (
 // vite-plugin: copy directly from source
 if (targetPackages.includes('vite-plugin')) {
   const vitePluginDir = wsPkgsByShort.get('vite-plugin')?.dir
-  const vitePluginDtsPath = 'temp/packages/devtools/vite-plugin/src/index.d.ts'
+  const vitePluginDtsPath = 'temp/packages/tooling/vite-plugin/src/index.d.ts'
   if (!vitePluginDir || !existsSync(vitePluginDtsPath)) {
     throw new Error('Cannot resolve vite-plugin declaration output.')
   }

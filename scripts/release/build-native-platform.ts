@@ -2,8 +2,25 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { findWorkspacePackages } from '../shared/utils.ts'
+
 const root = path.resolve(import.meta.dirname, '../..')
-const nativeRoot = path.join(root, 'packages/core/compiler-native')
+
+/**
+ * Resolves a package directory from the workspace rather than a written-out
+ * path. The six-domain move broke a hand-written `packages/core/${name}` here
+ * and in `restore-native-artifacts`; going through one resolver means the two
+ * cannot disagree with the layout or with each other.
+ */
+function packageDir(shortName: string): string {
+  const found = findWorkspacePackages().find(pkg => pkg.shortName === shortName)
+  if (!found) {
+    throw new Error(`${shortName} is not a workspace package`)
+  }
+  return found.dir
+}
+
+const nativeRoot = packageDir('compiler-native')
 type Target =
   | 'aarch64-apple-darwin'
   | 'x86_64-apple-darwin'
@@ -47,7 +64,7 @@ if (!targetValue || !targets.has(targetValue as Target)) {
 const target = targetValue as Target
 
 const [packageName, platformName] = targets.get(target)!
-const packageDir = path.join(root, `packages/core/${packageName}`)
+const targetPackageDir = packageDir(packageName)
 const outputDir = path.join(root, 'temp/native', target)
 const crossCompileArgs =
   target === 'x86_64-unknown-linux-musl' ? ['--cross-compile'] : []
@@ -90,7 +107,7 @@ if (binaries.length !== 1) {
 }
 
 const destination = path.join(
-  packageDir,
+  targetPackageDir,
   `zeus-compiler-native.${platformName}.node`,
 )
 fs.copyFileSync(path.join(outputDir, binaries[0]), destination)

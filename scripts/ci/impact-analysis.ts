@@ -47,8 +47,8 @@ export type Area = (typeof AREAS)[number]
  * Path rules, checked in order against every changed file.
  *
  * The first match wins, so a narrow rule must come before the broad rule for
- * its directory. `packages/core/compiler-wasm` is listed before the general
- * `packages/core/` rule for exactly that reason.
+ * its directory. `packages/compiler/compiler-wasm` is listed before the general
+ * `packages/` rule for exactly that reason.
  */
 export interface PathRule {
   readonly pattern: RegExp
@@ -69,18 +69,18 @@ export const PATH_RULES: readonly PathRule[] = [
     reason: 'release notes determine what gets published',
   },
   {
-    // Narrower than the general packages/core rule below.
-    pattern: /^packages\/core\/compiler-wasm\//,
+    // Narrower than the general packages/ rule below.
+    pattern: /^packages\/compiler\/compiler-wasm\//,
     areas: ['compiler', 'wasm', 'consumers'],
     reason: 'WASM compiler is built and exercised in the browser gates',
   },
   {
-    pattern: /^packages\/core\/compiler-native(-[a-z0-9-]+)?\//,
+    pattern: /^packages\/compiler\/compiler-native(-[a-z0-9-]+)?\//,
     areas: ['compiler', 'native', 'consumers'],
     reason: 'native compiler bindings',
   },
   {
-    pattern: /^packages\/core\/compiler\//,
+    pattern: /^packages\/compiler\//,
     areas: ['compiler', 'wasm', 'consumers'],
     reason:
       'compiler affects codegen, the WASM build and every packed consumer',
@@ -91,10 +91,14 @@ export const PATH_RULES: readonly PathRule[] = [
     reason: 'Rust workspace',
   },
   {
-    pattern:
-      /^packages\/core\/(signal|runtime-dom|web-c-runtime|router|resource|query|zeus|i18n)\//,
+    pattern: /^packages\/core\//,
     areas: ['core-runtime', 'consumers', 'framework-adapters'],
     reason: 'runtime packages are shipped by every application and adapter',
+  },
+  {
+    pattern: /^packages\/features\//,
+    areas: ['core-runtime', 'consumers', 'framework-adapters'],
+    reason: 'optional capabilities are shipped alongside the runtime',
   },
   {
     pattern: /^packages\/web-c\//,

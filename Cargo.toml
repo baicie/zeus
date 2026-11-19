@@ -1,8 +1,8 @@
 [workspace]
 members = [
   "crates/zeus_compiler",
-  "packages/core/compiler-native",
-  "packages/core/compiler-wasm",
+  "packages/compiler/compiler-native",
+  "packages/compiler/compiler-wasm",
 ]
 resolver = "3"
 

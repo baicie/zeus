@@ -44,12 +44,14 @@
         "./packages/web-c/component-dts/src/browser.ts"
       ],
       "@zeus-js/playground-engine/hmr": [
-        "./packages/devtools/playground-engine/src/hmr.ts"
+        "./packages/tooling/playground-engine/src/hmr.ts"
       ],
       "@zeus-js/*": [
         "./packages/core/*/src",
+        "./packages/compiler/*/src",
+        "./packages/features/*/src",
         "./packages/web-c/*/src",
-        "./packages/devtools/*/src"
+        "./packages/tooling/*/src"
       ],
       "@zeus-ui/*": ["./packages/*/src", "./examples/headless/src"],
       "@zeus-ui/headless": ["./examples/headless/src"],
@@ -61,8 +63,12 @@
     "packages/global.d.ts",
     "packages/core/*/src",
     "packages/core/*/__tests__",
-    "packages/devtools/*/src",
-    "packages/devtools/*/__tests__",
+    "packages/compiler/*/src",
+    "packages/compiler/*/__tests__",
+    "packages/features/*/src",
+    "packages/features/*/__tests__",
+    "packages/tooling/*/src",
+    "packages/tooling/*/__tests__",
     "packages/web-c/*/src",
     "packages/web-c/*/__tests__",
     "examples/headless/src",

@@ -74,7 +74,9 @@ export function findWorkspacePackages(): WorkspacePackage[] {
   }
 
   scanRoot('packages/core')
-  scanRoot('packages/devtools')
+  scanRoot('packages/compiler')
+  scanRoot('packages/features')
+  scanRoot('packages/tooling')
   scanRoot('packages/web-c')
   scanRoot('packages/create')
   scanRoot('benchmarks')

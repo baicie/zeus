@@ -29,7 +29,7 @@ const packages = [
 ] as const
 
 const wrapper = readJson(
-  path.join(root, 'packages/core/compiler-native/package.json'),
+  path.join(root, 'packages/compiler/compiler-native/package.json'),
 )
 const wrapperPublishConfig = wrapper.publishConfig as
   | { provenance?: unknown }
@@ -44,14 +44,16 @@ if (
   throw new Error('@zeus-js/compiler-native: invalid publish metadata')
 }
 for (const file of ['index.js', 'index.d.ts', 'README.md', 'LICENSE']) {
-  if (!fs.existsSync(path.join(root, 'packages/core/compiler-native', file))) {
+  if (
+    !fs.existsSync(path.join(root, 'packages/compiler/compiler-native', file))
+  ) {
     throw new Error(`@zeus-js/compiler-native: missing ${file}`)
   }
 }
 
 for (const [name, binary] of packages) {
   if (selectedPackage && selectedPackage !== name) continue
-  const directory = path.join(root, 'packages/core', name)
+  const directory = path.join(root, 'packages/compiler', name)
   const manifest = readJson(path.join(directory, 'package.json'))
   if (manifest.version !== expectedVersion) {
     throw new Error(
