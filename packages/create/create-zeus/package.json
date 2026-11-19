@@ -22,7 +22,7 @@
   "bugs": {
     "url": "https://github.com/baicie/zeus/issues"
   },
-  "homepage": "https://github.com/baicie/zeus/tree/main/packages/devtools/create-zeus#readme",
+  "homepage": "https://github.com/baicie/zeus/tree/main/packages/create/create-zeus#readme",
   "keywords": [
     "zeus",
     "scaffold"

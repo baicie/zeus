@@ -3,7 +3,7 @@
 There are two IR definitions in this repository:
 
 - `crates/zeus_compiler/src/ir.rs` — 35 types, consumed by the Rust compiler
-- `packages/core/compiler-shared/src/nodes.ts` — 36 types, with **no source
+- `packages/compiler/compiler-shared/src/nodes.ts` — 36 types, with **no source
   consumer in the workspace**
 
 This document records what they actually are, rather than assuming they are two
@@ -112,7 +112,7 @@ There is one place where the two IRs must agree, and it is tested: the
 canonical fixture.
 
 `crates/zeus_compiler/tests/ir.rs` reads
-`packages/core/compiler-shared/fixtures/attribute-bindings.json` and asserts
+`packages/compiler/compiler-shared/fixtures/attribute-bindings.json` and asserts
 that Rust can deserialize it and re-serialize it to the same JSON. That is a
 real equivalence test for the attribute union — the one concept both sides
 define identically and serialize.

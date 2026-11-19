@@ -133,6 +133,14 @@ export default defineConfig(
       './*.{js,ts}',
       'packages/*/*.js',
       'packages/core/*/*.js',
+      // Node-side entry points live one level deeper than the package dir:
+      // `packages/compiler/compiler-native/index.js` is the napi loader and
+      // `packages/compiler/compiler-wasm/{index,worker}.js` are the browser
+      // loader. The six-domain move put them here, and the `packages/*/*.js`
+      // glob only reaches two levels — so they were linting under no config
+      // at all. `packages/compiler/*/*.js` restores the coverage they had as
+      // `packages/core/*/*.js`.
+      'packages/compiler/*/*.js',
       'packages/tooling/*/*.js',
       'packages/web-c/*/*.js',
       'packages/create/**',

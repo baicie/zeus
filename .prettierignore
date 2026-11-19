@@ -6,8 +6,8 @@ examples/next-boundary/tsconfig.tsbuildinfo
 examples/stencil-wrapper/src/generated
 examples/stencil-wrapper/src/components.d.ts
 examples/stencil-wrapper/loader
-packages/core/compiler-native/index.js
-packages/core/compiler-native/index.d.ts
+packages/compiler/compiler-native/index.js
+packages/compiler/compiler-native/index.d.ts
 docs/.vitepress/.temp
 pnpm-lock.yaml
 scripts/testing/packed-consumers/*.fixture
