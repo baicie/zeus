@@ -20,12 +20,145 @@ use crate::support::hydration::{
     component_root_marker_id, element_marker_id, node_marker_id, text_marker_id,
 };
 
-use super::{
-    CodeWriter, NameAllocator, SSR_TEXT_END_MARKER, SourceIndex, SsrImportReplacement,
-    SsrImportRewrite, SsrRuntimeNames, SsrTextContext, StaticAttributeValue, build_source_map,
-    element_has_spread, emit_attribute_sources, escape_html_text, is_static_expression,
-    is_unescaped_raw_text, object_key, quote_js, root_span, ssr_text_context,
+use crate::lower::{SsrImportReplacement, SsrImportRewrite};
+use crate::support::span::SourceIndex;
+
+use crate::codegen::infra::{
+    CodeWriter, NameAllocator, attribute_key, build_source_map, element_has_spread,
+    escape_html_text, is_static_expression, is_unescaped_raw_text, object_key, quote_js, root_span,
 };
+use crate::ir::StaticAttributeValue;
+
+// ---- Symbols only SSR uses ------------------------------------------------
+//
+// These lived in the parent module while only this emitter referenced them,
+// which made the two targets look like they shared more than they do.
+
+/// Closes an SSR dynamic text node; `hydrate` in `@zeus-js/runtime-dom` reads
+/// it as `zeus:hydrate:/`.
+pub(super) const SSR_TEXT_END_MARKER: &str = "<!--zeus:hydrate:/-->";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum SsrTextContext {
+    Normal,
+    Raw,
+    Rcdata,
+    /// `<script>`/`<style>` inside SVG. The HTML parser does not treat those
+    /// as raw text in foreign content, so the content uses ordinary escaping.
+    ForeignRaw,
+}
+
+pub(super) struct SsrRuntimeNames {
+    static_text: String,
+    text: String,
+    element: String,
+    attr: String,
+    prop: String,
+    component: String,
+    show: String,
+    for_each: String,
+    spread: String,
+    merge_props: String,
+    hydration_marker: String,
+    define_element: String,
+    host: String,
+    slot: String,
+    auto_hydrate: bool,
+}
+
+impl SsrRuntimeNames {
+    fn allocate(names: &mut NameAllocator, auto_hydrate: bool) -> Self {
+        Self {
+            static_text: names.allocate("$zeusSsrStatic"),
+            text: names.allocate("$zeusSsrText"),
+            element: names.allocate("$zeusSsrElement"),
+            attr: names.allocate("$zeusSsrAttr"),
+            prop: names.allocate("$zeusSsrProp"),
+            component: names.allocate("$zeusSsrComponent"),
+            show: names.allocate("$zeusSsrShow"),
+            for_each: names.allocate("$zeusSsrFor"),
+            spread: names.allocate("$zeusSsrSpread"),
+            merge_props: names.allocate("$zeusMergeProps"),
+            hydration_marker: names.allocate("$zeusHydrationMarker"),
+            define_element: names.allocate("$zeusSsrDefineElement"),
+            host: names.allocate("$zeusSsrHost"),
+            slot: names.allocate("$zeusSsrSlot"),
+            auto_hydrate,
+        }
+    }
+
+    fn entries(&self) -> [(&'static str, &str); 14] {
+        [
+            ("ssrStatic", &self.static_text),
+            ("ssrText", &self.text),
+            ("ssrElement", &self.element),
+            ("ssrAttr", &self.attr),
+            ("ssrProp", &self.prop),
+            ("ssrComponent", &self.component),
+            ("ssrShow", &self.show),
+            ("ssrFor", &self.for_each),
+            ("ssrSpread", &self.spread),
+            ("mergeProps", &self.merge_props),
+            ("ssrHydrationMarker", &self.hydration_marker),
+            ("defineElement", &self.define_element),
+            ("Host", &self.host),
+            ("Slot", &self.slot),
+        ]
+    }
+
+    fn static_text(&self) -> &str {
+        &self.static_text
+    }
+    fn text(&self) -> &str {
+        &self.text
+    }
+    fn element(&self) -> &str {
+        &self.element
+    }
+    fn attr(&self) -> &str {
+        &self.attr
+    }
+    fn prop(&self) -> &str {
+        &self.prop
+    }
+    fn component(&self) -> &str {
+        &self.component
+    }
+    fn show(&self) -> &str {
+        &self.show
+    }
+    fn for_each(&self) -> &str {
+        &self.for_each
+    }
+    fn hydration_marker(&self) -> &str {
+        &self.hydration_marker
+    }
+    fn define_element(&self) -> &str {
+        &self.define_element
+    }
+    fn host(&self) -> &str {
+        &self.host
+    }
+    fn slot(&self) -> &str {
+        &self.slot
+    }
+}
+
+pub(super) fn ssr_text_context(element: &ElementIr) -> SsrTextContext {
+    if is_unescaped_raw_text(&element.tag_name) {
+        if element.namespace == "svg" {
+            SsrTextContext::ForeignRaw
+        } else {
+            SsrTextContext::Raw
+        }
+    } else if element.tag_name.eq_ignore_ascii_case("textarea")
+        || element.tag_name.eq_ignore_ascii_case("title")
+    {
+        SsrTextContext::Rcdata
+    } else {
+        SsrTextContext::Normal
+    }
+}
 
 pub(crate) struct SsrModuleOptions<'a> {
     pub(crate) source: &'a str,
@@ -67,7 +200,7 @@ pub(crate) fn emit_ssr_module(options: &SsrModuleOptions<'_>) -> TransformModule
         .unwrap_or(usize::MAX)
         .min(source.len());
     source_emitter.emit(&mut writer, 0, cursor);
-    if cursor > 0 && !writer.code.ends_with('\n') {
+    if cursor > 0 && !writer.ends_with_newline() {
         writer.push("\n");
     }
     writer.push("import { ");
@@ -101,9 +234,9 @@ pub(crate) fn emit_ssr_module(options: &SsrModuleOptions<'_>) -> TransformModule
     }
     source_emitter.emit(&mut writer, cursor, source.len());
 
-    let map = source_map.then(|| build_source_map(filename, source, &writer.mappings));
+    let map = source_map.then(|| build_source_map(filename, source, writer.recorded_mappings()));
     TransformModuleResult {
-        code: writer.code,
+        code: writer.into_generated(),
         map,
         diagnostics: Vec::new(),
         hydration_plan: None,
@@ -452,7 +585,7 @@ fn emit_ssr_element(
     if element_has_spread(element) {
         writer.push(&runtime.spread);
         writer.push("(");
-        emit_attribute_sources(writer, &element.attributes, None);
+        emit_ssr_attribute_sources(writer, &element.attributes);
         writer.push(")");
     } else {
         writer.push("[");
@@ -763,6 +896,46 @@ fn emit_ssr_transition(
             runtime,
             &node_marker_id(component_id, "transition", transition.id),
         );
+    }
+    writer.push("]");
+}
+
+/// Emits the attribute array SSR passes to a runtime helper.
+///
+/// This is SSR's own copy rather than the DOM emitter's: the DOM version pushes
+/// expressions through `push_dom_expression`, which resolves For accessor
+/// scopes that only the DOM pass maintains. Sharing it would have meant SSR
+/// importing a DOM-specific writer path — the coupling this module exists to
+/// remove. The attribute *key* spelling is shared, because the runtime reads
+/// both.
+fn emit_ssr_attribute_sources(writer: &mut CodeWriter, attributes: &[AttributeIr]) {
+    writer.push("[");
+    for (index, attribute) in attributes.iter().enumerate() {
+        if index > 0 {
+            writer.push(", ");
+        }
+        writer.push("() => (");
+        if let AttributeIr::Spread(spread) = attribute {
+            emit_ssr_expression_value(writer, &spread.expression);
+        } else {
+            writer.push("{");
+            writer.push(&quote_js(&attribute_key(attribute)));
+            writer.push(": ");
+            match attribute {
+                AttributeIr::Static(attr) => match &attr.value {
+                    StaticAttributeValue::String(value) => writer.push(&quote_js(value)),
+                    StaticAttributeValue::Boolean => writer.push("true"),
+                },
+                AttributeIr::Dynamic(attr) => emit_ssr_expression_value(writer, &attr.expression),
+                AttributeIr::Property(attr) => emit_ssr_expression_value(writer, &attr.expression),
+                // SSR has no event handlers or refs to bind; the runtime reads
+                // `undefined` and leaves the binding to hydration.
+                AttributeIr::Event(_) | AttributeIr::Ref(_) => writer.push("undefined"),
+                AttributeIr::Spread(_) => unreachable!(),
+            }
+            writer.push("}");
+        }
+        writer.push(")");
     }
     writer.push("]");
 }
