@@ -1,0 +1,41 @@
+{
+  "purpose": "For with accessor",
+  "source": "export function App(props) {\n  return <For each={props.items}>{item => <li>{item.name}</li>}</For>\n}\n",
+  "filename": "for.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "",
+    "map": null,
+    "diagnostics": [
+      {
+        "code": "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
+        "message": "Nested JSX expressions are not supported by this compiler slice.",
+        "severity": "error",
+        "filename": "for.tsx",
+        "hint": "Move the JSX into a component or a variable, or use <Show> and <For> for conditions and lists.",
+        "span": {
+          "start": {
+            "offset": 62,
+            "line": 2,
+            "column": 33
+          },
+          "end": {
+            "offset": 92,
+            "line": 2,
+            "column": 63
+          }
+        }
+      }
+    ],
+    "hydrationPlan": null,
+    "hmrPlan": null
+  }
+}

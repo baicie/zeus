@@ -1,0 +1,53 @@
+{
+  "purpose": "a module with JSX but no component renders nothing",
+  "source": "export const node = <div>static</div>\n",
+  "filename": "no-component.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "import { template as $zeusTemplate } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<div>static</div>\");\nexport const node = $zeusTmpl().firstChild\n",
+    "map": {
+      "version": 3,
+      "file": "no-component.tsx",
+      "sources": ["no-component.tsx"],
+      "sourcesContent": ["export const node = <div>static</div>\n"],
+      "names": [],
+      "mappings": ";;AAAA,OAAO,MAAM,O"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e2",
+              "kind": "element",
+              "nodeId": 2,
+              "optional": false,
+              "tagName": "div"
+            }
+          ],
+          "templateId": "c1.root"
+        }
+      ],
+      "version": 1
+    },
+    "hmrPlan": null
+  }
+}

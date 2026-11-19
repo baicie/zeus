@@ -1,0 +1,54 @@
+{
+  "purpose": "component with dynamic prop",
+  "source": "export function App(props) {\n  return <Card count={props.count} />\n}\n",
+  "filename": "component-dynamic.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "import { template as $zeusTemplate, createComponent as $zeusCreateComponent } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"\");\nexport function App(props) {\n  return $zeusCreateComponent(Card, {get count() { return props.count }})\n}\n",
+    "map": {
+      "version": 3,
+      "file": "component-dynamic.tsx",
+      "sources": ["component-dynamic.tsx"],
+      "sourcesContent": [
+        "export function App(props) {\n  return <Card count={props.count} />\n}\n"
+      ],
+      "names": [],
+      "mappings": ";;AAAA,OAAO,SAAS,IAAI;EAClB,O,qBAAQ,I,wBAAY,MAAM,K;AAC5B"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.c2",
+              "kind": "component",
+              "nodeId": 2,
+              "optional": false
+            }
+          ],
+          "templateId": "c1.root"
+        }
+      ],
+      "version": 1
+    },
+    "hmrPlan": null
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "purpose": "delegation disabled binds every handler directly",
+  "source": "export function App(props) {\n  return <button onClick={props.onClick}>go</button>\n}\n",
+  "filename": "event-no-delegation.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": false,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "import { template as $zeusTemplate, bindEvent as $zeusBindEvent } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<button data-zeus-node=\\\"2\\\">go</button>\");\nexport function App(props) {\n  return (() => {\nconst $zeusEl = $zeusTmpl().firstChild;\n$zeusEl.removeAttribute(\"data-zeus-node\");\n$zeusBindEvent($zeusEl, \"click\", $zeusEvent => (props.onClick)?.($zeusEvent), false);\nreturn $zeusEl;\n})()\n}\n",
+    "map": {
+      "version": 3,
+      "file": "event-no-delegation.tsx",
+      "sources": ["event-no-delegation.tsx"],
+      "sourcesContent": [
+        "export function App(props) {\n  return <button onClick={props.onClick}>go</button>\n}\n"
+      ],
+      "names": [],
+      "mappings": ";;AAAA,OAAO,SAAS,IAAI;EAClB,O;;;gDAAwB,MAAM,O;;;AAChC"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [
+                {
+                  "id": 3,
+                  "kind": "event",
+                  "name": "click",
+                  "once": false
+                }
+              ],
+              "id": "c1.e2",
+              "kind": "element",
+              "nodeId": 2,
+              "optional": false,
+              "tagName": "button"
+            }
+          ],
+          "templateId": "c1.root"
+        }
+      ],
+      "version": 1
+    },
+    "hmrPlan": null
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "purpose": "auto hydration emits an adoption body",
+  "source": "export function App(props) {\n  return <div><span>{props.value}</span></div>\n}\n",
+  "filename": "auto-hydrate.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": true
+  },
+  "expected": {
+    "code": "import { template as $zeusTemplate, autoHydrateComponent as $zeusAutoHydrateComponent, insert as $zeusInsert, bindText as $zeusBindText } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<div><span><!></span></div>\");\nexport function App(props) {\n  return $zeusAutoHydrateComponent(1, \"c1.root\", ($zeusHydration) => {\nconst $zeusHydrationExpected = props.value;\nconst $zeusHydrationText = $zeusHydration.text(\"c1.t4\", $zeusHydrationExpected);\n$zeusBindText($zeusHydrationText, () => (props.value));\n}, () => (() => {\nconst $zeusEl = $zeusTmpl().firstChild;\nconst $zeusWalker = $zeusEl.ownerDocument.createTreeWalker($zeusEl, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\nconst $zeusText = $zeusMarker.ownerDocument.createTextNode(\"\");\n$zeusInsert($zeusMarker.parentNode, $zeusText, $zeusMarker);\n$zeusMarker.remove();\n$zeusBindText($zeusText, () => (props.value));\nreturn $zeusEl;\n})())\n}\n",
+    "map": {
+      "version": 3,
+      "file": "auto-hydrate.tsx",
+      "sources": ["auto-hydrate.tsx"],
+      "sourcesContent": [
+        "export function App(props) {\n  return <div><span>{props.value}</span></div>\n}\n"
+      ],
+      "names": [],
+      "mappings": ";;AAAA,OAAO,SAAS,IAAI;EAClB,O;+BAAmB,MAAM,K;;yCAAN,MAAM,K;;;;;;;;gCAAN,MAAM,K;;;AAC3B"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e2",
+              "kind": "element",
+              "nodeId": 2,
+              "optional": false,
+              "tagName": "div"
+            },
+            {
+              "bindings": [],
+              "id": "c1.e3",
+              "kind": "element",
+              "nodeId": 3,
+              "optional": false,
+              "tagName": "span"
+            },
+            {
+              "bindings": [
+                {
+                  "id": 4,
+                  "kind": "text",
+                  "once": false
+                }
+              ],
+              "id": "c1.t4",
+              "kind": "text",
+              "nodeId": 4,
+              "optional": false
+            }
+          ],
+          "templateId": "c1.root"
+        }
+      ],
+      "version": 1
+    },
+    "hmrPlan": null
+  }
+}

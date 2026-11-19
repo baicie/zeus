@@ -1,0 +1,28 @@
+{
+  "purpose": "an unsupported source type is reported, not guessed",
+  "source": ".a { color: red }\n",
+  "filename": "module.css",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "",
+    "map": null,
+    "diagnostics": [
+      {
+        "code": "ZEUS_UNSUPPORTED_SOURCE_TYPE",
+        "message": "Unknown file extension: Please provide a valid file extension: .js, .mjs, .jsx or .cjs for JavaScript, or .ts, .d.ts, .mts, .cts or .tsx for TypeScript",
+        "severity": "error",
+        "filename": "module.css"
+      }
+    ],
+    "hydrationPlan": null,
+    "hmrPlan": null
+  }
+}

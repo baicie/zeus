@@ -1,0 +1,89 @@
+{
+  "purpose": "fragment lowers to adjacent children",
+  "source": "export function App(props) {\n  return <><span>{props.a}</span><span>{props.b}</span></>\n}\n",
+  "filename": "fragment.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "import { template as $zeusTemplate, insert as $zeusInsert, bindText as $zeusBindText } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<span><!></span><span><!></span>\");\nexport function App(props) {\n  return (() => {\nconst $zeusEl = $zeusTmpl();\nconst $zeusWalker = $zeusEl.ownerDocument.createTreeWalker($zeusEl, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\nconst $zeusMarker0 = $zeusWalker.nextNode();\nconst $zeusText = $zeusMarker.ownerDocument.createTextNode(\"\");\n$zeusInsert($zeusMarker.parentNode, $zeusText, $zeusMarker);\n$zeusMarker.remove();\n$zeusBindText($zeusText, () => (props.a));\nconst $zeusText0 = $zeusMarker0.ownerDocument.createTextNode(\"\");\n$zeusInsert($zeusMarker0.parentNode, $zeusText0, $zeusMarker0);\n$zeusMarker0.remove();\n$zeusBindText($zeusText0, () => (props.b));\nreturn $zeusEl;\n})()\n}\n",
+    "map": {
+      "version": 3,
+      "file": "fragment.tsx",
+      "sources": ["fragment.tsx"],
+      "sourcesContent": [
+        "export function App(props) {\n  return <><span>{props.a}</span><span>{props.b}</span></>\n}\n"
+      ],
+      "names": [],
+      "mappings": ";;AAAA,OAAO,SAAS,IAAI;EAClB,O;;;;;;;;gCAAgB,MAAM,C;;;;iCAAgB,MAAM,C;;;AAC9C"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e3",
+              "kind": "element",
+              "nodeId": 3,
+              "optional": false,
+              "tagName": "span"
+            },
+            {
+              "bindings": [
+                {
+                  "id": 4,
+                  "kind": "text",
+                  "once": false
+                }
+              ],
+              "id": "c1.t4",
+              "kind": "text",
+              "nodeId": 4,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e5",
+              "kind": "element",
+              "nodeId": 5,
+              "optional": false,
+              "tagName": "span"
+            },
+            {
+              "bindings": [
+                {
+                  "id": 6,
+                  "kind": "text",
+                  "once": false
+                }
+              ],
+              "id": "c1.t6",
+              "kind": "text",
+              "nodeId": 6,
+              "optional": false
+            }
+          ],
+          "templateId": "c1.root"
+        }
+      ],
+      "version": 1
+    },
+    "hmrPlan": null
+  }
+}

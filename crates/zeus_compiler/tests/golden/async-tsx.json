@@ -1,0 +1,41 @@
+{
+  "purpose": "async components are rejected with a hint",
+  "source": "export async function App() {\n  return <div>async</div>\n}\n",
+  "filename": "async.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "",
+    "map": null,
+    "diagnostics": [
+      {
+        "code": "ZEUS_ASYNC_COMPONENT",
+        "message": "Component `App` is an async function or generator. Components run once synchronously and must return DOM, not a Promise or iterator.",
+        "severity": "error",
+        "filename": "async.tsx",
+        "hint": "Make the component synchronous and load data with createResource, rendering the pending state with <Show>.",
+        "span": {
+          "start": {
+            "offset": 7,
+            "line": 1,
+            "column": 7
+          },
+          "end": {
+            "offset": 28,
+            "line": 1,
+            "column": 28
+          }
+        }
+      }
+    ],
+    "hydrationPlan": null,
+    "hmrPlan": null
+  }
+}

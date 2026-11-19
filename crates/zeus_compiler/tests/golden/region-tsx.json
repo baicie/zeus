@@ -1,0 +1,62 @@
+{
+  "purpose": "expression child becomes a dynamic region",
+  "source": "export function App(props) {\n  return <div>{props.render()}</div>\n}\n",
+  "filename": "region.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "import { template as $zeusTemplate, mountDynamic as $zeusMountDynamic } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<div><!></div>\");\nexport function App(props) {\n  return (() => {\nconst $zeusEl = $zeusTmpl().firstChild;\nconst $zeusWalker = $zeusEl.ownerDocument.createTreeWalker($zeusEl, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\n$zeusMountDynamic($zeusMarker.parentNode, $zeusMarker, () => props.render());\nreturn $zeusEl;\n})()\n}\n",
+    "map": {
+      "version": 3,
+      "file": "region.tsx",
+      "sources": ["region.tsx"],
+      "sourcesContent": [
+        "export function App(props) {\n  return <div>{props.render()}</div>\n}\n"
+      ],
+      "names": [],
+      "mappings": ";;AAAA,OAAO,SAAS,IAAI;EAClB,O;;;;6DAAa,MAAM,Q;;;AACrB"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e2",
+              "kind": "element",
+              "nodeId": 2,
+              "optional": false,
+              "tagName": "div"
+            },
+            {
+              "bindings": [],
+              "id": "c1.r3",
+              "kind": "region",
+              "nodeId": 3,
+              "optional": false
+            }
+          ],
+          "templateId": "c1.root"
+        }
+      ],
+      "version": 1
+    },
+    "hmrPlan": null
+  }
+}

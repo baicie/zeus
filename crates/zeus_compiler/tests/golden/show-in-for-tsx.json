@@ -1,0 +1,41 @@
+{
+  "purpose": "nested Show inside For",
+  "source": "export function App(props) {\n  return <For each={props.items}>{item => <Show when={item.visible}>{item.name}</Show>}</For>\n}\n",
+  "filename": "show-in-for.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "",
+    "map": null,
+    "diagnostics": [
+      {
+        "code": "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
+        "message": "Nested JSX expressions are not supported by this compiler slice.",
+        "severity": "error",
+        "filename": "show-in-for.tsx",
+        "hint": "Move the JSX into a component or a variable, or use <Show> and <For> for conditions and lists.",
+        "span": {
+          "start": {
+            "offset": 62,
+            "line": 2,
+            "column": 33
+          },
+          "end": {
+            "offset": 116,
+            "line": 2,
+            "column": 87
+          }
+        }
+      }
+    ],
+    "hydrationPlan": null,
+    "hmrPlan": null
+  }
+}

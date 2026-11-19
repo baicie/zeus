@@ -1,0 +1,41 @@
+{
+  "purpose": "Show with fallback",
+  "source": "export function App(props) {\n  return <Show when={props.open} fallback={<p>closed</p>}><p>open</p></Show>\n}\n",
+  "filename": "show.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "",
+    "map": null,
+    "diagnostics": [
+      {
+        "code": "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE",
+        "message": "JSX values inside component props are not supported.",
+        "severity": "error",
+        "filename": "show.tsx",
+        "hint": "Pass the JSX as children, or wrap it in a component and pass that component.",
+        "span": {
+          "start": {
+            "offset": 71,
+            "line": 2,
+            "column": 42
+          },
+          "end": {
+            "offset": 86,
+            "line": 2,
+            "column": 57
+          }
+        }
+      }
+    ],
+    "hydrationPlan": null,
+    "hmrPlan": null
+  }
+}

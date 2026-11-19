@@ -1,0 +1,78 @@
+{
+  "purpose": "conditional expression child",
+  "source": "export function App(props) {\n  return <div>{props.open ? <b>y</b> : <i>n</i>}</div>\n}\n",
+  "filename": "region-ternary.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": false,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "import { template as $zeusTemplate, mountDynamic as $zeusMountDynamic } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<div><!></div>\");\nexport function App(props) {\n  return (() => {\nconst $zeusEl = $zeusTmpl().firstChild;\nconst $zeusWalker = $zeusEl.ownerDocument.createTreeWalker($zeusEl, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\n$zeusMountDynamic($zeusMarker.parentNode, $zeusMarker, () => (props.open ? (() => {\nconst $zeusInlineTemplate = $zeusTemplate(\"<b>y</b>\");\nreturn $zeusInlineTemplate().firstChild;\n})() : (() => {\nconst $zeusInlineTemplate0 = $zeusTemplate(\"<i>n</i>\");\nreturn $zeusInlineTemplate0().firstChild;\n})()));\nreturn $zeusEl;\n})()\n}\n",
+    "map": {
+      "version": 3,
+      "file": "region-ternary.tsx",
+      "sources": ["region-ternary.tsx"],
+      "sourcesContent": [
+        "export function App(props) {\n  return <div>{props.open ? <b>y</b> : <i>n</i>}</div>\n}\n"
+      ],
+      "names": [],
+      "mappings": ";;AAAA,OAAO,SAAS,IAAI;EAClB,O;;;;8DAAa,MAAM,I;;;;;;;;;AACrB"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e2",
+              "kind": "element",
+              "nodeId": 2,
+              "optional": false,
+              "tagName": "div"
+            },
+            {
+              "bindings": [],
+              "id": "c1.r7",
+              "kind": "region",
+              "nodeId": 7,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e3",
+              "kind": "element",
+              "nodeId": 3,
+              "optional": true,
+              "tagName": "b"
+            },
+            {
+              "bindings": [],
+              "id": "c1.e5",
+              "kind": "element",
+              "nodeId": 5,
+              "optional": true,
+              "tagName": "i"
+            }
+          ],
+          "templateId": "c1.root"
+        }
+      ],
+      "version": 1
+    },
+    "hmrPlan": null
+  }
+}
