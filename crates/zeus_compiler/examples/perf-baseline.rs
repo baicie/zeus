@@ -64,14 +64,21 @@ export function App(props) {
     // Many bindings: the binding enumeration and template rendering stage.
     let mut many_bindings = String::from("export function App(props) {\n  return <div>");
     for i in 0..200 {
-        many_bindings.push_str(&format!("<span title={{props.t{i}}}>{{props.v{i}}}</span>"));
+        use std::fmt::Write as _;
+        write!(
+            many_bindings,
+            "<span title={{props.t{i}}}>{{props.v{i}}}</span>"
+        )
+        .expect("writing to a String cannot fail");
     }
     many_bindings.push_str("</div>\n}\n");
 
     // Many components: the component binding and helper collection stages.
     let mut many_components = String::from("export function App(props) {\n  return <div>");
     for i in 0..100 {
-        many_components.push_str(&format!("<Card{i} value={{props.v{i}}} />"));
+        use std::fmt::Write as _;
+        write!(many_components, "<Card{i} value={{props.v{i}}} />")
+            .expect("writing to a String cannot fail");
     }
     many_components.push_str("</div>\n}\n");
 
