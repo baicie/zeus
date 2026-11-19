@@ -18,8 +18,6 @@ use crate::ir::{
     ErrorBoundaryBindingIr, ErrorBoundaryFallbackIr, FragmentIr, ModuleIr, RootIr, ShowBindingIr,
 };
 
-use super::{RuntimeHelper, collect_builtin_helper_usage};
-
 pub(super) fn collect_delegated_events(module: &ModuleIr, enable_delegation: bool) -> Vec<String> {
     if !enable_delegation {
         return Vec::new();
@@ -142,17 +140,6 @@ pub(super) fn collect_error_boundary_attribute_names(
     collect_builtin_attribute_names(&boundary.children, names);
     if let ErrorBoundaryFallbackIr::Render(render) = &boundary.fallback {
         collect_builtin_attribute_names(&render.body, names);
-    }
-}
-
-pub(super) fn collect_error_boundary_helper_usage(
-    boundary: &ErrorBoundaryBindingIr,
-    usage: &mut HashSet<RuntimeHelper>,
-) {
-    usage.insert(RuntimeHelper::ErrorBoundary);
-    collect_builtin_helper_usage(&boundary.children, usage);
-    if let ErrorBoundaryFallbackIr::Render(render) = &boundary.fallback {
-        collect_builtin_helper_usage(&render.body, usage);
     }
 }
 
@@ -401,5 +388,116 @@ fn collect_dynamic_region_value_attribute_names(
 ) {
     if let DynamicRegionValueIr::Children(children) = value {
         collect_builtin_attribute_names(children, names);
+    }
+}
+
+// ---- Runtime helper identity ----------------------------------------------
+//
+// The set of runtime helpers a module may need is a fact about the emitted
+// code, but the *identity* of those helpers is neutral: a name, an export
+// spelling and an ordering. Defining it here lets analysis name the type it
+// returns and the emitter import it, without the two importing each other.
+// Collecting usage stays in the emitter, because it consumes emit-time
+// bindings rather than the IR.
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum RuntimeHelper {
+    Template,
+    AutoHydrateComponent,
+    CreateComponent,
+    CreateSlot,
+    ErrorBoundary,
+    MountShow,
+    MountFor,
+    MountTransition,
+    MountDynamic,
+    Insert,
+    BindText,
+    BindTextContent,
+    BindAttr,
+    BindClass,
+    BindStyle,
+    BindProp,
+    BindSpread,
+    MergeProps,
+    BindEvent,
+    BindRef,
+    DelegateEvents,
+}
+impl RuntimeHelper {
+    pub(super) const ORDERED: [Self; 21] = [
+        Self::Template,
+        Self::AutoHydrateComponent,
+        Self::CreateComponent,
+        Self::CreateSlot,
+        Self::ErrorBoundary,
+        Self::MountShow,
+        Self::MountFor,
+        Self::MountTransition,
+        Self::MountDynamic,
+        Self::Insert,
+        Self::BindText,
+        Self::BindTextContent,
+        Self::BindAttr,
+        Self::BindClass,
+        Self::BindStyle,
+        Self::BindProp,
+        Self::BindSpread,
+        Self::MergeProps,
+        Self::BindEvent,
+        Self::BindRef,
+        Self::DelegateEvents,
+    ];
+
+    pub(super) const fn exported(self) -> &'static str {
+        match self {
+            Self::Template => "template",
+            Self::AutoHydrateComponent => "autoHydrateComponent",
+            Self::CreateComponent => "createComponent",
+            Self::CreateSlot => "createSlot",
+            Self::ErrorBoundary => "ErrorBoundary",
+            Self::MountShow => "mountShow",
+            Self::MountFor => "mountFor",
+            Self::MountTransition => "mountTransition",
+            Self::MountDynamic => "mountDynamic",
+            Self::Insert => "insert",
+            Self::BindText => "bindText",
+            Self::BindTextContent => "bindTextContent",
+            Self::BindAttr => "bindAttr",
+            Self::BindClass => "bindClass",
+            Self::BindStyle => "bindStyle",
+            Self::BindProp => "bindProp",
+            Self::BindSpread => "bindSpread",
+            Self::MergeProps => "mergeProps",
+            Self::BindEvent => "bindEvent",
+            Self::BindRef => "bindRef",
+            Self::DelegateEvents => "delegateEvents",
+        }
+    }
+
+    pub(super) const fn local_base(self) -> &'static str {
+        match self {
+            Self::Template => "$zeusTemplate",
+            Self::AutoHydrateComponent => "$zeusAutoHydrateComponent",
+            Self::CreateComponent => "$zeusCreateComponent",
+            Self::CreateSlot => "$zeusCreateSlot",
+            Self::ErrorBoundary => "$zeusErrorBoundary",
+            Self::MountShow => "$zeusMountShow",
+            Self::MountFor => "$zeusMountFor",
+            Self::MountTransition => "$zeusMountTransition",
+            Self::MountDynamic => "$zeusMountDynamic",
+            Self::Insert => "$zeusInsert",
+            Self::BindText => "$zeusBindText",
+            Self::BindTextContent => "$zeusBindTextContent",
+            Self::BindAttr => "$zeusBindAttr",
+            Self::BindClass => "$zeusBindClass",
+            Self::BindStyle => "$zeusBindStyle",
+            Self::BindProp => "$zeusBindProp",
+            Self::BindSpread => "$zeusBindSpread",
+            Self::MergeProps => "$zeusMergeProps",
+            Self::BindEvent => "$zeusBindEvent",
+            Self::BindRef => "$zeusBindRef",
+            Self::DelegateEvents => "$zeusDelegateEvents",
+        }
     }
 }
