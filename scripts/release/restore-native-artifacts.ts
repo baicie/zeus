@@ -49,7 +49,7 @@ for (const [target, packageName, platformName] of targets) {
   }
   const destination = path.join(
     root,
-    `packages/core/${packageName}/zeus-compiler-native.${platformName}.node`,
+    `packages/compiler/${packageName}/zeus-compiler-native.${platformName}.node`,
   )
   fs.copyFileSync(binary, destination)
   console.log(

@@ -47,7 +47,7 @@ if (!targetValue || !targets.has(targetValue as Target)) {
 const target = targetValue as Target
 
 const [packageName, platformName] = targets.get(target)!
-const packageDir = path.join(root, `packages/core/${packageName}`)
+const packageDir = path.join(root, `packages/compiler/${packageName}`)
 const outputDir = path.join(root, 'temp/native', target)
 const crossCompileArgs =
   target === 'x86_64-unknown-linux-musl' ? ['--cross-compile'] : []
