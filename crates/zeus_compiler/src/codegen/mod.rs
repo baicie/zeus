@@ -10,8 +10,7 @@ mod ssr;
 pub(crate) use ssr::{SsrModuleOptions, emit_ssr_module};
 
 use analysis::{
-    allocate_locator_attribute, collect_delegated_events, collect_error_boundary_helper_usage,
-    is_delegatable_event,
+    RuntimeHelper, allocate_locator_attribute, collect_delegated_events, is_delegatable_event,
 };
 
 use std::collections::{HashMap, HashSet};
@@ -3122,6 +3121,17 @@ fn collect_component_helper_usage(
     }
 }
 
+pub(super) fn collect_error_boundary_helper_usage(
+    boundary: &ErrorBoundaryBindingIr,
+    usage: &mut HashSet<RuntimeHelper>,
+) {
+    usage.insert(RuntimeHelper::ErrorBoundary);
+    collect_builtin_helper_usage(&boundary.children, usage);
+    if let ErrorBoundaryFallbackIr::Render(render) = &boundary.fallback {
+        collect_builtin_helper_usage(&render.body, usage);
+    }
+}
+
 pub(super) fn collect_builtin_helper_usage(
     children: &[ChildIr],
     usage: &mut HashSet<RuntimeHelper>,
@@ -3504,109 +3514,6 @@ impl RuntimeNames {
 
     fn should_delegate_event(&self, event_name: &str) -> bool {
         self.enable_delegation && is_delegatable_event(event_name)
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) enum RuntimeHelper {
-    Template,
-    AutoHydrateComponent,
-    CreateComponent,
-    CreateSlot,
-    ErrorBoundary,
-    MountShow,
-    MountFor,
-    MountTransition,
-    MountDynamic,
-    Insert,
-    BindText,
-    BindTextContent,
-    BindAttr,
-    BindClass,
-    BindStyle,
-    BindProp,
-    BindSpread,
-    MergeProps,
-    BindEvent,
-    BindRef,
-    DelegateEvents,
-}
-
-impl RuntimeHelper {
-    const ORDERED: [Self; 21] = [
-        Self::Template,
-        Self::AutoHydrateComponent,
-        Self::CreateComponent,
-        Self::CreateSlot,
-        Self::ErrorBoundary,
-        Self::MountShow,
-        Self::MountFor,
-        Self::MountTransition,
-        Self::MountDynamic,
-        Self::Insert,
-        Self::BindText,
-        Self::BindTextContent,
-        Self::BindAttr,
-        Self::BindClass,
-        Self::BindStyle,
-        Self::BindProp,
-        Self::BindSpread,
-        Self::MergeProps,
-        Self::BindEvent,
-        Self::BindRef,
-        Self::DelegateEvents,
-    ];
-
-    const fn exported(self) -> &'static str {
-        match self {
-            Self::Template => "template",
-            Self::AutoHydrateComponent => "autoHydrateComponent",
-            Self::CreateComponent => "createComponent",
-            Self::CreateSlot => "createSlot",
-            Self::ErrorBoundary => "ErrorBoundary",
-            Self::MountShow => "mountShow",
-            Self::MountFor => "mountFor",
-            Self::MountTransition => "mountTransition",
-            Self::MountDynamic => "mountDynamic",
-            Self::Insert => "insert",
-            Self::BindText => "bindText",
-            Self::BindTextContent => "bindTextContent",
-            Self::BindAttr => "bindAttr",
-            Self::BindClass => "bindClass",
-            Self::BindStyle => "bindStyle",
-            Self::BindProp => "bindProp",
-            Self::BindSpread => "bindSpread",
-            Self::MergeProps => "mergeProps",
-            Self::BindEvent => "bindEvent",
-            Self::BindRef => "bindRef",
-            Self::DelegateEvents => "delegateEvents",
-        }
-    }
-
-    const fn local_base(self) -> &'static str {
-        match self {
-            Self::Template => "$zeusTemplate",
-            Self::AutoHydrateComponent => "$zeusAutoHydrateComponent",
-            Self::CreateComponent => "$zeusCreateComponent",
-            Self::CreateSlot => "$zeusCreateSlot",
-            Self::ErrorBoundary => "$zeusErrorBoundary",
-            Self::MountShow => "$zeusMountShow",
-            Self::MountFor => "$zeusMountFor",
-            Self::MountTransition => "$zeusMountTransition",
-            Self::MountDynamic => "$zeusMountDynamic",
-            Self::Insert => "$zeusInsert",
-            Self::BindText => "$zeusBindText",
-            Self::BindTextContent => "$zeusBindTextContent",
-            Self::BindAttr => "$zeusBindAttr",
-            Self::BindClass => "$zeusBindClass",
-            Self::BindStyle => "$zeusBindStyle",
-            Self::BindProp => "$zeusBindProp",
-            Self::BindSpread => "$zeusBindSpread",
-            Self::MergeProps => "$zeusMergeProps",
-            Self::BindEvent => "$zeusBindEvent",
-            Self::BindRef => "$zeusBindRef",
-            Self::DelegateEvents => "$zeusDelegateEvents",
-        }
     }
 }
 
