@@ -3,8 +3,8 @@ import { createRequire } from 'node:module'
 import type { Plugin } from 'vitest/config'
 
 const { transformModule } = createRequire(import.meta.url)(
-  '../../packages/core/compiler-native/index.js',
-) as typeof import('../../packages/core/compiler-native/index.js')
+  '../../packages/compiler/compiler-native/index.js',
+) as typeof import('../../packages/compiler/compiler-native/index.js')
 
 /** JSDOM component tests execute DOM output, even though Vitest loads via SSR. */
 export function compileTestViews(): Plugin {

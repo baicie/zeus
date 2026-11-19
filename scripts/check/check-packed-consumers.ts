@@ -337,7 +337,10 @@ interface ConsumerBundle {
  */
 function inspectI18nTarball(archives: string): void {
   const manifest = JSON.parse(
-    fs.readFileSync(path.join(root, 'packages/core/i18n/package.json'), 'utf8'),
+    fs.readFileSync(
+      path.join(root, 'packages/features/i18n/package.json'),
+      'utf8',
+    ),
   ) as { name: string; version: string; exports: Record<string, unknown> }
 
   const archive = path.join(

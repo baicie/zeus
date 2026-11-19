@@ -187,8 +187,10 @@ try {
     const short = name.replace('@zeus-js/', '')
     const candidates = [
       path.join(root, 'packages/core', short),
+      path.join(root, 'packages/compiler', short),
+      path.join(root, 'packages/features', short),
+      path.join(root, 'packages/tooling', short),
       path.join(root, 'packages/web-c', short),
-      path.join(root, 'packages/devtools', short),
     ]
     const directory = candidates.find(candidate =>
       fs.existsSync(path.join(candidate, 'package.json')),
@@ -399,7 +401,7 @@ console.log('ok')
   const binaryPresent =
     platformPackage !== undefined &&
     fs.existsSync(
-      path.join(root, 'packages/core', platformPackage, hostBinaryName()),
+      path.join(root, 'packages/compiler', platformPackage, hostBinaryName()),
     )
 
   if (!binaryPresent) {

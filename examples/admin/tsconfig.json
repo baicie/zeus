@@ -9,7 +9,7 @@
     "types": ["@zeus-js/zeus/jsx", "vite/client"],
     "paths": {
       "@zeus-js/devtools-consumer": [
-        "../../packages/devtools/consumer/src/index.ts"
+        "../../packages/tooling/consumer/src/index.ts"
       ]
     },
     "skipLibCheck": true

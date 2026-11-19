@@ -205,7 +205,10 @@ function writeProductBuildInfo(
 }
 
 function buildCoreArtifacts(uiRoot: string | undefined): void {
-  const wasm = path.join(root, 'packages/core/compiler-wasm/zeus-compiler.wasm')
+  const wasm = path.join(
+    root,
+    'packages/compiler/compiler-wasm/zeus-compiler.wasm',
+  )
   if (!fs.existsSync(wasm)) {
     run('pnpm', ['--filter', '@zeus-js/compiler-wasm', 'build:wasm'], root)
   }

@@ -7,7 +7,7 @@ import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { gzipSync } from 'node:zlib'
 
-import type { TransformModuleResult } from '../../packages/core/compiler-native'
+import type { TransformModuleResult } from '../../packages/compiler/compiler-native'
 
 interface PackageConfiguration {
   name: string
@@ -186,7 +186,7 @@ function captureCompiler(root: string) {
   try {
     const require = createRequire(import.meta.url)
     const compiler = require(
-      path.join(root, 'packages/core/compiler-native/index.js'),
+      path.join(root, 'packages/compiler/compiler-native/index.js'),
     ) as {
       transformModule(options: Record<string, unknown>): TransformModuleResult
     }

@@ -33,7 +33,7 @@ import { zeusFixedPackages } from '../release.config'
 import type { PackageManifest } from '../release/create-zeus-candidate-matrix'
 
 const root = path.resolve(import.meta.dirname, '../..')
-const packageRoot = path.join(root, 'packages/devtools/create-zeus')
+const packageRoot = path.join(root, 'packages/create/create-zeus')
 const output = path.join(root, 'temp/create-zeus-candidate')
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'zeus-create-candidate-'))
 const archives = path.join(work, 'archives')

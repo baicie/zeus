@@ -125,7 +125,7 @@ function createLocalTarballs(
 }
 
 function pack(shortName: string, destination: string): string {
-  const packageDir = path.join(root, 'packages/core', shortName)
+  const packageDir = path.join(root, 'packages/compiler', shortName)
   const before = new Set(fs.readdirSync(destination))
   run('pnpm', ['pack', '--pack-destination', destination], packageDir)
   const created = fs

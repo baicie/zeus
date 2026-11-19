@@ -9,7 +9,10 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const require = createRequire(import.meta.url)
 const root = path.resolve(__dirname, '../..')
-const cjsFile = path.resolve(root, 'packages/core/compiler/dist/compiler.cjs')
+const cjsFile = path.resolve(
+  root,
+  'packages/compiler/compiler/dist/compiler.cjs',
+)
 
 if (!fs.existsSync(cjsFile)) {
   console.error(`[check-cjs:compiler] CJS output not found at: ${cjsFile}`)
@@ -17,7 +20,7 @@ if (!fs.existsSync(cjsFile)) {
   process.exit(1)
 }
 
-const compilerEntry = path.resolve(root, 'packages/core/compiler/index.cjs')
+const compilerEntry = path.resolve(root, 'packages/compiler/compiler/index.cjs')
 const compiler = require(compilerEntry)
 const transformModule = compiler.transformModule ?? compiler.default
 

@@ -11,14 +11,14 @@ const roots: string[] = []
 function fixture(): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'zeus-create-versions-'))
   roots.push(root)
-  const templates = path.join(root, 'packages/devtools/create-zeus/templates')
+  const templates = path.join(root, 'packages/create/create-zeus/templates')
   fs.mkdirSync(path.join(templates, 'basic-ts'), { recursive: true })
   fs.mkdirSync(path.join(templates, 'webc-consumer-ts'), { recursive: true })
-  fs.mkdirSync(path.join(root, 'packages/devtools/vite-plugin'), {
+  fs.mkdirSync(path.join(root, 'packages/tooling/vite-plugin'), {
     recursive: true,
   })
   fs.writeFileSync(
-    path.join(root, 'packages/devtools/vite-plugin/package.json'),
+    path.join(root, 'packages/tooling/vite-plugin/package.json'),
     JSON.stringify({ name: '@zeus-js/vite-plugin', version: '0.0.6' }),
   )
   fs.writeFileSync(
@@ -47,7 +47,7 @@ describe('create-zeus template version sync', () => {
     const root = fixture()
     const basic = path.join(
       root,
-      'packages/devtools/create-zeus/templates/basic-ts/package.json',
+      'packages/create/create-zeus/templates/basic-ts/package.json',
     )
     const before = fs.readFileSync(basic, 'utf8')
     const mismatches = syncCreateZeusVersions({
@@ -60,9 +60,9 @@ describe('create-zeus template version sync', () => {
     const relative = (...parts: string[]) => path.join(...parts)
     expect(mismatches).toEqual(
       expect.arrayContaining([
-        `${relative('packages', 'devtools', 'create-zeus', 'templates', 'basic-ts', 'package.json')}: @zeus-js/zeus 0.1.1-beta.20 != 0.2.0-rc.0`,
-        `${relative('packages', 'devtools', 'create-zeus', 'templates', 'basic-ts', 'package.json')}: @zeus-js/vite-plugin 0.0.5 != 0.0.6`,
-        `${relative('packages', 'devtools', 'create-zeus', 'templates', 'webc-consumer-ts', 'package.json')}: @zeus-web/button 0.1.0-beta.34 != 0.1.0-rc.0`,
+        `${relative('packages', 'create', 'create-zeus', 'templates', 'basic-ts', 'package.json')}: @zeus-js/zeus 0.1.1-beta.20 != 0.2.0-rc.0`,
+        `${relative('packages', 'create', 'create-zeus', 'templates', 'basic-ts', 'package.json')}: @zeus-js/vite-plugin 0.0.5 != 0.0.6`,
+        `${relative('packages', 'create', 'create-zeus', 'templates', 'webc-consumer-ts', 'package.json')}: @zeus-web/button 0.1.0-beta.34 != 0.1.0-rc.0`,
       ]),
     )
     expect(fs.readFileSync(basic, 'utf8')).toBe(before)
@@ -80,7 +80,7 @@ describe('create-zeus template version sync', () => {
       fs.readFileSync(
         path.join(
           root,
-          'packages/devtools/create-zeus/templates/basic-ts/package.json',
+          'packages/create/create-zeus/templates/basic-ts/package.json',
         ),
         'utf8',
       ),
@@ -94,7 +94,7 @@ describe('create-zeus template version sync', () => {
       fs.readFileSync(
         path.join(
           root,
-          'packages/devtools/create-zeus/templates/webc-consumer-ts/package.json',
+          'packages/create/create-zeus/templates/webc-consumer-ts/package.json',
         ),
         'utf8',
       ),

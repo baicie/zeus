@@ -35,9 +35,9 @@ on:
     paths:
       - '.github/workflows/compiler-native.yml'
       - 'crates/**'
-      - 'packages/core/compiler/**'
-      - 'packages/core/compiler-native/**'
-      - 'packages/core/compiler-native-*/**'
+      - 'packages/compiler/compiler/**'
+      - 'packages/compiler/compiler-native/**'
+      - 'packages/compiler/compiler-native-*/**'
       - 'scripts/bundler/build.ts'
       - 'scripts/check/check-native-packages.ts'
       - 'scripts/release/build-native-platform.ts'

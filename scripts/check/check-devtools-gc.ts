@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { createDevtoolsConsumer } from '../../packages/devtools/consumer/src'
+import { createDevtoolsConsumer } from '../../packages/tooling/consumer/src'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const output = path.join(root, 'temp/devtools-gc')

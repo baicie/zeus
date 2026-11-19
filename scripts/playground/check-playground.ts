@@ -7,7 +7,7 @@ import { brotliCompressSync, gzipSync } from 'node:zlib'
 import { format } from 'prettier'
 import { rolldown, VERSION as rolldownVersion } from 'rolldown'
 
-import { transformModule } from '../../packages/core/compiler/src/index.ts'
+import { transformModule } from '../../packages/compiler/compiler/src/index.ts'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const fixtures = path.join(root, 'scripts/playground/fixtures')

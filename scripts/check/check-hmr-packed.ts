@@ -44,7 +44,7 @@ delete env.TSX_TSCONFIG_PATH
 try {
   const binary = path.join(
     root,
-    'packages/core',
+    'packages/compiler',
     `compiler-native-${platform}`,
     `zeus-compiler-native.${platform}.node`,
   )

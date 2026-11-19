@@ -220,16 +220,16 @@ importers:
     dependencies:
       '@zeus-js/i18n':
         specifier: workspace:*
-        version: link:../../packages/core/i18n
+        version: link:../../packages/features/i18n
       '@zeus-js/query':
         specifier: workspace:*
-        version: link:../../packages/core/query
+        version: link:../../packages/features/query
       '@zeus-js/resource':
         specifier: workspace:*
-        version: link:../../packages/core/resource
+        version: link:../../packages/features/resource
       '@zeus-js/router':
         specifier: workspace:*
-        version: link:../../packages/core/router
+        version: link:../../packages/features/router
       '@zeus-js/zeus':
         specifier: workspace:*
         version: link:../../packages/core/zeus
@@ -311,10 +311,10 @@ importers:
     devDependencies:
       '@zeus-js/devtools-consumer':
         specifier: workspace:*
-        version: link:../../packages/devtools/consumer
+        version: link:../../packages/tooling/consumer
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../packages/devtools/vite-plugin
+        version: link:../../packages/tooling/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -333,7 +333,7 @@ importers:
     devDependencies:
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../packages/devtools/vite-plugin
+        version: link:../../packages/tooling/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -352,7 +352,7 @@ importers:
     devDependencies:
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../packages/devtools/vite-plugin
+        version: link:../../packages/tooling/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -364,7 +364,7 @@ importers:
     dependencies:
       '@zeus-js/devtools-consumer':
         specifier: workspace:*
-        version: link:../../packages/devtools/consumer
+        version: link:../../packages/tooling/consumer
       '@zeus-js/runtime-dom':
         specifier: workspace:*
         version: link:../../packages/core/runtime-dom
@@ -374,7 +374,7 @@ importers:
     devDependencies:
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../packages/devtools/vite-plugin
+        version: link:../../packages/tooling/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -420,7 +420,7 @@ importers:
         version: link:../../packages/web-c/component-dts
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../packages/devtools/vite-plugin
+        version: link:../../packages/tooling/vite-plugin
       '@zeus-js/web-c':
         specifier: workspace:*
         version: link:../../packages/web-c/web-c
@@ -473,7 +473,7 @@ importers:
     devDependencies:
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../packages/devtools/vite-plugin
+        version: link:../../packages/tooling/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -552,19 +552,19 @@ importers:
         version: 1.2.5
       '@zeus-js/compiler-wasm':
         specifier: workspace:*
-        version: link:../../packages/core/compiler-wasm
+        version: link:../../packages/compiler/compiler-wasm
       '@zeus-js/i18n':
         specifier: workspace:*
-        version: link:../../packages/core/i18n
+        version: link:../../packages/features/i18n
       '@zeus-js/playground-engine':
         specifier: workspace:*
-        version: link:../../packages/devtools/playground-engine
+        version: link:../../packages/tooling/playground-engine
       '@zeus-js/query':
         specifier: workspace:*
-        version: link:../../packages/core/query
+        version: link:../../packages/features/query
       '@zeus-js/router':
         specifier: workspace:*
-        version: link:../../packages/core/router
+        version: link:../../packages/features/router
       '@zeus-js/runtime-dom':
         specifier: workspace:*
         version: link:../../packages/core/runtime-dom
@@ -598,7 +598,7 @@ importers:
         version: 19.2.3(@types/react@19.2.17)
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../packages/devtools/vite-plugin
+        version: link:../../packages/tooling/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -614,7 +614,7 @@ importers:
     devDependencies:
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../packages/devtools/vite-plugin
+        version: link:../../packages/tooling/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -651,7 +651,7 @@ importers:
         version: 6.0.2(vite@8.3.4(@types/node@26.0.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(sass@1.105.2)(tsx@4.22.4)(yaml@2.9.0))
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../packages/devtools/vite-plugin
+        version: link:../../packages/tooling/vite-plugin
       '@zeus-js/web-c':
         specifier: workspace:*
         version: link:../../packages/web-c/web-c
@@ -769,7 +769,7 @@ importers:
     devDependencies:
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../packages/devtools/vite-plugin
+        version: link:../../packages/tooling/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -890,7 +890,7 @@ importers:
         version: 6.0.7(vite@8.3.4(@types/node@26.0.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(sass@1.105.2)(tsx@4.22.4)(yaml@2.9.0))(vue@3.5.44(typescript@6.0.3))
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../packages/devtools/vite-plugin
+        version: link:../../packages/tooling/vite-plugin
       '@zeus-js/web-c':
         specifier: workspace:*
         version: link:../../packages/web-c/web-c
@@ -918,7 +918,7 @@ importers:
     devDependencies:
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../packages/devtools/vite-plugin
+        version: link:../../packages/tooling/vite-plugin
       '@zeus-js/web-c':
         specifier: workspace:*
         version: link:../../packages/web-c/web-c
@@ -929,13 +929,13 @@ importers:
         specifier: 'catalog:'
         version: 8.3.4(@types/node@26.0.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(sass@1.105.2)(tsx@4.22.4)(yaml@2.9.0)
 
-  packages/core/compiler:
+  packages/compiler/compiler:
     dependencies:
       '@zeus-js/compiler-native':
         specifier: workspace:*
         version: link:../compiler-native
 
-  packages/core/compiler-native:
+  packages/compiler/compiler-native:
     devDependencies:
       '@jridgewell/trace-mapping':
         specifier: ^0.3.31
@@ -972,62 +972,23 @@ importers:
         specifier: workspace:*
         version: link:../compiler-native-win32-x64-msvc
 
-  packages/core/compiler-native-darwin-arm64: {}
+  packages/compiler/compiler-native-darwin-arm64: {}
 
-  packages/core/compiler-native-darwin-x64: {}
+  packages/compiler/compiler-native-darwin-x64: {}
 
-  packages/core/compiler-native-linux-arm64-gnu: {}
+  packages/compiler/compiler-native-linux-arm64-gnu: {}
 
-  packages/core/compiler-native-linux-x64-gnu: {}
+  packages/compiler/compiler-native-linux-x64-gnu: {}
 
-  packages/core/compiler-native-linux-x64-musl: {}
+  packages/compiler/compiler-native-linux-x64-musl: {}
 
-  packages/core/compiler-native-win32-arm64-msvc: {}
+  packages/compiler/compiler-native-win32-arm64-msvc: {}
 
-  packages/core/compiler-native-win32-x64-msvc: {}
+  packages/compiler/compiler-native-win32-x64-msvc: {}
 
-  packages/core/compiler-shared: {}
+  packages/compiler/compiler-shared: {}
 
-  packages/core/compiler-wasm: {}
-
-  packages/core/i18n:
-    dependencies:
-      '@zeus-js/signal':
-        specifier: workspace:*
-        version: link:../signal
-      intl-messageformat:
-        specifier: ^10.7.18
-        version: 10.7.18
-
-  packages/core/query:
-    dependencies:
-      '@tanstack/query-core':
-        specifier: ^5.104.3
-        version: 5.104.3
-      '@zeus-js/runtime-dom':
-        specifier: workspace:*
-        version: link:../runtime-dom
-      '@zeus-js/signal':
-        specifier: workspace:*
-        version: link:../signal
-
-  packages/core/resource:
-    dependencies:
-      '@zeus-js/signal':
-        specifier: workspace:*
-        version: link:../signal
-
-  packages/core/router:
-    dependencies:
-      '@remix-run/router':
-        specifier: ^1.23.4
-        version: 1.23.4
-      '@zeus-js/runtime-dom':
-        specifier: workspace:*
-        version: link:../runtime-dom
-      '@zeus-js/signal':
-        specifier: workspace:*
-        version: link:../signal
+  packages/compiler/compiler-wasm: {}
 
   packages/core/runtime-dom:
     dependencies:
@@ -1052,15 +1013,6 @@ importers:
         specifier: workspace:*
         version: link:../shared
 
-  packages/core/testing:
-    dependencies:
-      '@zeus-js/signal':
-        specifier: workspace:*
-        version: link:../signal
-      '@zeus-js/zeus':
-        specifier: workspace:*
-        version: link:../zeus
-
   packages/core/zeus:
     dependencies:
       '@zeus-js/runtime-dom':
@@ -1072,6 +1024,22 @@ importers:
       '@zeus-js/signal':
         specifier: workspace:*
         version: link:../signal
+
+  packages/create/create-zeus:
+    dependencies:
+      '@clack/prompts':
+        specifier: ^1.6.0
+        version: 1.6.0
+      picocolors:
+        specifier: ^1.1.1
+        version: 1.1.1
+    devDependencies:
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.30)(tsx@4.22.4)(typescript@6.0.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
 
   packages/create/registry: {}
 
@@ -1100,31 +1068,54 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
-  packages/devtools/consumer: {}
-
-  packages/devtools/create-zeus:
+  packages/features/i18n:
     dependencies:
-      '@clack/prompts':
-        specifier: ^1.6.0
-        version: 1.6.0
-      picocolors:
-        specifier: ^1.1.1
-        version: 1.1.1
-    devDependencies:
-      tsup:
-        specifier: ^8.5.1
-        version: 8.5.1(jiti@2.7.0)(postcss@8.5.30)(tsx@4.22.4)(typescript@6.0.3)(yaml@2.9.0)
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
+      '@zeus-js/signal':
+        specifier: workspace:*
+        version: link:../../core/signal
+      intl-messageformat:
+        specifier: ^10.7.18
+        version: 10.7.18
 
-  packages/devtools/eslint-plugin:
+  packages/features/query:
+    dependencies:
+      '@tanstack/query-core':
+        specifier: ^5.104.3
+        version: 5.104.3
+      '@zeus-js/runtime-dom':
+        specifier: workspace:*
+        version: link:../../core/runtime-dom
+      '@zeus-js/signal':
+        specifier: workspace:*
+        version: link:../../core/signal
+
+  packages/features/resource:
+    dependencies:
+      '@zeus-js/signal':
+        specifier: workspace:*
+        version: link:../../core/signal
+
+  packages/features/router:
+    dependencies:
+      '@remix-run/router':
+        specifier: ^1.23.4
+        version: 1.23.4
+      '@zeus-js/runtime-dom':
+        specifier: workspace:*
+        version: link:../../core/runtime-dom
+      '@zeus-js/signal':
+        specifier: workspace:*
+        version: link:../../core/signal
+
+  packages/tooling/consumer: {}
+
+  packages/tooling/eslint-plugin:
     dependencies:
       eslint:
         specifier: ^10.0.0
         version: 10.5.0(jiti@2.7.0)
 
-  packages/devtools/playground-engine:
+  packages/tooling/playground-engine:
     dependencies:
       '@babel/parser':
         specifier: 'catalog:'
@@ -1142,14 +1133,23 @@ importers:
         specifier: workspace:*
         version: link:../../web-c/output-wc
 
-  packages/devtools/vite-plugin:
+  packages/tooling/testing:
+    dependencies:
+      '@zeus-js/signal':
+        specifier: workspace:*
+        version: link:../../core/signal
+      '@zeus-js/zeus':
+        specifier: workspace:*
+        version: link:../../core/zeus
+
+  packages/tooling/vite-plugin:
     dependencies:
       '@babel/parser':
         specifier: 'catalog:'
         version: 8.0.0
       '@zeus-js/compiler-native':
         specifier: workspace:*
-        version: link:../../core/compiler-native
+        version: link:../../compiler/compiler-native
       vite:
         specifier: 'catalog:'
         version: 8.3.4(@types/node@26.0.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(sass@1.105.2)(tsx@4.22.4)(yaml@2.9.0)
@@ -1164,7 +1164,7 @@ importers:
         version: 0.3.31
       '@zeus-js/compiler-native':
         specifier: workspace:*
-        version: link:../../core/compiler-native
+        version: link:../../compiler/compiler-native
       '@zeus-js/component-analyzer':
         specifier: workspace:*
         version: link:../component-analyzer
@@ -6942,10 +6942,6 @@ packages:
     resolution: {integrity: sha512-SHf/r48b7vOrjve9PxJo3MN5v5yuyjHvdUcrQffT3WXMUfnGmHDVbC4k3sHJaJTgZCwpUplIaAo5ANtMyp3YHg==}
     engines: {node: '>=18'}
 
-  tinyglobby@0.2.16:
-    resolution: {integrity: sha512-pn99VhoACYR8nFHhxqix+uvsbXineAasWm5ojXoN8xEwK5Kd3/TrhNn1wByuD52UxWRLy8pu+kRMniEi6Eq9Zg==}
-    engines: {node: '>=12.0.0'}
-
   tinyglobby@0.2.17:
     resolution: {integrity: sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==}
     engines: {node: '>=12.0.0'}
@@ -7594,7 +7590,7 @@ snapshots:
 
   '@babel/generator@8.0.0':
     dependencies:
-      '@babel/parser': 8.0.0
+      '@babel/parser': 8.1.0
       '@babel/types': 8.0.0
       '@jridgewell/gen-mapping': 0.3.12
       '@jridgewell/trace-mapping': 0.3.31
@@ -10836,7 +10832,7 @@ snapshots:
 
   ast-kit@3.0.0:
     dependencies:
-      '@babel/parser': 8.0.0
+      '@babel/parser': 8.1.0
       estree-walker: 3.0.3
       pathe: 2.0.3
 
@@ -10848,7 +10844,7 @@ snapshots:
 
   ast-walker-scope@0.10.0:
     dependencies:
-      '@babel/parser': 8.0.0
+      '@babel/parser': 8.1.0
       '@babel/types': 8.0.0
       ast-kit: 3.0.0
 
@@ -11380,10 +11376,6 @@ snapshots:
   fd-package-json@2.0.0:
     dependencies:
       walk-up-path: 4.0.0
-
-  fdir@6.5.0(picomatch@4.0.4):
-    optionalDependencies:
-      picomatch: 4.0.4
 
   fdir@6.5.0(picomatch@4.0.7):
     optionalDependencies:
@@ -12812,12 +12804,12 @@ snapshots:
 
   sucrase@3.35.1:
     dependencies:
-      '@jridgewell/gen-mapping': 0.3.12
+      '@jridgewell/gen-mapping': 0.3.13
       commander: 4.0.0
       lines-and-columns: 1.2.4
       mz: 2.7.0
       pirates: 4.0.7
-      tinyglobby: 0.2.16
+      tinyglobby: 0.2.17
       ts-interface-checker: 0.1.13
 
   superjson@2.2.6:
@@ -12855,11 +12847,6 @@ snapshots:
   tinyexec@0.3.2: {}
 
   tinyexec@1.2.4: {}
-
-  tinyglobby@0.2.16:
-    dependencies:
-      fdir: 6.5.0(picomatch@4.0.4)
-      picomatch: 4.0.4
 
   tinyglobby@0.2.17:
     dependencies:
@@ -12920,7 +12907,7 @@ snapshots:
       source-map: 0.7.6
       sucrase: 3.35.1
       tinyexec: 0.3.2
-      tinyglobby: 0.2.16
+      tinyglobby: 0.2.17
       tree-kill: 1.2.2
     optionalDependencies:
       postcss: 8.5.30

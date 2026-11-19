@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const root = path.resolve(import.meta.dirname, '../..')
-const nativeRoot = path.join(root, 'packages/core/compiler-native')
+const nativeRoot = path.join(root, 'packages/compiler/compiler-native')
 type Target =
   | 'aarch64-apple-darwin'
   | 'x86_64-apple-darwin'

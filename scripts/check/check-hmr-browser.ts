@@ -13,7 +13,7 @@ import {
 } from '@playwright/test'
 import { createServer } from 'vite'
 
-import { createZeus } from '../../packages/devtools/vite-plugin/src'
+import { createZeus } from '../../packages/tooling/vite-plugin/src'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const consumerRoot = process.env.ZEUS_HMR_CONSUMER_ROOT

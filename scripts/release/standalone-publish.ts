@@ -3,8 +3,8 @@ import { resolve } from 'node:path'
 import { publish } from '@baicie/release'
 
 const devtoolsPackages: Record<string, string> = {
-  'create-zeus': 'packages/devtools/create-zeus',
-  'vite-plugin': 'packages/devtools/vite-plugin',
+  'create-zeus': 'packages/create/create-zeus',
+  'vite-plugin': 'packages/tooling/vite-plugin',
 }
 
 publish({
