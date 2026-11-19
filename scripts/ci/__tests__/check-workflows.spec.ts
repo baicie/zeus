@@ -208,11 +208,19 @@ describe('a missing binary', () => {
 })
 
 describe('the repository as it is', () => {
-  it.skipIf(!hasActionlint())('has no blocking structural findings', () => {
-    const result = evaluateWorkflowProblems(runActionlint(root))
-    if (!result.ok) {
-      console.error(JSON.stringify(result.problems, null, 2))
-    }
-    expect(result.ok).toBe(true)
-  })
+  // This reads every workflow file through the real `actionlint` binary. On a
+  // loaded machine that takes several seconds, and the default 5s budget turns
+  // a slow lint into a failed assertion with no finding behind it. The gate's
+  // subject is the findings, not the clock.
+  it.skipIf(!hasActionlint())(
+    'has no blocking structural findings',
+    () => {
+      const result = evaluateWorkflowProblems(runActionlint(root))
+      if (!result.ok) {
+        console.error(JSON.stringify(result.problems, null, 2))
+      }
+      expect(result.ok).toBe(true)
+    },
+    60_000,
+  )
 })
