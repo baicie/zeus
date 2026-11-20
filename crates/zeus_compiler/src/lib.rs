@@ -3,6 +3,7 @@ mod codegen;
 pub mod ir;
 pub mod lower;
 mod passes;
+mod pipeline;
 mod ssr;
 mod stage_contracts;
 pub mod support;
@@ -103,7 +104,9 @@ pub struct TransformModuleResult {
 /// parser's stack before Oxc sees it, so a Node worker abort or a WebAssembly
 /// trap becomes an ordinary diagnostic instead. An unrecognized extension is
 /// left to `lower_module`, which reports `ZEUS_UNSUPPORTED_SOURCE_TYPE`.
-fn nesting_diagnostic(options: &TransformModuleOptions) -> Option<TransformModuleResult> {
+pub(crate) fn nesting_diagnostic(
+    options: &TransformModuleOptions,
+) -> Option<TransformModuleResult> {
     let source_type = oxc_span::SourceType::from_path(&options.filename).ok()?;
     if !nesting::exceeds_nesting_cost_with_jsx(&options.source, source_type.is_jsx()) {
         return None;
@@ -128,106 +131,15 @@ fn nesting_diagnostic(options: &TransformModuleOptions) -> Option<TransformModul
     })
 }
 
+// The options are taken by value because that is this function's published
+// signature; every caller already passes an owned value and the two hosts bind
+// it directly. `pipeline::run` borrows them instead, which is why the lint
+// fires here rather than there. Changing the signature would be a public API
+// change for a lint, so the allow stays.
+#[allow(clippy::needless_pass_by_value)]
 pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResult {
-    if let Some(diagnostic) = nesting_diagnostic(&options) {
-        return diagnostic;
-    }
-
-    let lowered = lower::lower_module(&options.source, &options.filename);
-    if !lowered.diagnostics.is_empty() {
-        return TransformModuleResult {
-            code: String::new(),
-            map: None,
-            diagnostics: lowered.diagnostics,
-            hydration_plan: None,
-            hmr_plan: None,
-        };
-    }
-
-    let Some(ir) = lowered.ir else {
-        return TransformModuleResult {
-            code: options.source,
-            map: None,
-            diagnostics: Vec::new(),
-            hydration_plan: None,
-            hmr_plan: None,
-        };
-    };
-
-    if ir.components.is_empty()
-        && (!options.hmr || lowered.hmr.render_calls.is_empty())
-        && (!options.pure_define_element.is_enabled()
-            || lowered.pure_define_element_calls.is_empty())
-        && (options.target != TransformTarget::Ssr || lowered.ssr_runtime_imports.is_empty())
-    {
-        return TransformModuleResult {
-            code: options.source,
-            map: None,
-            diagnostics: Vec::new(),
-            hydration_plan: None,
-            hmr_plan: None,
-        };
-    }
-
-    if options.target == TransformTarget::Ssr && !lowered.error_boundary_spans.is_empty() {
-        return TransformModuleResult {
-            code: String::new(),
-            map: None,
-            diagnostics: lowered.error_boundary_spans.iter().map(|span| {
-                CompilerDiagnostic::error(
-                    "ZEUS_SSR_ERROR_BOUNDARY_UNSUPPORTED",
-                    "ErrorBoundary is a Native DOM boundary and cannot be rendered by the SSR target.",
-                    &options.filename,
-                    Some(*span),
-                )
-            }).collect(),
-            hydration_plan: None,
-            hmr_plan: None,
-        };
-    }
-
-    if options.target == TransformTarget::Ssr {
-        let diagnostics = ssr::validate_ssr_properties(&ir, &options.filename);
-        if !diagnostics.is_empty() {
-            return TransformModuleResult {
-                code: String::new(),
-                map: None,
-                diagnostics,
-                hydration_plan: None,
-                hmr_plan: None,
-            };
-        }
-    }
-
-    let hydration_plan = analysis::hydration::build_hydration_plan(&ir);
-    let mut result = if options.target == TransformTarget::Ssr {
-        codegen::emit_ssr_module(&codegen::SsrModuleOptions {
-            source: &options.source,
-            filename: &options.filename,
-            runtime_module: &options.runtime_module,
-            source_map: options.source_map,
-            module: &ir,
-            reserved_names: &lowered.reserved_names,
-            define_element_calls: &lowered.pure_define_element_calls,
-            ssr_runtime_imports: &lowered.ssr_runtime_imports,
-            auto_hydrate: options.auto_hydrate,
-        })
-    } else {
-        codegen::emit_module(&codegen::EmitModuleOptions {
-            source: &options.source,
-            filename: &options.filename,
-            runtime_module: &options.runtime_module,
-            enable_delegation: options.delegate_events,
-            source_map: options.source_map,
-            module: &ir,
-            reserved_names: &lowered.reserved_names,
-            enable_hmr: options.hmr,
-            hmr: &lowered.hmr,
-            pure_define_element: options.pure_define_element,
-            pure_define_element_calls: &lowered.pure_define_element_calls,
-            auto_hydrate: options.auto_hydrate,
-        })
-    };
-    result.hydration_plan = hydration_plan;
-    result
+    // The stage order and what each stage returns live in `pipeline`. Keeping
+    // it in one place means a new early exit has to be written once, as a
+    // named shape, instead of copied as another `None`-filled literal.
+    pipeline::run(&options)
 }

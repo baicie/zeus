@@ -112,12 +112,13 @@ Node 侧 `packages/compiler/compiler-native`（napi），浏览器侧
 ### 5.1 分层
 
 ```
-support/   跨阶段叶子能力，不 import 任何阶段
-ir.rs      编译语义的唯一事实来源
-lower.rs   解析 + 语义分析 + JSX → ModuleIr
-passes/    对 IR 的重写，不改语义
-analysis/  读 IR 得出事实，不发射
-codegen/   事实 → JavaScript
+support/       跨阶段叶子能力，不 import 任何阶段
+ir.rs          编译语义的唯一事实来源
+lower/         解析 + 语义分析 + JSX → ModuleIr（frontend.rs 收集事实）
+passes/        对 IR 的重写，不改语义
+analysis/      读 IR 得出事实，不发射
+codegen/       事实 → JavaScript
+pipeline.rs    阶段顺序与早退形状（transform_module 委托给它）
 ```
 
 **核心规则：一个阶段可以计算事实并记录下来，但不得回头到后续阶段重新推导。**

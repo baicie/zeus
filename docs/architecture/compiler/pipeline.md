@@ -16,7 +16,8 @@
 
 ```
 crates/zeus_compiler/src/
-├── lib.rs              公开入口 transform_module + TransformTarget
+├── lib.rs              公开入口 transform_module（委托给 pipeline）
+├── pipeline.rs         阶段顺序与三种早退形状
 ├── ir.rs               Zeus IR：编译语义的唯一事实来源
 ├── lower.rs            解析、语义分析、JSX → ModuleIr
 ├── ssr.rs              目标相关的拒绝规则（SSR 属性校验）
@@ -28,7 +29,8 @@ crates/zeus_compiler/src/
 ├── codegen/            事实 → JavaScript
 │   ├── mod.rs          DOM 发射与模板渲染
 │   ├── ssr.rs          SSR 发射
-│   ├── analysis.rs     发射前的事实收集
+│   ├── analysis.rs     发射前的事实收集（AnalysisResult）
+│   ├── emit_plan.rs    哪些段落会发射（EmitPlan）
 │   └── infra.rs        DOM/SSR 共用基础设施
 └── support/            跨阶段叶子能力
     ├── diagnostic.rs   CompilerDiagnostic
@@ -95,8 +97,13 @@ codegen::emit_ssr_module  |  codegen::emit_module
 - **Hydration 计划在发射之前算好**，由 `analysis` 产出、`codegen` 消费。
   emitter 不再自己遍历 IR 推导 hydration 标记。
 - **HMR 重写在 `passes/hmr.rs`**，`codegen` 只按计划发射 `emit_hmr_*`。
-- 没有独立的 `pipeline.rs`：阶段顺序仍在 `lib.rs` 的 `transform_module` 中。
-  这是已知的剩余技术债，不是设计意图。
+- **阶段顺序在 `pipeline.rs`**（R19 起）。`transform_module` 只是
+  `pipeline::run(options)` 的一行委托。早退的三种结果形状有名字：
+  `unchanged`（原样返回源码）、`rejected`（有诊断、无代码）、以及正常发射。
+- **发射前的事实由 `AnalysisResult` 一次算完**，`emit_module` 消费它，
+  不再自己决定何时重新推导。
+- **哪些段落会发射由 `EmitPlan` 描述**，运行时 import 的守卫读它，
+  而不是重新 `is_empty()` 判一次。
 
 ---
 
