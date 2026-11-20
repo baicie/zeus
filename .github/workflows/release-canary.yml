@@ -211,7 +211,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: canary-readiness
-          path: temp/release/canary-readiness.json
+          path: |
+            temp/release/canary-readiness.json
+            temp/release/canary-stages.json
+          if-no-files-found: warn
 
   canary-dry-run:
     if: >-
@@ -266,7 +269,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: canary-readiness-dry-run
-          path: temp/release/canary-readiness.json
+          path: |
+            temp/release/canary-readiness.json
+            temp/release/canary-stages.json
+          if-no-files-found: warn
 
       - name: Preserve packed consumer report
         if: always()
