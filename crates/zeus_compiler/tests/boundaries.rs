@@ -105,6 +105,43 @@ fn codegen_depends_on_analysis_one_way() {
 }
 
 #[test]
+fn codegen_does_not_import_lowering() {
+    // Cross-stage data belongs in `stage_contracts`, which both sides may
+    // name. An emitter importing `lower` would make it depend on how lowering
+    // collects its side channels, so a change to collection would be
+    // indistinguishable from a change to the contract.
+    let analysis = analyse_crate();
+    for module in depgraph::modules_under(&analysis, "codegen") {
+        assert!(
+            !analysis.imports(&module, "lower"),
+            "{module} imports the lowering module; move the type it needs into \
+             `stage_contracts`"
+        );
+    }
+}
+
+#[test]
+fn stage_contracts_imports_no_stage() {
+    // The contract module must stay nameable by both sides without pulling
+    // either in.
+    let analysis = analyse_crate();
+    let forbidden: Vec<String> = analysis
+        .imports_of("stage_contracts")
+        .into_iter()
+        .filter(|import| {
+            import.starts_with("codegen")
+                || import.starts_with("lower")
+                || import.starts_with("passes")
+                || import.starts_with("analysis")
+        })
+        .collect();
+    assert!(
+        forbidden.is_empty(),
+        "stage_contracts must not depend on a stage; it imports {forbidden:?}"
+    );
+}
+
+#[test]
 fn ir_does_not_depend_on_any_stage() {
     let analysis = analyse_crate();
     let forbidden: Vec<String> = analysis

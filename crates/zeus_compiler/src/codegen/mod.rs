@@ -31,8 +31,8 @@ use crate::{
         ForBindingIr, FragmentIr, ModuleIr, NodeId, RootIr, ShowBindingIr, StaticAttributeValue,
         TransitionBindingIr, TransitionOptionIr, is_children_expression,
     },
-    lower::HmrInfo,
     span::SourceIndex,
+    stage_contracts::HmrInfo,
     support::html::{is_raw_text_element, is_svg_element, is_void_element},
     support::hydration::{
         component_root_marker_id, element_marker_id, node_marker_id, text_marker_id,
