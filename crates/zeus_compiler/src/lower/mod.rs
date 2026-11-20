@@ -3,9 +3,10 @@ use std::collections::{HashMap, HashSet};
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
     ArrowFunctionExpression, AwaitExpression, BindingPattern, CallExpression, Class, Declaration,
-    Expression, Function, IdentifierReference, ImportDeclarationSpecifier,
-    JSXAttribute, JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXChild, JSXElement,
-    JSXElementName, JSXExpression, JSXExpressionContainer, JSXFragment, JSXSpreadAttribute, ModuleDeclaration, Statement, VariableDeclarator, YieldExpression,
+    Expression, Function, IdentifierReference, ImportDeclarationSpecifier, JSXAttribute,
+    JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXChild, JSXElement, JSXElementName,
+    JSXExpression, JSXExpressionContainer, JSXFragment, JSXSpreadAttribute, ModuleDeclaration,
+    Statement, VariableDeclarator, YieldExpression,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_diagnostics::{OxcDiagnostic, Severity};
@@ -3154,7 +3155,6 @@ fn collect_render_names(program: &oxc_ast::ast::Program<'_>) -> HashSet<String> 
     }
     names
 }
-
 
 fn is_component_element(element: &JSXElement<'_>) -> bool {
     match &element.opening_element.name {

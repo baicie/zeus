@@ -12,8 +12,8 @@
 use std::collections::{HashMap, HashSet};
 
 use oxc_ast::ast::{
-    BindingPattern, Expression, FunctionType, JSXElementName,
-    MemberExpression, Statement, VariableDeclarator,
+    BindingPattern, Expression, FunctionType, JSXElementName, MemberExpression, Statement,
+    VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::Span;
@@ -40,7 +40,10 @@ pub(super) fn collect_variable_render_calls<'a>(
     }
 }
 
-pub(super) fn render_call(expression: &Expression<'_>, render_names: &HashSet<String>) -> Option<Span> {
+pub(super) fn render_call(
+    expression: &Expression<'_>,
+    render_names: &HashSet<String>,
+) -> Option<Span> {
     match expression {
         Expression::CallExpression(call) => match &call.callee {
             Expression::Identifier(identifier)

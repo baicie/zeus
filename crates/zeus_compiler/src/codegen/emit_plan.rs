@@ -36,7 +36,11 @@ pub(crate) enum Section {
 
 impl Section {
     pub(crate) const fn if_(condition: bool) -> Self {
-        if condition { Self::Written } else { Self::Absent }
+        if condition {
+            Self::Written
+        } else {
+            Self::Absent
+        }
     }
 
     pub(crate) const fn is_written(self) -> bool {
@@ -66,7 +70,11 @@ impl EmitPlan {
     /// this module have components?" and "did HMR produce a module?" — keeps
     /// the derived sections consistent. Writing the five fields by hand is how
     /// a plan ends up claiming templates for a module with no components.
-    pub(crate) fn for_module(has_components: bool, has_hmr: bool, has_delegated_events: bool) -> Self {
+    pub(crate) fn for_module(
+        has_components: bool,
+        has_hmr: bool,
+        has_delegated_events: bool,
+    ) -> Self {
         Self {
             runtime_import: Section::if_(has_components),
             hmr: Section::if_(has_hmr),

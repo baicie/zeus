@@ -173,7 +173,10 @@ mod tests {
         assert_eq!(result.code, source);
         assert!(result.diagnostics.is_empty());
         assert!(result.map.is_none());
-        assert!(result.hydration_plan.is_none(), "nothing was lowered, so no plan");
+        assert!(
+            result.hydration_plan.is_none(),
+            "nothing was lowered, so no plan"
+        );
     }
 
     #[test]

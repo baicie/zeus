@@ -104,7 +104,9 @@ pub struct TransformModuleResult {
 /// parser's stack before Oxc sees it, so a Node worker abort or a WebAssembly
 /// trap becomes an ordinary diagnostic instead. An unrecognized extension is
 /// left to `lower_module`, which reports `ZEUS_UNSUPPORTED_SOURCE_TYPE`.
-pub(crate) fn nesting_diagnostic(options: &TransformModuleOptions) -> Option<TransformModuleResult> {
+pub(crate) fn nesting_diagnostic(
+    options: &TransformModuleOptions,
+) -> Option<TransformModuleResult> {
     let source_type = oxc_span::SourceType::from_path(&options.filename).ok()?;
     if !nesting::exceeds_nesting_cost_with_jsx(&options.source, source_type.is_jsx()) {
         return None;
