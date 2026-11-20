@@ -6,6 +6,11 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+# Compiles per-stage timing into `transform_module`. Off by default: the
+# production path must not pay for a measurement nobody asked for.
+stage-timing = []
+
 [dependencies]
 oxc_allocator.workspace = true
 oxc_ast.workspace = true

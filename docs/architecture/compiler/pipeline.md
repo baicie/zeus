@@ -104,6 +104,9 @@ codegen::emit_ssr_module  |  codegen::emit_module
   不再自己决定何时重新推导。
 - **哪些段落会发射由 `EmitPlan` 描述**，运行时 import 的守卫读它，
   而不是重新 `is_empty()` 判一次。
+- **每个阶段的耗时可以测量**（`stage_timing`），默认编译掉。生产路径上
+  没有运行时开关：`--features stage-timing` 才有插桩，否则 `timed` 就是
+  `body()` 本身。测量结果见 [performance-baseline.md](./performance-baseline.md)。
 
 ---
 
