@@ -129,9 +129,15 @@ pub(crate) fn nesting_diagnostic(options: &TransformModuleOptions) -> Option<Tra
     })
 }
 
+// The options are taken by value because that is this function's published
+// signature; every caller already passes an owned value and the two hosts bind
+// it directly. `pipeline::run` borrows them instead, which is why the lint
+// fires here rather than there. Changing the signature would be a public API
+// change for a lint, so the allow stays.
+#[allow(clippy::needless_pass_by_value)]
 pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResult {
     // The stage order and what each stage returns live in `pipeline`. Keeping
     // it in one place means a new early exit has to be written once, as a
     // named shape, instead of copied as another `None`-filled literal.
-    pipeline::run(options)
+    pipeline::run(&options)
 }

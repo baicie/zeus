@@ -36,10 +36,10 @@ fn position(haystack: &str, needle: &str) -> usize {
         .unwrap_or_else(|| panic!("the output must contain {needle:?}"))
 }
 
-const COMPONENT: &str = r#"export const App = () => (
+const COMPONENT: &str = r"export const App = () => (
   <button onClick={() => {}}>hi {1 + 1}</button>
 )
-"#;
+";
 
 #[test]
 fn the_runtime_import_precedes_the_templates_and_the_component_body() {

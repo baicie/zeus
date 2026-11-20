@@ -61,10 +61,10 @@ fn rejected(diagnostics: Vec<CompilerDiagnostic>) -> TransformModuleResult {
 }
 
 /// Runs the compiler stages in order and returns what the caller asked for.
-pub(crate) fn run(options: TransformModuleOptions) -> TransformModuleResult {
+pub(crate) fn run(options: &TransformModuleOptions) -> TransformModuleResult {
     // The nesting guard runs first: it exists to reject input the parser would
     // exhaust the stack on, so it cannot run after the parser.
-    if let Some(diagnostic) = crate::nesting_diagnostic(&options) {
+    if let Some(diagnostic) = crate::nesting_diagnostic(options) {
         return diagnostic;
     }
 
@@ -147,21 +147,6 @@ pub(crate) fn run(options: TransformModuleOptions) -> TransformModuleResult {
     result
 }
 
-/// Whether the module's inputs can produce any emitted code at all.
-///
-/// Exposed for tests that pin the "nothing to do" condition; the pipeline
-/// itself folds this into the early exit above.
-#[cfg(test)]
-pub(crate) fn has_work(options: &TransformModuleOptions, lowered: &lower::LowerResult) -> bool {
-    !lowered.ir.as_ref().is_some_and(|ir| {
-        ir.components.is_empty()
-            && (!options.hmr || lowered.hmr.render_calls.is_empty())
-            && (!options.pure_define_element.is_enabled()
-                || lowered.pure_define_element_calls.is_empty())
-            && (options.target != TransformTarget::Ssr || lowered.ssr_runtime_imports.is_empty())
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -184,7 +169,7 @@ mod tests {
     #[test]
     fn a_module_with_nothing_to_lower_is_returned_byte_for_byte() {
         let source = "export const answer = 42\n";
-        let result = run(options(source, TransformTarget::Dom));
+        let result = run(&options(source, TransformTarget::Dom));
         assert_eq!(result.code, source);
         assert!(result.diagnostics.is_empty());
         assert!(result.map.is_none());
@@ -197,7 +182,7 @@ mod tests {
         // must not receive the source as if it had compiled.
         let source = "import { ErrorBoundary } from '@zeus-js/zeus'\n\
              export const App = () => <ErrorBoundary><p>x</p></ErrorBoundary>\n";
-        let result = run(options(source, TransformTarget::Ssr));
+        let result = run(&options(source, TransformTarget::Ssr));
         assert!(!result.diagnostics.is_empty());
         assert_eq!(
             result.code, "",
@@ -208,7 +193,7 @@ mod tests {
     #[test]
     fn the_hydration_plan_is_attached_after_emission() {
         let source = "export const App = () => <div>hi {1 + 1}</div>\n";
-        let result = run(options(source, TransformTarget::Dom));
+        let result = run(&options(source, TransformTarget::Dom));
         assert!(!result.code.is_empty());
         assert!(
             result.hydration_plan.is_some(),

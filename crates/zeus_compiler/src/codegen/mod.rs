@@ -89,7 +89,7 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
     let locator_attribute = &facts.locator_attribute;
     let runtime = RuntimeNames::allocate(
         &helper_usage,
-        &locator_attribute,
+        locator_attribute,
         enable_delegation,
         &mut names,
     );
@@ -98,20 +98,18 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
     // conditions used to be inline `is_empty()` calls scattered through the
     // emitter; naming them here means "when is the runtime import needed?" is
     // answered in one place, next to the facts it depends on.
-    let plan = EmitPlan {
-        runtime_import: !module.components.is_empty(),
-        hmr: hmr_module.is_some(),
-        templates: !module.components.is_empty(),
-        components: !module.components.is_empty(),
-        delegated_events: !facts.delegated_events.is_empty(),
-    };
+    let plan = EmitPlan::for_module(
+        !module.components.is_empty(),
+        hmr_module.is_some(),
+        !facts.delegated_events.is_empty(),
+    );
 
     let mut generated = module
         .components
         .iter()
         .zip(binding_sets)
         .map(|(component, bindings)| {
-            GeneratedComponent::new(component, bindings, &locator_attribute, &mut names)
+            GeneratedComponent::new(component, bindings, locator_attribute, &mut names)
         })
         .collect::<Vec<_>>();
     intern_static_templates(&mut generated);
@@ -139,7 +137,7 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
     if cursor > 0 && !writer.ends_with_newline() {
         writer.push("\n");
     }
-    if plan.runtime_import {
+    if plan.runtime_import.is_written() {
         emit_runtime_import(&mut writer, &runtime, runtime_module);
     }
     emit_hmr_state(
@@ -161,7 +159,7 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
 
     let mut component_emitter = ComponentEmitter {
         runtime: &runtime,
-        locator_attribute: &locator_attribute,
+        locator_attribute,
         names: &mut names,
         auto_hydrate,
     };

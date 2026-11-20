@@ -114,7 +114,7 @@ Node 侧 `packages/compiler/compiler-native`（napi），浏览器侧
 ```
 support/       跨阶段叶子能力，不 import 任何阶段
 ir.rs          编译语义的唯一事实来源
-lower.rs       解析 + 语义分析 + JSX → ModuleIr
+lower/         解析 + 语义分析 + JSX → ModuleIr（frontend.rs 收集事实）
 passes/        对 IR 的重写，不改语义
 analysis/      读 IR 得出事实，不发射
 codegen/       事实 → JavaScript

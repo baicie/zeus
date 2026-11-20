@@ -9,7 +9,7 @@
 //! They live here instead — a neutral module both stages may name. This is not
 //! a home for every side channel: each type below is here because a stage
 //! other than lowering reads it. Lowering's own working state stays in
-//! `lower.rs`.
+//! `lower/mod.rs`.
 //!
 //! Nothing in this module reads or writes the IR, and it imports no stage.
 
