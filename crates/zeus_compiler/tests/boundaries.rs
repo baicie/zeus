@@ -712,3 +712,58 @@ fn a_qualified_path_inside_a_macro_body_is_not_seen() {
          limitation changed and the doc comment on `qualified_paths` is stale"
     );
 }
+
+// ---------------------------------------------------------------------------
+// The DOM subsystem's ownership
+// ---------------------------------------------------------------------------
+
+/// The DOM data model does not depend on the codegen orchestrator.
+///
+/// `GeneratedComponent` and `DynamicBinding` are DOM types: they describe a
+/// cloned node and what attaches to it. The orchestrator uses them; they must
+/// not reach back. If this fails, something in `dom/model.rs` is calling into
+/// `codegen/mod.rs`, which is the shape that made the previous hydration
+/// extraction look like a cycle.
+#[test]
+fn the_dom_model_does_not_depend_on_the_orchestrator() {
+    let analysis = analyse_crate();
+    assert!(
+        !analysis.imports("codegen::dom::model", "codegen"),
+        "dom/model.rs imports the orchestrator; the model is a lower layer than \
+         the code that drives it. Imports were {:?}",
+        analysis.imports_of("codegen::dom::model")
+    );
+}
+
+/// The model reaches only the shared infrastructure, the IR and leaf support.
+#[test]
+fn the_dom_model_depends_only_on_lower_layers() {
+    let analysis = analyse_crate();
+    let allowed = [
+        "codegen::infra",
+        "ir",
+        "support::html",
+        "support::span",
+        "support::diagnostic",
+    ];
+    let unexpected: Vec<String> = analysis
+        .imports_of("codegen::dom::model")
+        .into_iter()
+        .filter(|target| !allowed.contains(&target.as_str()))
+        .collect();
+    assert!(
+        unexpected.is_empty(),
+        "dom/model.rs depends on {unexpected:?}, which is outside its layer"
+    );
+}
+
+/// The orchestrator may depend on the DOM subsystem, and does.
+#[test]
+fn the_orchestrator_depends_on_the_dom_subsystem() {
+    let analysis = analyse_crate();
+    assert!(
+        analysis.imports("codegen", "codegen::dom"),
+        "the orchestrator is expected to use the DOM types; edges were {:?}",
+        analysis.imports_of("codegen")
+    );
+}
