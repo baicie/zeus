@@ -43,6 +43,10 @@ fn analyse_crate() -> Analysis {
 
 #[test]
 fn support_is_a_leaf_layer() {
+    // `support::hmr` now holds only the `HmrPlan` / `HmrBinding` data contract;
+    // its IR traversal is a pass (`passes::hmr`). It still names IR types, so
+    // it stays on this list until those types move too.
+    // `support::hydration` still traverses the IR to build a plan — R18.3 debt.
     const MAY_TRAVERSE_IR: &[&str] = &["support::hmr", "support::hydration"];
 
     let analysis = analyse_crate();

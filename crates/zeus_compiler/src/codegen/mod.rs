@@ -213,7 +213,7 @@ fn prepare_hmr_module(
     }
     let state_name = names.allocate("_zeusHmrState");
     let mut module = options.module.clone();
-    let plan = crate::support::hmr::prepare(
+    let plan = crate::passes::hmr::prepare(
         &mut module,
         options.source,
         options.runtime_module,
