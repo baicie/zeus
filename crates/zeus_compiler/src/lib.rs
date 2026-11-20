@@ -1,3 +1,4 @@
+mod analysis;
 mod codegen;
 pub mod ir;
 pub mod lower;
@@ -197,7 +198,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
         }
     }
 
-    let hydration_plan = hydration::build_hydration_plan(&ir);
+    let hydration_plan = analysis::hydration::build_hydration_plan(&ir);
     let mut result = if options.target == TransformTarget::Ssr {
         codegen::emit_ssr_module(&codegen::SsrModuleOptions {
             source: &options.source,
