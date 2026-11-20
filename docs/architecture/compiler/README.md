@@ -8,7 +8,8 @@ for Node (`packages/compiler/compiler-native`) and a WASM build
 
 | Document                                                   | What it answers                                                                     |
 | ---------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| [current-pipeline.md](./current-pipeline.md)               | What the compiler does today, with a call graph                                     |
+| [pipeline.md](./pipeline.md)                               | **The current structure**: module layout, stage order, enforced layering            |
+| [current-pipeline.md](./current-pipeline.md)               | **Historical snapshot** of the pipeline before R17.0 — line numbers no longer apply |
 | [module-ownership.md](./module-ownership.md)               | Which stage owns which function, and what the split must not reintroduce            |
 | [ir-contract.md](./ir-contract.md)                         | Rust IR vs the TypeScript `compiler-shared` IR, and why one is stale                |
 | [dependency-upgrade-plan.md](./dependency-upgrade-plan.md) | Every dependency version, verified against the registry, with what was held and why |
@@ -20,14 +21,18 @@ for Node (`packages/compiler/compiler-native`) and a WASM build
 
 ```
 input
-  → nesting guard          support/nesting.rs      reject input that would exhaust the parser stack
-  → parse + semantic       lower.rs               Oxc parser and SemanticBuilder
-  → lower                  lower.rs               JSX semantics → ModuleIr
-  → validate               ssr.rs                 target-specific rejection
-  → analyse                codegen/analysis.rs    which events delegate, which names collide
-  → emit                   codegen/{mod,ssr}.rs  ModuleIr + facts → JavaScript
-  → source map, plans      codegen, support       map, hydration plan, HMR plan
+  → nesting guard          support/nesting.rs     reject input that would exhaust the parser stack
+  → parse + semantic       lower.rs                Oxc parser and SemanticBuilder
+  → lower                  lower.rs                JSX semantics → ModuleIr
+  → validate               ssr.rs                  target-specific rejection
+  → analyse                analysis/, codegen/analysis.rs   facts the emitter needs
+  → emit                   codegen/{mod,ssr}.rs    ModuleIr + facts → JavaScript
+  → plans                  analysis/hydration.rs, passes/hmr.rs   hydration plan, HMR slots
 ```
+
+`passes/` rewrites the IR without changing its meaning; `analysis/` reads the IR
+and produces plans. Details, including which layer may import which, are in
+[pipeline.md](./pipeline.md).
 
 Each stage has one job. The rule that keeps it that way: **a stage may compute
 facts and record them; it may not reach into a later stage to re-derive them.**

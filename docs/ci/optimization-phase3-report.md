@@ -49,13 +49,13 @@ Playwright 的 50s 里：**apt 依赖 41.4s，浏览器下载仅 8.6s**。这决
 
 | 项   | 内容                                                                                                                                                                   |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 文件 | `.github/workflows/compiler-native.yml`、`scripts/release/__tests__/release-workflow.spec.ts`、`docs/release-process.md`、`docs/ci-optimization-phase3a.md`            |
+| 文件 | `.github/workflows/compiler-native.yml`、`scripts/release/__tests__/release-workflow.spec.ts`、`docs/release-process.md`、`docs/ci/optimization-phase3a.md`            |
 | 改动 | `push` 由 4 个前缀收缩为 `main`；新增 6 条回归测试（四个触发器、七平台、自识别守卫）                                                                                   |
 | 保留 | `workflow_call`（release.yml / release-canary.yml 都在用）、`workflow_dispatch`（任意分支手动）、`pull_request` 的 `paths:` 过滤逐字未动、七平台矩阵与 artifact 名未动 |
 | 风险 | feature 分支无 PR 时不再跑 push 验证；`workflow_dispatch` 仍在，与 Phase 1 对 `ci.yml` 的取舍一致                                                                      |
 | 回滚 | 单文件：把四个前缀加回 `push:`，删除守卫块                                                                                                                             |
 
-**main 上的跨 workflow 去重已按你的决定撤回**，改为 `docs/ci-native-matrix-dedup-rfc.md` 记录设计。原因合理：要判定"canary 已建过"需要证明七个平台的结论、artifact 归属与 run attempt，判错的代价是发布物失去唯一验证。
+**main 上的跨 workflow 去重已按你的决定撤回**，改为 `docs/ci/native-matrix-dedup-rfc.md` 记录设计。原因合理：要判定"canary 已建过"需要证明七个平台的结论、artifact 归属与 run attempt，判错的代价是发布物失去唯一验证。
 
 **真实 Actions 证据（MEASURED）**：`597178f2` 的 PR run [43252159090](https://github.com/baicie/zeus/actions/runs/43252159090) 只有 **1** 个 Native Matrix run，`dedupe-against-canary` 正确 skipped，七平台正常启动。旧配置下同一提交会有 2 个。重命名后 CI 全绿（[43272772347](https://github.com/baicie/zeus/actions/runs/43272772347)）。
 
@@ -63,7 +63,7 @@ Playwright 的 50s 里：**apt 依赖 41.4s，浏览器下载仅 8.6s**。这决
 
 | 项   | 内容                                                                                                                                                                      |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 文件 | `.github/workflows/ci.yml`、`scripts/ci/impact-analysis.ts`、`scripts/ci/ci-gate.ts`、两个测试文件、`docs/ci-optimization-phase2.md`、`docs/ci-optimization-phase3b.md`   |
+| 文件 | `.github/workflows/ci.yml`、`scripts/ci/impact-analysis.ts`、`scripts/ci/ci-gate.ts`、两个测试文件、`docs/ci/optimization-phase2.md`、`docs/ci/optimization-phase3b.md`   |
 | 改动 | 拆出 `browser-web-components`（5 个 gate）与 `browser-playground`（4 个 gate）；删除与 `check:playground-ux` 重复的 36.2s editor build；三处按 job 名硬编码的清单同步更新 |
 | 保留 | `packed-consumers` 名称、packed consumer tarball、RC readiness、Admin/HMR/hydration —— 发布证据链（`collect-cross-platform-evidence.ts` 按精确名要求它）不变              |
 | 风险 | 三个 Job 各付 104s 预热；`+3.3 runner min`（MODELLED）                                                                                                                    |
@@ -75,7 +75,7 @@ Playwright 的 50s 里：**apt 依赖 41.4s，浏览器下载仅 8.6s**。这决
 
 | 项     | 内容                                                                                                                                                                                                                                                                                                         |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 文件   | `.github/workflows/ci.yml`、`scripts/ci/impact-analysis.ts`、`scripts/ci/__tests__/impact-analysis.spec.ts`、`docs/ci-optimization-phase3c.md`                                                                                                                                                               |
+| 文件   | `.github/workflows/ci.yml`、`scripts/ci/impact-analysis.ts`、`scripts/ci/__tests__/impact-analysis.spec.ts`、`docs/ci/optimization-phase3c.md`                                                                                                                                                               |
 | 改动 1 | `impact` 上传 `impact-plan` artifact（`if: always()`）。此前计划只渲染进 `$GITHUB_STEP_SUMMARY`，而该 summary **无法通过 API 读取**，所以"impact 决定了什么"没有任何可审计记录。**已在真实 run 43343499297 验证**：artifact 624 B，含逐 job 的 `run` / `reason`，并如实记录该分支因 `.github/**` 而 escalate |
 | 改动 2 | 部分分析改为事件白名单（仅 `pull_request`）。原写法是"非 push 且非 dispatch"，于是 `merge_group` / `schedule` / `release` / `repository_dispatch` / `workflow_run` 全部默认拿到窄路径                                                                                                                        |
 | 改动 3 | **真实 fail-open**：`^\.[a-z]+rc$` 匹配 `.nvmrc`，Node 版本变更被归为 `tooling` —— 不跑 `rust-compiler`，浏览器 gate 照跑。新增工具链规则置于其前                                                                                                                                                            |

@@ -1,4 +1,20 @@
-# Current Compiler Pipeline
+# 历史快照：R17.0 之前的 Compiler Pipeline
+
+> **本文是历史快照，不代表现行结构。**
+>
+> 记录的是 `649e2f60` 上的状态——R17.0 之前、R18.2 拆分 `Lowerer` 之前、
+> R18.3 把 HMR 与 Hydration 移出 `codegen` 之前。
+>
+> 文中所有行号（如 `lower.rs:2924`）均已失效；`Lowerer` 已被拆成
+> `LoweringContext`（只读事实）与 `LoweringState`（可变状态）；
+> `analysis/` 与 `passes/` 两个目录当时并不存在。
+>
+> **现行结构请看 [`pipeline.md`](./pipeline.md)。**
+>
+> 保留本文的理由：它记录了重构前的真实形状，是判断"重构是否真的改变了
+> 结构"的对照物。不要把它当作导航依据。
+
+---
 
 The state of `crates/zeus_compiler` before R17.0, measured at `649e2f60`.
 

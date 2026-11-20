@@ -544,7 +544,7 @@ describe('release workflows', () => {
       // validation while reporting green.
       //
       // The safe design and its proof obligations are in
-      // `docs/ci-native-matrix-dedup-rfc.md`. This test keeps the guard from
+      // `docs/ci/native-matrix-dedup-rfc.md`. This test keeps the guard from
       // coming back without them.
       expect(native).not.toContain('dedupe-against-canary')
       expect(native).not.toContain('canary-builds-this-commit')

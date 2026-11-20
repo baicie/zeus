@@ -19,7 +19,7 @@ name: Compiler Native Matrix
 # workflow's run requires proving seven per-platform conclusions, artifact
 # ownership and run attempts; a wrong answer silently removes the only
 # post-merge validation of a release artifact. The design and its proof
-# obligations are in `docs/ci-native-matrix-dedup-rfc.md`. Until that is
+# obligations are in `docs/ci/native-matrix-dedup-rfc.md`. Until that is
 # proven against real Actions runs, `main` keeps its own matrix — a duplicate
 # costs runner minutes, a silently missing one costs a release.
 #

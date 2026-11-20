@@ -88,7 +88,7 @@ artifacts/design-acceptance/
 - `scripts/release/historical-latest.ts:49`
   → `HISTORICAL_LATEST_PATH = 'release-policy/historical-latest.json'`
 - `.github/workflows/release.yml:101,218,312` 三处引用
-  `release-pairing/v${{ ... }}.json`
+  `release-pairing/v<version>.json`（workflow 里用 GitHub 表达式拼出文件名）
 - `scripts/release/write-pair-attestation.ts:164` 通过 GitHub contents API
   按 `repos/${repository}/contents/release-pairing/v${version}.json` 取文件
   —— **远端路径**，改本地目录而不同步这里会直接断链。
@@ -176,6 +176,35 @@ R18.3 又把 HMR/Hydration 移出了 `codegen`。**这些行号全部失效。**
 
 两处都是注释而非读取，迁移时同步改注释即可。但**必须先改注释再移动**，
 否则会留下指向空路径的注释——这正是 R16.0 留下的那类问题。
+
+### 4.4 `docs:build` 有四个页面在渲染时抛 TypeError（既有问题）
+
+`pnpm --filter @zeus-js/docs build` 会输出：
+
+```
+TypeError: Cannot read properties of undefined (reading 'Manifest')
+TypeError: Cannot read properties of undefined (reading 'Manifest')
+TypeError: Cannot read properties of undefined (reading 'confirm')
+TypeError: Cannot read properties of undefined (reading 'pair')
+```
+
+来源是四个页面里写在行内代码中的 GitHub Actions 表达式，被 Vue
+当作插值解析。下表用 `v-pre` 关闭插值，否则本文自己也构建失败：
+
+<table v-pre>
+<tr><th>页面</th><th>出现次数（main 上）</th></tr>
+<tr><td><code>docs/performance/build-size-audit.md</code></td><td>2（<code>{{json .Manifest}}</code>）</td></tr>
+<tr><td><code>docs/release/2026-11-15-release-environment-checklist.md</code></td><td>4（<code>${{ inputs.* }}</code>）</td></tr>
+<tr><td><code>docs/release/r6-a-demo-pairing.md</code></td><td>1（<code>${{ steps.pair.outputs.* }}</code>）</td></tr>
+<tr><td><code>docs/ci/optimization-report.md</code>（迁移前为 <code>docs/ci-optimization-report.md</code>）</td><td>1（<code>{{json .Manifest}}</code>）</td></tr>
+</table>
+
+**这是 main 上既有问题，本次未引入。** 构建最终 `exit 0` 并输出
+`build complete`，所以门禁不失败——但这意味着这四个页面没有正常渲染，
+只是错误被吞掉了。
+
+本次**不修**：修它需要改四个文档的代码片段转义方式，属于文档内容变更，
+与本轮目录治理不同源。已记录，供后续单独处理。
 
 ---
 

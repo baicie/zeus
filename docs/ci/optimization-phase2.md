@@ -29,7 +29,7 @@ Phase 3B split the browser gates out of `packed-consumers` into the two
 `browser-*` jobs. They are separate jobs for wall clock only, and
 `BROWSER_GATE_AREAS` in `scripts/ci/impact-analysis.ts` is shared by all three
 so no split can narrow one job's trigger below another's. See
-`docs/ci-optimization-phase3b.md`.
+`docs/ci/optimization-phase3b.md`.
 
 ## Why a script rather than paths-filter
 
