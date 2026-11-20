@@ -22,12 +22,10 @@ use oxc_span::{GetSpan, Span};
 use crate::stage_contracts::{HmrInfo, HmrRenderCall, SsrImportReplacement, SsrImportRewrite};
 use crate::support::diagnostic::{CompilerDiagnostic, DiagnosticSeverity};
 use crate::support::span::SourceIndex;
-use oxc_allocator::Allocator;
 use oxc_diagnostics::{OxcDiagnostic, Severity};
 use oxc_semantic::Scoping;
 use oxc_syntax::scope::ScopeFlags;
 use oxc_syntax::symbol::SymbolId;
-use oxc_syntax::xml_entities::decode_entities;
 
 pub(super) fn collect_variable_render_calls<'a>(
     declarations: &oxc_allocator::Vec<'a, VariableDeclarator<'a>>,

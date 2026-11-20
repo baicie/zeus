@@ -2,18 +2,14 @@ use std::collections::{HashMap, HashSet};
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
-    ArrowFunctionExpression, AwaitExpression, BindingPattern, CallExpression, Class, Declaration,
-    Expression, Function, IdentifierReference, ImportDeclarationSpecifier, JSXAttribute,
+    BindingPattern, CallExpression, Expression, IdentifierReference, JSXAttribute,
     JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXChild, JSXElement, JSXElementName,
-    JSXExpression, JSXExpressionContainer, JSXFragment, JSXSpreadAttribute, ModuleDeclaration,
-    Statement, VariableDeclarator, YieldExpression,
+    JSXExpression, JSXExpressionContainer, JSXFragment, JSXSpreadAttribute, Statement,
 };
-use oxc_ast_visit::{Visit, walk};
-use oxc_diagnostics::{OxcDiagnostic, Severity};
+use oxc_ast_visit::Visit;
 use oxc_parser::Parser;
 use oxc_semantic::{Scoping, SemanticBuilder};
 use oxc_span::{GetSpan, SourceType, Span};
-use oxc_syntax::scope::ScopeFlags;
 use oxc_syntax::symbol::SymbolId;
 use oxc_syntax::xml_entities::decode_entities;
 
@@ -22,7 +18,7 @@ use crate::support::html::{
     is_unsupported_raw_text_element, is_void_element,
 };
 use crate::{
-    diagnostic::{CompilerDiagnostic, DiagnosticSeverity},
+    diagnostic::CompilerDiagnostic,
     ir::{
         AttrBindingIr, AttributeIr, ChildIr, ComponentBindingIr, ComponentIr, ComponentNamedPropIr,
         ComponentPropIr, ComponentPropValueIr, DynamicRegionExpressionIr, DynamicRegionIr,
@@ -42,21 +38,17 @@ mod frontend;
 // `lower_module` is the only caller and re-exporting them would make them
 // public surface that nothing consumes.
 use frontend::{
-    AsyncComponent, AsyncComponentCollector, AsyncExpressionFinder, AsyncExpressionKind,
-    BuiltinBinding, BuiltinKind, DefineElementCollector, JsxDetector, ShallowJsxDetector,
-    binding_name, collect_async_components, collect_builtin_names, collect_define_element_spans,
-    collect_hmr_info, collect_imported_names, collect_render_names, collect_reserved_names,
-    collect_setup_functions, collect_ssr_runtime_imports, collect_top_level_define_element_calls,
-    collect_variable_render_calls, direct_define_element_call, from_oxc_diagnostic,
-    has_manual_hmr_boundary, render_call, unwrap_expression,
+    AsyncComponent, AsyncExpressionFinder, AsyncExpressionKind, BuiltinBinding, BuiltinKind,
+    JsxDetector, binding_name, collect_async_components, collect_builtin_names,
+    collect_define_element_spans, collect_hmr_info, collect_reserved_names,
+    collect_ssr_runtime_imports, collect_top_level_define_element_calls, from_oxc_diagnostic,
+    unwrap_expression,
 };
 
 // The cross-stage contracts live in `stage_contracts`; re-exported here so
 // `LowerResult`'s field types stay nameable without every caller importing
 // that module.
-pub(crate) use crate::stage_contracts::{
-    HmrInfo, HmrRenderCall, SsrImportReplacement, SsrImportRewrite,
-};
+pub(crate) use crate::stage_contracts::{HmrInfo, SsrImportRewrite};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LowerResult {
@@ -2490,7 +2482,6 @@ fn unsupported_hint(code: &str) -> Option<&'static str> {
 }
 
 /// Detects JSX evaluated by a function body itself, not by nested functions.
-
 fn contains_jsx(expression: &Expression<'_>) -> bool {
     let mut detector = JsxDetector(false);
     detector.visit_expression(expression);
