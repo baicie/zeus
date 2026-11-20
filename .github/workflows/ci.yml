@@ -247,6 +247,15 @@ jobs:
       - name: Package structure
         run: pnpm check:structure
 
+      # The root directory: which directories may exist, which are pinned
+      # because a release or deployment reads them by path, whether the vendor
+      # ignore exception is still ordered after the rule it excepts, and
+      # whether the document called "current pipeline" still describes the
+      # current pipeline. `check-structure` governs `packages/`; nothing
+      # governed the root until this.
+      - name: Root structure
+        run: pnpm check:root
+
       # Key parity, ICU syntax and placeholder sets across every
       # `locales/en.*` + `locales/zh-CN.*` pair. A missing translation, a
       # Chinese message that drops `{count}`, or an unparseable plural all
