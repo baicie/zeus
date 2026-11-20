@@ -13,6 +13,11 @@ import {
   restoreReleaseRewrite,
   snapshotReleaseRewrite,
 } from './release-rewrite-guard'
+import {
+  checkStagedContract,
+  pinnedInternalDependencies,
+  readStagedManifests,
+} from './staged-contract'
 import { verifyCurrentMainHead } from './verify-main-head'
 import { findWorkspacePackages } from '../shared/utils'
 
@@ -208,6 +213,20 @@ async function main(): Promise<void> {
       run('pnpm', ['install', '--lockfile-only'])
     })
 
+    // Verify the staged tree before the precheck spends minutes on it.
+    //
+    // Two contracts are in play: the committed source (checked by
+    // `package-table.spec.ts` against `HEAD`) and the staged working tree
+    // (checked here). Running the precheck first meant a half-finished rewrite
+    // surfaced as a unit-test failure far from its cause.
+    recorder.run(
+      'staged-contract',
+      `verify the staged tree matches ${version}`,
+      () => {
+        assertStagedCanaryContract(version)
+      },
+    )
+
     recorder.run('precheck', 'pnpm release:precheck --channel canary', () => {
       run('pnpm', ['release:precheck', '--channel', 'canary'])
     })
@@ -282,6 +301,32 @@ async function main(): Promise<void> {
       if (failure === undefined) throw error
     }
   }
+}
+
+/**
+ * Fails the run when the working tree does not match the version it claims.
+ *
+ * Cheap checks first: a rewrite that missed a package or left a pinned
+ * internal dependency on the previous version is a bug in the rewrite, and
+ * finding it here names the package instead of failing a unit test downstream.
+ */
+function assertStagedCanaryContract(version: string): void {
+  const { manifests, missing } = readStagedManifests(
+    process.cwd(),
+    zeusFixedPackages,
+  )
+  const problems = [
+    ...checkStagedContract(manifests, missing, zeusFixedPackages, version),
+    ...pinnedInternalDependencies(manifests, zeusFixedPackages, version),
+  ]
+  if (problems.length === 0) return
+
+  const detail = problems
+    .map(problem => `  - ${problem.package}: ${problem.problem}`)
+    .join('\n')
+  throw new Error(
+    `The staged tree does not match ${version}; \`release:version-packages\` left it half-written:\n${detail}`,
+  )
 }
 
 export function assertCanaryEnvironment(

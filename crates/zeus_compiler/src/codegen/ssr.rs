@@ -20,7 +20,7 @@ use crate::support::hydration::{
     component_root_marker_id, element_marker_id, node_marker_id, text_marker_id,
 };
 
-use crate::lower::{SsrImportReplacement, SsrImportRewrite};
+use crate::stage_contracts::{SsrImportReplacement, SsrImportRewrite};
 use crate::support::span::SourceIndex;
 
 use crate::codegen::infra::{

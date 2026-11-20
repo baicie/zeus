@@ -43,6 +43,10 @@ fn analyse_crate() -> Analysis {
 
 #[test]
 fn support_is_a_leaf_layer() {
+    // `support::hmr` now holds only the `HmrPlan` / `HmrBinding` data contract;
+    // its IR traversal is a pass (`passes::hmr`). It still names IR types, so
+    // it stays on this list until those types move too.
+    // `support::hydration` still traverses the IR to build a plan — R18.3 debt.
     const MAY_TRAVERSE_IR: &[&str] = &["support::hmr", "support::hydration"];
 
     let analysis = analyse_crate();
@@ -97,6 +101,43 @@ fn codegen_depends_on_analysis_one_way() {
     assert!(
         !analysis.imports("codegen::analysis", "codegen"),
         "analysis must not import the emitter; that edge is the cycle"
+    );
+}
+
+#[test]
+fn codegen_does_not_import_lowering() {
+    // Cross-stage data belongs in `stage_contracts`, which both sides may
+    // name. An emitter importing `lower` would make it depend on how lowering
+    // collects its side channels, so a change to collection would be
+    // indistinguishable from a change to the contract.
+    let analysis = analyse_crate();
+    for module in depgraph::modules_under(&analysis, "codegen") {
+        assert!(
+            !analysis.imports(&module, "lower"),
+            "{module} imports the lowering module; move the type it needs into \
+             `stage_contracts`"
+        );
+    }
+}
+
+#[test]
+fn stage_contracts_imports_no_stage() {
+    // The contract module must stay nameable by both sides without pulling
+    // either in.
+    let analysis = analyse_crate();
+    let forbidden: Vec<String> = analysis
+        .imports_of("stage_contracts")
+        .into_iter()
+        .filter(|import| {
+            import.starts_with("codegen")
+                || import.starts_with("lower")
+                || import.starts_with("passes")
+                || import.starts_with("analysis")
+        })
+        .collect();
+    assert!(
+        forbidden.is_empty(),
+        "stage_contracts must not depend on a stage; it imports {forbidden:?}"
     );
 }
 
