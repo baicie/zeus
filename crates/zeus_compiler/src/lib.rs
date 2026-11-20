@@ -1,6 +1,7 @@
 mod codegen;
 pub mod ir;
 pub mod lower;
+mod passes;
 mod ssr;
 pub mod support;
 
