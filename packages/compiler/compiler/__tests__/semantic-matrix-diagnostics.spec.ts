@@ -281,12 +281,34 @@ const cases: DiagnosticCase[] = [
   },
 ]
 
+/**
+ * Every diagnostic code the Rust compiler defines, wherever it is defined.
+ *
+ * This scanned `src/` with a non-recursive `readdirSync`, so it only saw files
+ * directly under it. Moving the frontend collectors into `src/lower/frontend.rs`
+ * made two codes vanish from the scan and the test failed — correctly, because
+ * the matrix no longer covered them, but for the wrong reason: nothing had been
+ * removed from the compiler. Walking the tree means a module split cannot
+ * silently shrink the coverage set again.
+ */
+function rustDiagnosticFiles(directory: string): string[] {
+  const files: string[] = []
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const full = join(directory, entry.name)
+    if (entry.isDirectory()) {
+      files.push(...rustDiagnosticFiles(full))
+    } else if (entry.name.endsWith('.rs')) {
+      files.push(full)
+    }
+  }
+  return files
+}
+
 function rustDiagnosticCodes(): string[] {
   const directory = join(repositoryRoot, 'crates/zeus_compiler/src')
   const codes = new Set<string>()
-  for (const file of readdirSync(directory)) {
-    if (!file.endsWith('.rs')) continue
-    const content = readFileSync(join(directory, file), 'utf8')
+  for (const file of rustDiagnosticFiles(directory)) {
+    const content = readFileSync(file, 'utf8')
     for (const match of content.matchAll(/"(ZEUS_[A-Z0-9_]+)"/g)) {
       codes.add(match[1])
     }
