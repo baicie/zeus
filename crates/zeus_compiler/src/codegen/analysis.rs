@@ -391,6 +391,40 @@ fn collect_dynamic_region_value_attribute_names(
     }
 }
 
+/// Everything the emitter asks the analysis stage for, computed once.
+///
+/// Before this existed, `emit_module` called four collectors in a row and then
+/// threaded their results through the emitter as separate locals. Each call
+/// was a re-derivation the analysis stage had already been designed to own;
+/// keeping them separate is what let one of them (`collect_component_bindings`)
+/// quietly live in the emitter for two releases.
+///
+/// The rule this enforces is the one in AGENTS.md §5: a stage may compute
+/// facts and record them, but it may not reach back and re-derive them. The
+/// emitter now *consumes* a value instead of deciding when to recompute.
+///
+/// `helper_usage` is deliberately absent. It depends on `DynamicBinding`,
+/// which is an emitter-local type: moving that type here would drag half of
+/// `codegen/mod.rs` with it. The emitter still computes helper usage, but from
+/// the bindings this result is built alongside, not by re-walking the IR.
+pub(crate) struct AnalysisResult {
+    /// Event names that can be delegated to the document, in stable order.
+    pub(crate) delegated_events: Vec<String>,
+    /// Attribute the emitter stamps on nodes so runtime lookups stay unique.
+    pub(crate) locator_attribute: String,
+}
+
+/// Reads the module once and answers every question the emitter will ask.
+///
+/// `enable_delegation` is a target decision, not a module property, so it is
+/// an argument rather than something re-read from options at each call site.
+pub(crate) fn analyse_module(module: &ModuleIr, enable_delegation: bool) -> AnalysisResult {
+    AnalysisResult {
+        delegated_events: collect_delegated_events(module, enable_delegation),
+        locator_attribute: allocate_locator_attribute(module),
+    }
+}
+
 // ---- Runtime helper identity ----------------------------------------------
 //
 // The set of runtime helpers a module may need is a fact about the emitted

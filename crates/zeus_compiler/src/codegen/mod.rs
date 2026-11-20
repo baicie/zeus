@@ -5,6 +5,7 @@
 //! own emitter so a change to one is not read as a change to both.
 
 mod analysis;
+mod emit_plan;
 mod infra;
 mod ssr;
 
@@ -16,9 +17,8 @@ use infra::{
     is_unescaped_raw_text, object_key, quote_js, root_span,
 };
 
-use analysis::{
-    RuntimeHelper, allocate_locator_attribute, collect_delegated_events, is_delegatable_event,
-};
+use analysis::{RuntimeHelper, analyse_module, is_delegatable_event};
+use emit_plan::EmitPlan;
 
 use std::collections::{HashMap, HashSet};
 
@@ -77,20 +77,34 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
     let mut names = NameAllocator::new(reserved_names);
     let hmr_module = prepare_hmr_module(options, &mut names);
     let module = hmr_module.as_ref().map_or(module, |hmr| &hmr.module);
+    // Every fact below is decided here, once, and then consumed. The emitter
+    // does not re-walk the IR to answer a question analysis already answered.
+    let facts = analyse_module(module, enable_delegation);
     let binding_sets = collect_component_bindings(module);
-    let delegated_event_names = collect_delegated_events(module, enable_delegation);
     let mut helper_usage =
-        collect_module_helper_usage(module, &binding_sets, !delegated_event_names.is_empty());
+        collect_module_helper_usage(module, &binding_sets, !facts.delegated_events.is_empty());
     if auto_hydrate {
         helper_usage.0.insert(RuntimeHelper::AutoHydrateComponent);
     }
-    let locator_attribute = allocate_locator_attribute(module);
+    let locator_attribute = &facts.locator_attribute;
     let runtime = RuntimeNames::allocate(
         &helper_usage,
         &locator_attribute,
         enable_delegation,
         &mut names,
     );
+
+    // What will be emitted, decided before the writer is touched. The
+    // conditions used to be inline `is_empty()` calls scattered through the
+    // emitter; naming them here means "when is the runtime import needed?" is
+    // answered in one place, next to the facts it depends on.
+    let plan = EmitPlan {
+        runtime_import: !module.components.is_empty(),
+        hmr: hmr_module.is_some(),
+        templates: !module.components.is_empty(),
+        components: !module.components.is_empty(),
+        delegated_events: !facts.delegated_events.is_empty(),
+    };
 
     let mut generated = module
         .components
@@ -125,7 +139,7 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
     if cursor > 0 && !writer.ends_with_newline() {
         writer.push("\n");
     }
-    if !module.components.is_empty() {
+    if plan.runtime_import {
         emit_runtime_import(&mut writer, &runtime, runtime_module);
     }
     emit_hmr_state(
@@ -167,12 +181,14 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
         &source_insertions,
         true,
     );
-    emit_delegated_events(&mut writer, &runtime, &delegated_event_names);
+    emit_delegated_events(&mut writer, &runtime, &facts.delegated_events);
 
+    // The map is built first: `into_generated` consumes the writer.
     let map = source_map.then(|| build_source_map(filename, source, writer.recorded_mappings()));
+    let code = writer.into_generated();
 
     TransformModuleResult {
-        code: writer.into_generated(),
+        code,
         map,
         diagnostics: Vec::new(),
         hydration_plan: None,
