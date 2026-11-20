@@ -118,4 +118,12 @@ export function App(props) {
         TransformTarget::Ssr,
         runs,
     );
+
+    // Only prints when the crate was built with `--features stage-timing`.
+    // `report()` returns an empty string otherwise, so this is unconditional
+    // source and conditional output.
+    let stages = zeus_compiler::stage_timing::report();
+    if !stages.is_empty() {
+        println!("\n{stages}");
+    }
 }

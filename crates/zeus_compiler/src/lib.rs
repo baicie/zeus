@@ -6,6 +6,7 @@ mod passes;
 mod pipeline;
 mod ssr;
 mod stage_contracts;
+pub mod stage_timing;
 pub mod support;
 
 pub use support::{diagnostic, span};

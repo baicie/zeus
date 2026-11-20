@@ -114,11 +114,23 @@ column lacks.
 
 ### What was not measured
 
-- **Per-stage timing.** The pipeline has no instrumentation, and adding it as a
-  default would put a cost on every production compile. The task allows it
-  behind a flag; it was not added because the whole-pipeline numbers already
-  show no regression and a stage breakdown with no regression to explain would
-  be instrumentation without a purpose.
+- **Per-stage timing — added in R18.4.** Behind a compile-time feature, so the
+  production path pays nothing:
+  `--features stage-timing` on `zeus_compiler`. The first measurement:
+
+  | Stage           | Share                           |
+  | --------------- | ------------------------------- |
+  | `lower`         | 44.1%                           |
+  | `emit`          | 49.0%                           |
+  | `analysis`      | 5.5%                            |
+  | `nesting-guard` | 1.4%                            |
+  | `validate`      | 0.0% (no SSR input in that run) |
+
+  The two stages that dominate are the two that are still one file each
+  (`lower/mod.rs`, `codegen/mod.rs`). That is not a reason to split them —
+  the measurement says where time goes, not where the code should live — but
+  it does mean the remaining debt is measured rather than assumed.
+
 - **Peak memory.** Not measured. The split moved functions between modules
   without changing ownership or allocation, so memory behaviour should be
   identical by construction, but that is reasoning rather than evidence.

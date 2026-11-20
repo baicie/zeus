@@ -28,6 +28,7 @@
 
 use crate::{
     TransformModuleOptions, TransformModuleResult, TransformTarget, analysis, codegen, lower, ssr,
+    stage_timing::{Stage, timed},
     support::diagnostic::CompilerDiagnostic,
 };
 
@@ -64,11 +65,13 @@ fn rejected(diagnostics: Vec<CompilerDiagnostic>) -> TransformModuleResult {
 pub(crate) fn run(options: &TransformModuleOptions) -> TransformModuleResult {
     // The nesting guard runs first: it exists to reject input the parser would
     // exhaust the stack on, so it cannot run after the parser.
-    if let Some(diagnostic) = crate::nesting_diagnostic(options) {
+    if let Some(diagnostic) = timed(Stage::NestingGuard, || crate::nesting_diagnostic(options)) {
         return diagnostic;
     }
 
-    let lowered = lower::lower_module(&options.source, &options.filename);
+    let lowered = timed(Stage::Lower, || {
+        lower::lower_module(&options.source, &options.filename)
+    });
     if !lowered.diagnostics.is_empty() {
         return rejected(lowered.diagnostics);
     }
@@ -106,7 +109,9 @@ pub(crate) fn run(options: &TransformModuleOptions) -> TransformModuleResult {
             );
         }
 
-        let diagnostics = ssr::validate_ssr_properties(&ir, &options.filename);
+        let diagnostics = timed(Stage::Validate, || {
+            ssr::validate_ssr_properties(&ir, &options.filename)
+        });
         if !diagnostics.is_empty() {
             return rejected(diagnostics);
         }
@@ -114,9 +119,11 @@ pub(crate) fn run(options: &TransformModuleOptions) -> TransformModuleResult {
 
     // The hydration plan is a fact about the IR, computed before emission and
     // attached afterwards. This is why the emitter never consults it.
-    let hydration_plan = analysis::hydration::build_hydration_plan(&ir);
+    let hydration_plan = timed(Stage::Analysis, || {
+        analysis::hydration::build_hydration_plan(&ir)
+    });
 
-    let mut result = match options.target {
+    let mut result = timed(Stage::Emit, || match options.target {
         TransformTarget::Ssr => codegen::emit_ssr_module(&codegen::SsrModuleOptions {
             source: &options.source,
             filename: &options.filename,
@@ -142,7 +149,7 @@ pub(crate) fn run(options: &TransformModuleOptions) -> TransformModuleResult {
             pure_define_element_calls: &lowered.pure_define_element_calls,
             auto_hydrate: options.auto_hydrate,
         }),
-    };
+    });
     result.hydration_plan = hydration_plan;
     result
 }
