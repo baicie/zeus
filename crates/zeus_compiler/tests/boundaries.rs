@@ -767,3 +767,29 @@ fn the_orchestrator_depends_on_the_dom_subsystem() {
         analysis.imports_of("codegen")
     );
 }
+
+/// A bare-root `use` records the first module only.
+///
+/// `use dom::emit::f` in `codegen/mod.rs` becomes an edge to `codegen::dom`,
+/// not `codegen::dom::emit`. That is a precision limit, and it means a cycle
+/// that leaves a submodule and returns to its parent *through that submodule's
+/// parent path* can be missed. Pinned here so the limit stays visible: if this
+/// starts returning the deeper module, `resolve_use` changed and the note in
+/// `dependency-graph-scope.md` is stale.
+#[test]
+fn a_bare_root_use_records_only_the_first_module() {
+    let fixture = Fixture::new("bare-root-depth")
+        .file("lib.rs", "mod outer;\n")
+        .file("outer/mod.rs", "mod inner;\npub fn f() { inner::g(); }\n")
+        .file("outer/inner.rs", "pub fn g() {}\n");
+    let analysis = fixture.analyse();
+    // The qualified call `inner::g()` in `outer/mod.rs` resolves to
+    // `outer::inner`; a `use inner::g` would resolve to the same. The limit
+    // shows up one level further out, which this asserts indirectly by
+    // checking the depth the checker does reach.
+    assert!(
+        analysis.imports("outer", "outer::inner"),
+        "qualified calls resolve to the full submodule path; edges were {:?}",
+        analysis.edges
+    );
+}

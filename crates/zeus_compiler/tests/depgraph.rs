@@ -684,6 +684,18 @@ fn resolve_use(module: &str, path: &str) -> Resolution {
         // root, a top-level module. This is the branch the text scanner got
         // wrong: `ssr` in `codegen/mod.rs` is `codegen::ssr`.
         root if root.chars().next().is_some_and(|c| c.is_ascii_lowercase()) => {
+            // A bare root names a module under the current one. `ssr` in
+            // `codegen/mod.rs` is `codegen::ssr`.
+            //
+            // **Known limit:** only the first segment survives, so
+            // `dom::emit::emit_component` records an edge to `codegen::dom`,
+            // not to `codegen::dom::emit`. A cycle that runs through a
+            // submodule *and back out to the parent* can therefore be missed
+            // when the parent's only link is through an intermediate module.
+            // Preserving the full path here was tried and reverted: it changes
+            // what `resolve_use` means for every caller, including the
+            // sibling-resolution tests, and needs a module-set-aware API
+            // rather than a patch to this branch.
             join_module(module, root)
         }
         _ => return Resolution::Unresolved("unrecognised use root"),
