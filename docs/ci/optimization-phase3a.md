@@ -20,7 +20,7 @@ The first is removed by narrowing `push` to `main`. `pull_request` fires on
 
 The second is **not** removed. It is real, measured, and worth roughly 15–20
 runner minutes per main merge — but removing it safely is a different problem
-from the one it first appears to be. See `docs/ci-native-matrix-dedup-rfc.md`.
+from the one it first appears to be. See `docs/ci/native-matrix-dedup-rfc.md`.
 
 ---
 
@@ -91,7 +91,7 @@ first attempt, or a run from a different event all satisfy it.
 
 ## 3. What a safe implementation must prove
 
-Recorded in full in `docs/ci-native-matrix-dedup-rfc.md`. In short, it needs
+Recorded in full in `docs/ci/native-matrix-dedup-rfc.md`. In short, it needs
 all of:
 
 1. exact identity — full 40-character SHA, event, workflow id, run attempt;

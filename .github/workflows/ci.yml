@@ -7,7 +7,7 @@ on:
   # commit on a PR branch run the entire suite twice — once for the push and
   # once for the pull_request — against the identical tree. On `847b43d1` that
   # cost 43.0 runner minutes for 21.8 minutes of work: 49.4% of the spend was
-  # duplicate. See docs/ci-optimization-baseline.md.
+  # duplicate. See docs/ci/optimization-baseline.md.
   #
   # The `pull_request` event fires on `synchronize` as well, so pushing to a
   # branch that has an open PR still triggers exactly one full run — the PR's.
@@ -171,7 +171,7 @@ jobs:
           # This was the only job without a pnpm cache. It looked fast because
           # the runner it landed on already had a warm store (`reused 898,
           # downloaded 0`); on a cold runner the same step downloads the
-          # lockfile's dependencies. See docs/ci-optimization-baseline.md §3.
+          # lockfile's dependencies. See docs/ci/optimization-baseline.md §3.
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile

@@ -1,7 +1,7 @@
 # CI optimization — Phase 1
 
 Low-risk changes only. Everything here is reversible and none of it removes a
-check. Measured baseline: `docs/ci-optimization-baseline.md`.
+check. Measured baseline: `docs/ci/optimization-baseline.md`.
 
 ## 1. Stop running the full suite twice per PR commit
 

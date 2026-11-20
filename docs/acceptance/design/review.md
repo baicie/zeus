@@ -5,7 +5,8 @@ ChatGPT ref: captured 2026-11-11, Google Chrome headed, en-US, signed-out, light
 Core target: `baicie/zeus` branch `feat/shared-shadcn-admin-ui`
 UI target: `baicie/zeus-ui` branch `feat/chatgpt-workbench-ui`
 
-Evidence lives in `artifacts/design-acceptance/`:
+Evidence lives in this directory (`docs/acceptance/design/`, previously
+`artifacts/design-acceptance/`):
 
 ```
 reference/admin/A01..A08.png        frozen shadcn-admin captures

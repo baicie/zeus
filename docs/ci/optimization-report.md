@@ -4,8 +4,8 @@ Branch `chore/ci-performance-optimization`, draft PR #238. Phase 1 and Phase 2
 are implemented; Phase 3 is deferred with the measurement that justifies
 deferring it.
 
-Baseline: `docs/ci-optimization-baseline.md`. Phase 1:
-`docs/ci-optimization-phase1.md`. Phase 2: `docs/ci-optimization-phase2.md`.
+Baseline: `docs/ci/optimization-baseline.md`. Phase 1:
+`docs/ci/optimization-phase1.md`. Phase 2: `docs/ci/optimization-phase2.md`.
 
 ## 1. Change list
 
