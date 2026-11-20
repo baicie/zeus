@@ -79,7 +79,27 @@ pub fn f(_x: crate::b::Thing) -> Option<crate::b::Thing> { None }
 检查器认为它不依赖那个模块——这在"运行时耦合"的意义上是正确的，
 在"编译期耦合"的意义上不是。
 
-### 3.3 由 trait 解析决定的调用
+### 3.3 裸根路径只保留第一段
+
+```rust
+use dom::emit::emit_component;   // in codegen/mod.rs
+```
+
+记录成 `codegen -> codegen::dom`，**不是** `codegen -> codegen::dom::emit`。
+
+后果：一个环如果经由子模块再回到父模块，且父模块只通过中间模块相连，
+可能被漏掉。R18.6 就遇到了这个情形——`dom/emit.rs` 依赖 `codegen`
+（为了 `RuntimeNames`），`codegen` 依赖 `dom::emit`（为了 `emit_component`），
+但检查器看到的是 `codegen -> codegen::dom`，所以没报环。
+
+尝试过保留完整路径，**已回退**：那会改变 `resolve_use` 对所有调用方的含义，
+包括兄弟模块解析的既有测试，需要的是模块集合感知的 API，不是这一分支的补丁。
+
+**实际影响**：真实的环是 `codegen <-> RuntimeNames`，而 `RuntimeNames`
+住在 `codegen` 里。这个环是已知的、有意的（见 §6 的尝试记录），
+不是检查器漏掉的隐患。
+
+### 3.4 由 trait 解析决定的调用
 
 ```rust
 x.method()   // 方法定义在哪个模块，取决于 impl 解析
