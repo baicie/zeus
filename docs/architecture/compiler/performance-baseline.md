@@ -36,9 +36,33 @@ cargo run -p zeus_compiler --example perf-baseline --release
 
 ## Before / after
 
-Baseline is `649e2f60` (before R17.0) measured in a separate worktree with the
-same example, same machine, same session. Each figure is the median of three
-independent runs.
+> **Reproducibility caveat (added in R19).**
+>
+> This section claims the baseline column was measured at `649e2f60` "with the
+> same example". That is not reproducible, and the claim as written was wrong.
+>
+> `crates/zeus_compiler/examples/perf-baseline.rs` was **introduced by
+> `bb478792`** (R17.0 itself), so it does not exist at `649e2f60`:
+>
+> ```
+> $ git cat-file -e 649e2f60:crates/zeus_compiler/examples/perf-baseline.rs
+> fatal: path '...' exists on disk, but not in '649e2f60'
+> ```
+>
+> The `Before` column is therefore a measurement that cannot be repeated from
+> the commit it names. It may have come from an equivalent harness run by hand
+> in a worktree, but nothing in the repository records how.
+>
+> **Treat the `Before` column as unreproducible.** The `After` column and the
+> conclusion it supports ("within ±3%") stand on their own for the tree they
+> were measured on, and the ±3% band is explicitly larger than the observed
+> run-to-run variance, so the conclusion does not depend on the baseline.
+>
+> A future baseline must either ship the harness at the baseline commit or
+> record the harness beside the numbers. This document did neither.
+
+Baseline is `649e2f60` (before R17.0) measured in a separate worktree. Each
+figure is the median of three independent runs.
 
 | Input                   | Before (ms) | After (ms) | Delta |
 | ----------------------- | ----------- | ---------- | ----- |
@@ -63,6 +87,30 @@ in both trees (the `many-bindings` case ranged 1.41–2.33 ms in one tree and
 **No measurable regression from the module split or the Oxc upgrade.** The
 split moved code without changing the work done, and Oxc 0.146 is
 behaviour-compatible with 0.144 by construction.
+
+### Reproducible re-measurement (R19, `b5cb19e4`)
+
+Re-run on the same machine class during R19, after the `AnalysisResult` /
+`EmitPlan` / `pipeline.rs` extraction:
+
+```
+$ cargo run -p zeus_compiler --example perf-baseline --release
+small                                 0.034 ms
+medium                                0.046 ms
+many-bindings (200)                   1.825 ms
+many-components (100)                 0.513 ms
+deep-jsx (40 levels)                  0.061 ms
+medium-ssr                            0.026 ms
+```
+
+Same order of magnitude as the `After` column above. `many-bindings` reads
+1.825 ms here against 1.421 ms there — that is the same case whose run-to-run
+range was already recorded as 1.41–2.33 ms, so the difference is variance, not
+a regression. `many-components` (0.513 vs 0.536) is likewise inside the band.
+
+This run **is** reproducible: the harness exists in the tree at the commit
+named, and the command above is the whole recipe. That is what the `Before`
+column lacks.
 
 ### What was not measured
 
