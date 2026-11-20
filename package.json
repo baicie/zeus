@@ -12,6 +12,7 @@
     "clean": "rimraf --glob 'packages/*/dist' --glob 'packages/core/*/dist' --glob 'packages/tooling/*/dist' --glob 'packages/web-c/*/dist' temp .eslintcache",
     "check": "tsc --incremental --noEmit",
     "check:structure": "tsx scripts/check/check-structure.ts",
+    "check:root": "tsx scripts/check/check-root-structure.ts",
     "check:branch": "tsx scripts/check/check-branch-name.ts",
     "check:cjs": "tsx scripts/check/check-package-cjs.ts && tsx scripts/check/check-compiler-cjs.ts",
     "check:runtime-interop": "tsx scripts/check/check-runtime-signal-interop.ts",
