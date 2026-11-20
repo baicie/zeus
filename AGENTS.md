@@ -708,17 +708,22 @@ Node 侧 `packages/compiler/compiler-native`（napi），浏览器侧
 
 ### 16.1 阶段职责
 
-| 阶段          | 位置                               | 只做一件事                    |
-| ------------- | ---------------------------------- | ----------------------------- |
-| Nesting guard | `support/nesting.rs`               | 在 Oxc 之前拒绝会耗尽栈的输入 |
-| Frontend      | `lower.rs`                         | 解析 + 语义分析，产出事实     |
-| Lowering      | `lower.rs`                         | JSX 语义 → `ModuleIr`         |
-| Validation    | `ssr.rs`                           | 目标相关的拒绝规则            |
-| Analysis      | `codegen/analysis.rs`              | 读 IR 得出 codegen 需要的事实 |
-| Codegen       | `codegen/mod.rs`、`codegen/ssr.rs` | 事实 → JavaScript             |
-| Support       | `support/`                         | 跨阶段叶子能力                |
+| 阶段          | 位置                               | 只做一件事                           |
+| ------------- | ---------------------------------- | ------------------------------------ |
+| Nesting guard | `support/nesting.rs`               | 在 Oxc 之前拒绝会耗尽栈的输入        |
+| Frontend      | `lower.rs`                         | 解析 + 语义分析，产出事实            |
+| Lowering      | `lower.rs`                         | JSX 语义 → `ModuleIr`                |
+| Passes        | `passes/`                          | 对 IR 的重写，不改语义（HMR 槽位）   |
+| Validation    | `ssr.rs`                           | 目标相关的拒绝规则                   |
+| Analysis      | `analysis/`、`codegen/analysis.rs` | 读 IR 得出 codegen 需要的事实        |
+| Contracts     | `stage_contracts.rs`               | 跨阶段的传递类型，不 import 任何阶段 |
+| Codegen       | `codegen/mod.rs`、`codegen/ssr.rs` | 事实 → JavaScript                    |
+| Support       | `support/`                         | 跨阶段叶子能力                       |
 
 **核心规则：一个阶段可以计算事实并记录下来，但不得回头到后续阶段重新推导。**
+
+`analysis/hydration.rs` 产出 `HydrationPlan`，`analysis/` 与 `codegen/` 之间
+只经 `ir` 与 `stage_contracts` 通信；`codegen` 不得 import `lower`。
 
 ### 16.2 必须遵守
 
@@ -752,8 +757,10 @@ Node 侧 `packages/compiler/compiler-native`（napi），浏览器侧
 
 ### 16.4 当前未完成（不要误以为已完成）
 
-- `lower.rs`（3,564 行）尚未拆分，是最大剩余技术债。
-- `codegen/mod.rs`（3,957 行）仍包含 DOM 发射、模板渲染、Hydration 与 HMR 发射。
+- `lower.rs`（3,589 行）尚未拆分，是最大剩余技术债。
+- `codegen/mod.rs`（3,308 行）仍是 DOM 发射与模板渲染的单体模块。
+  Hydration 的遍历已移到 `analysis/hydration.rs`，HMR 的重写已移到
+  `passes/hmr.rs`；`codegen` 只保留按计划发射的 `emit_hmr_*`。
 - 没有 `pipeline.rs`，阶段顺序仍在 `lib.rs` 的 `transform_module` 中。
 - 七平台矩阵、WASM 运行时一致性、浏览器门禁已在 `bb478792` 上验证通过，
   但每次改动仍需重新取证；R17.0 当时的「尚未验证」结论已过期。
