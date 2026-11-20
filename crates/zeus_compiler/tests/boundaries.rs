@@ -442,3 +442,273 @@ fn a_qualified_path_to_a_non_module_is_not_an_edge() {
         analysis.imports_of("a")
     );
 }
+
+/// A qualified call to a submodule resolves relative to the calling module.
+///
+/// `b::work()` in `a/mod.rs` is `a::b`, not the crate-root `b`. The checker
+/// first looked for a module literally named `b`, found none, and recorded no
+/// edge at all — so `a <-> a::b` was invisible.
+#[test]
+fn a_qualified_call_to_a_submodule_is_an_edge() {
+    let fixture = Fixture::new("submodule-qualified")
+        .file("lib.rs", "mod a;\n")
+        .file("a/mod.rs", "mod b;\npub fn run() { b::work(); }\n")
+        .file("a/b.rs", "use super::run;\npub fn work() { run(); }\n");
+    let analysis = fixture.analyse();
+
+    assert!(
+        analysis.imports("a", "a::b"),
+        "`b::work()` in a/mod.rs is a::b; edges were {:?}",
+        analysis.edges
+    );
+    assert!(analysis.imports("a::b", "a"), "the `super::run` import");
+    let cycle = analysis
+        .first_cycle()
+        .expect("a -> a::b -> a must be caught");
+    assert!(cycle.contains(&"a".to_string()), "{cycle:?}");
+    assert!(cycle.contains(&"a::b".to_string()), "{cycle:?}");
+}
+
+/// `crate::b::work` names the crate-root `b`, not a module under `a`.
+///
+/// The path arrives as `PrefixCandidates`, which the qualified-path pass
+/// dropped after the `use` pass had already handled its own. That is why the
+/// two paths are now resolved by one function.
+#[test]
+fn a_crate_qualified_call_is_an_edge() {
+    let fixture = Fixture::new("crate-qualified")
+        .file("lib.rs", "mod a;\nmod b;\n")
+        .file("a.rs", "pub fn run() { crate::b::work(); }\n")
+        .file("b.rs", "use crate::a::run;\npub fn work() { run(); }\n");
+    let analysis = fixture.analyse();
+
+    assert!(
+        analysis.imports("a", "b"),
+        "`crate::b::work()` in a.rs; edges were {:?}",
+        analysis.edges
+    );
+    let cycle = analysis.first_cycle().expect("a -> b -> a must be caught");
+    assert!(cycle.contains(&"a".to_string()), "{cycle:?}");
+    assert!(cycle.contains(&"b".to_string()), "{cycle:?}");
+}
+
+/// `self::`, `super::` and `super::super::` resolve to the module they name,
+/// not to the crate root on the way back down.
+#[test]
+fn self_and_super_qualified_calls_name_the_right_module() {
+    let self_case = Fixture::new("self-qualified")
+        .file("lib.rs", "mod a;\n")
+        .file(
+            "a/mod.rs",
+            "mod child;\npub fn run() { self::child::run(); }\n",
+        )
+        .file("a/child.rs", "pub fn run() {}\n")
+        .analyse();
+    assert!(self_case.imports("a", "a::child"), "{:?}", self_case.edges);
+
+    let super_case = Fixture::new("super-qualified")
+        .file("lib.rs", "mod a;\n")
+        .file("a/mod.rs", "mod b;\nmod sibling;\n")
+        .file("a/b.rs", "pub fn run() { super::sibling::run(); }\n")
+        .file("a/sibling.rs", "pub fn run() {}\n")
+        .analyse();
+    assert!(
+        super_case.imports("a::b", "a::sibling"),
+        "{:?}",
+        super_case.edges
+    );
+
+    // `super::super` from `a::b` reaches the crate root; the target is `root`,
+    // not `lib`. Collapsing the base to the literal `lib` made the prefix walk
+    // match `lib` and report a dependency on the crate root.
+    let grandparent = Fixture::new("grandparent-qualified")
+        .file("lib.rs", "mod a;\nmod root;\n")
+        .file("a/mod.rs", "mod b;\n")
+        .file("a/b.rs", "pub fn run() { super::super::root::run(); }\n")
+        .file("root.rs", "pub fn run() {}\n")
+        .analyse();
+    assert!(
+        grandparent.imports("a::b", "root"),
+        "super::super must reach the crate root's `root`, not `lib`; edges were {:?}",
+        grandparent.edges
+    );
+    assert!(
+        !grandparent.imports("a::b", "lib"),
+        "the crate root is not an edge target here; edges were {:?}",
+        grandparent.edges
+    );
+}
+
+/// Every expression position that can hold a qualified call is walked.
+///
+/// The hand-written recursion covered about a dozen `Expr` variants; this test
+/// is the list of the ones it missed. Each case puts one qualified call in a
+/// different syntactic position and asserts the edge exists.
+#[test]
+fn qualified_calls_are_found_in_every_expression_position() {
+    // (case name, source for a.rs, expected edge target)
+    let cases: &[(&str, &str, &str)] = &[
+        ("call", "pub fn f() { b::work(); }", "b"),
+        ("binary", "pub fn f() -> bool { b::work() && true }", "b"),
+        ("assign", "pub fn f() { let mut x = 0; x = b::num(); }", "b"),
+        ("array", "pub fn f() -> [u32; 1] { [b::num()] }", "b"),
+        ("tuple", "pub fn f() -> (u32, u32) { (b::num(), 0) }", "b"),
+        ("struct", "pub fn f() -> S { S { v: b::num() } }", "b"),
+        (
+            "if",
+            "pub fn f() -> u32 { if b::flag() { 1 } else { 0 } }",
+            "b",
+        ),
+        (
+            "match",
+            "pub fn f() -> u32 { match b::num() { _ => 0 } }",
+            "b",
+        ),
+        ("closure", "pub fn f() { let g = || b::work(); g(); }", "b"),
+        ("loop", "pub fn f() { loop { b::work(); break; } }", "b"),
+        ("while", "pub fn f() { while b::flag() { break; } }", "b"),
+        ("for_loop", "pub fn f() { for _ in b::items() {} }", "b"),
+        ("local", "pub fn f() { let _x = b::num(); }", "b"),
+    ];
+
+    for (name, body, expected) in cases {
+        let fixture = Fixture::new(&format!("expr-{name}"))
+            .file("lib.rs", "mod a;\nmod b;\n")
+            .file("a.rs", &format!("struct S {{ v: u32 }}\n{body}\n"))
+            .file(
+                "b.rs",
+                "pub fn work() {}\npub fn num() -> u32 { 0 }\n\
+                 pub fn flag() -> bool { true }\n\
+                 pub fn items() -> Vec<u32> { Vec::new() }\n",
+            );
+        let analysis = fixture.analyse();
+        assert!(
+            analysis.imports("a", expected),
+            "case `{name}`: a qualified call must be an edge; edges were {:?}",
+            analysis.edges
+        );
+    }
+}
+
+/// A qualified call inside an `impl` body or a trait default method is an edge.
+#[test]
+fn qualified_calls_inside_impl_and_trait_defaults_are_edges() {
+    let fixture = Fixture::new("expr-impl-trait")
+        .file("lib.rs", "mod a;\nmod b;\n")
+        .file(
+            "a.rs",
+            "pub struct S;\n\
+             impl S {\n\
+                 pub fn m(&self) { b::work(); }\n\
+             }\n\
+             pub trait T {\n\
+                 fn t(&self) { b::work(); }\n\
+             }\n\
+             pub const C: u32 = b::num();\n\
+             pub static D: u32 = b::num();\n",
+        )
+        .file("b.rs", "pub fn work() {}\npub fn num() -> u32 { 0 }\n");
+    let analysis = fixture.analyse();
+
+    assert!(
+        analysis.imports("a", "b"),
+        "impl methods, trait defaults and const/static initialisers all call b; \
+         edges were {:?}",
+        analysis.edges
+    );
+}
+
+/// A type path is not a module call.
+///
+/// `crate::ir::ModuleIr` in a signature says nothing about a run-time
+/// dependency. Counting type paths would give every file an edge for a
+/// documentation-only mention and drown the real ones.
+#[test]
+fn a_type_path_is_not_a_module_edge() {
+    let fixture = Fixture::new("type-path")
+        .file("lib.rs", "mod a;\nmod b;\n")
+        .file(
+            "a.rs",
+            "pub fn f(_x: crate::b::Thing) -> Option<crate::b::Thing> { None }\n",
+        )
+        .file("b.rs", "pub struct Thing;\n");
+    let analysis = fixture.analyse();
+
+    assert!(
+        !analysis.imports("a", "b"),
+        "a type path is not a run-time dependency; edges were {:?}",
+        analysis.edges
+    );
+}
+
+/// A `use` alias is an edge through the import, not through the call site.
+///
+/// `use crate::b::work as do_it; do_it();` depends on `b` because of the
+/// import. The bare `do_it()` names a local binding, and resolving it would
+/// require the symbol table the checker does not have.
+#[test]
+fn a_use_alias_is_an_edge_through_the_import() {
+    let fixture = Fixture::new("alias")
+        .file("lib.rs", "mod a;\nmod b;\n")
+        .file(
+            "a.rs",
+            "use crate::b::work as do_it;\npub fn f() { do_it(); }\n",
+        )
+        .file("b.rs", "pub fn work() {}\n");
+    let analysis = fixture.analyse();
+
+    assert!(
+        analysis.imports("a", "b"),
+        "the `use … as do_it` is the edge; edges were {:?}",
+        analysis.edges
+    );
+    assert!(analysis.unresolved.is_empty(), "{:?}", analysis.unresolved);
+}
+
+/// A local binding that shadows a module name is not an edge.
+///
+/// `let b = 1; b.to_string()` has no prefix at all, so it cannot reach the
+/// qualified-path pass. The case is listed here because it is the shape a
+/// reader would expect to be wrong.
+#[test]
+fn a_local_binding_named_like_a_module_is_not_an_edge() {
+    let fixture = Fixture::new("shadow")
+        .file("lib.rs", "mod a;\nmod b;\n")
+        .file("a.rs", "pub fn f() { let b = 1; let _ = b.to_string(); }\n")
+        .file("b.rs", "pub fn work() {}\n");
+    let analysis = fixture.analyse();
+
+    assert!(
+        !analysis.imports("a", "b"),
+        "a local binding is not a module; edges were {:?}",
+        analysis.edges
+    );
+}
+
+/// A qualified path inside a macro body is **not** seen, and that is recorded
+/// rather than papered over.
+///
+/// `syn` parses `println!("{}", b::num())` as an `Expr::Macro` whose body is an
+/// unparsed `TokenStream`. Walking those tokens would mean re-implementing
+/// expression parsing for an arbitrary macro grammar, and a match on
+/// `ident :: ident` inside a `format!` string literal would be a false edge.
+///
+/// The consequence is stated so nobody over-reads a clean result: **this
+/// checker does not see through macro expansion.** A dependency that exists
+/// only inside a macro body is invisible to it. That is acceptable for this
+/// crate because module calls do not live in macros here, but it is a limit of
+/// the analysis, not a property of the code.
+#[test]
+fn a_qualified_path_inside_a_macro_body_is_not_seen() {
+    let fixture = Fixture::new("macro-body")
+        .file("lib.rs", "mod a;\nmod b;\n")
+        .file("a.rs", "pub fn f() { println!(\"{}\", b::num()); }\n")
+        .file("b.rs", "pub fn num() -> u32 { 0 }\n");
+    let analysis = fixture.analyse();
+
+    assert!(
+        !analysis.imports("a", "b"),
+        "the checker does not parse macro bodies; if this starts passing, the \
+         limitation changed and the doc comment on `qualified_paths` is stale"
+    );
+}

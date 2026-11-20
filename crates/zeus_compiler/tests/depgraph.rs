@@ -26,6 +26,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+
+use syn::visit::{self, Visit};
 
 /// Why a `use` path produced no module edge.
 #[derive(Debug, PartialEq, Eq)]
@@ -288,113 +291,47 @@ fn super_of(module: &str) -> String {
 /// import is renamed so `use x::Y as Z` still records `x::Y`.
 /// Module paths used as expressions: `lower::lower_module(..)` and friends.
 ///
-/// Only the leading lowercase segments are returned, because that is what names
-/// a module. `Type::method` and `Value::field` have a CamelCase or local root
-/// and are excluded by `resolve_use` itself.
+/// Walks with `syn::visit::Visit` rather than a hand-written recursion. The
+/// hand-written version covered about a dozen `Expr` variants and silently
+/// missed `Binary`, `Assign`, `Array`, `Tuple`, `Struct`, `While`, trait
+/// default methods and const/static initialisers — every one of which can
+/// contain a qualified call. A visitor inherits the whole AST, so a variant
+/// added to `syn` is walked rather than ignored.
 ///
-/// Collecting these matters because a `use` scan is blind to them. When the
-/// hydration emitter was first moved out of `codegen`, `mod.rs` called it as
-/// `hydration::emit_auto_hydrated_component(..)` rather than importing it, and
-/// the checker reported a clean graph while the two modules depended on each
-/// other. Rewriting the call as a `use` made the cycle appear immediately.
+/// Only `Expr::Path` is collected. A `Type::Path` is not a module call: the
+/// type `crate::ir::ModuleIr` says nothing about which module this file
+/// depends on at run time, and counting it would create edges for
+/// documentation-only mentions.
 fn qualified_paths(file: &syn::File) -> Vec<String> {
-    let mut out = Vec::new();
-    walk_items(&file.items, &mut out);
+    let mut visitor = QualifiedPathVisitor::default();
+    visitor.visit_file(file);
+    let mut out = visitor.paths;
     out.sort();
     out.dedup();
     out
 }
 
-fn walk_items(items: &[syn::Item], out: &mut Vec<String>) {
-    for item in items {
-        match item {
-            syn::Item::Fn(function) => walk_block(&function.block, out),
-            syn::Item::Const(constant) => walk_expr(&constant.expr, out),
-            syn::Item::Static(stat) => walk_expr(&stat.expr, out),
-            syn::Item::Mod(item_mod) => {
-                if let Some((_, items)) = &item_mod.content {
-                    walk_items(items, out);
-                }
-            }
-            syn::Item::Impl(item_impl) => {
-                for inner in &item_impl.items {
-                    if let syn::ImplItem::Fn(function) = inner {
-                        walk_block(&function.block, out);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
+#[derive(Default)]
+struct QualifiedPathVisitor {
+    paths: Vec<String>,
 }
 
-fn walk_block(block: &syn::Block, out: &mut Vec<String>) {
-    for statement in &block.stmts {
-        match statement {
-            syn::Stmt::Expr(expr, _) => walk_expr(expr, out),
-            syn::Stmt::Local(local) => {
-                if let Some(init) = &local.init {
-                    walk_expr(&init.expr, out);
-                }
-            }
-            _ => {}
+impl<'ast> Visit<'ast> for QualifiedPathVisitor {
+    fn visit_expr_path(&mut self, node: &'ast syn::ExprPath) {
+        if let Some(joined) = join_path(&node.path) {
+            self.paths.push(joined);
         }
-    }
-}
-
-fn walk_expr(expr: &syn::Expr, out: &mut Vec<String>) {
-    match expr {
-        // `a::b::c(..)` or `a::b::c` reached through a path expression.
-        syn::Expr::Path(path) => {
-            if let Some(joined) = join_path(&path.path) {
-                out.push(joined);
-            }
-        }
-        syn::Expr::Call(call) => {
-            walk_expr(&call.func, out);
-            for arg in &call.args {
-                walk_expr(arg, out);
-            }
-        }
-        syn::Expr::MethodCall(method) => {
-            walk_expr(&method.receiver, out);
-            for arg in &method.args {
-                walk_expr(arg, out);
-            }
-        }
-        syn::Expr::Block(block) => walk_block(&block.block, out),
-        syn::Expr::Closure(closure) => walk_expr(&closure.body, out),
-        syn::Expr::If(branch) => {
-            walk_block(&branch.then_branch, out);
-            if let Some((_, otherwise)) = &branch.else_branch {
-                walk_expr(otherwise, out);
-            }
-        }
-        syn::Expr::Match(matching) => {
-            walk_expr(&matching.expr, out);
-            for arm in &matching.arms {
-                walk_expr(&arm.body, out);
-            }
-        }
-        syn::Expr::Return(ret) => {
-            if let Some(value) = &ret.expr {
-                walk_expr(value, out);
-            }
-        }
-        syn::Expr::Try(try_expr) => walk_expr(&try_expr.expr, out),
-        syn::Expr::Paren(paren) => walk_expr(&paren.expr, out),
-        syn::Expr::Reference(reference) => walk_expr(&reference.expr, out),
-        syn::Expr::ForLoop(loop_expr) => {
-            walk_expr(&loop_expr.expr, out);
-            walk_block(&loop_expr.body, out);
-        }
-        syn::Expr::Let(let_expr) => walk_expr(&let_expr.expr, out),
-        _ => {}
+        // A path expression can still contain sub-paths through generics and
+        // const arguments, so keep descending.
+        visit::visit_expr_path(self, node);
     }
 }
 
 /// `a::b::c` -> `"a::b::c"`, or `None` when the path is not a plain sequence of
-/// identifiers (`<T as Trait>::x`, `self::x` handled by `resolve_use`).
+/// identifiers (`<T as Trait>::x`).
+///
+/// A single segment is a local binding or a function in this module, not a
+/// module path; only `a::b` and longer can name another module.
 fn join_path(path: &syn::Path) -> Option<String> {
     if path.leading_colon.is_some() {
         return None;
@@ -406,14 +343,37 @@ fn join_path(path: &syn::Path) -> Option<String> {
         }
         parts.push(segment.ident.to_string());
     }
-    // A single segment is a local binding or a function in this module, not a
-    // module path. Only `a::b` and longer can name another module.
     if parts.len() < 2 {
         return None;
     }
     Some(parts.join("::"))
 }
 
+/// Whether the path's root can name a module, decided against the crate's real
+/// module set rather than a hand-written list.
+///
+/// An earlier version of this checked a fixed set of module names, which meant
+/// a fixture crate (`mod a; mod b;`) never had its qualified paths counted and
+/// a synthetic cycle went undetected. A list of names is a list that goes stale;
+/// the module set is already known by the time this is called.
+fn root_names_a_module(known: &BTreeSet<String>, path: &str) -> bool {
+    let Some((root, _)) = path.split_once("::") else {
+        return false;
+    };
+    if matches!(root, "crate" | "super" | "self") {
+        return true;
+    }
+    known.contains(root)
+}
+
+/// The edges a file's qualified paths represent.
+///
+/// Returns the ones that resolve immediately and the ones that need the full
+/// module set (a bare root may be a submodule or a crate-level module).
+///
+/// Only a path whose root is a real module counts. `usize::MAX` and
+/// `u32::try_from` are inherent items, and `walk::visit_x` names an item
+/// brought in by `use` — counting those would give every file edges to nothing.
 /// One file's declarations, `use` edges and qualified-path edges.
 fn analyse_file(
     absolute: &Path,
@@ -442,13 +402,6 @@ fn analyse_file(
                     .or_default()
                     .insert(child);
             }
-            // A qualified path is a dependency the `use` scan cannot see:
-            // `lower::lower_module(...)` in `pipeline.rs` names the `lower`
-            // module without importing it. Missing these edges is how a cycle
-            // can exist while the checker reports a clean graph — an earlier
-            // attempt to move the hydration emitter out of `codegen` produced
-            // exactly that, and the move looked safe until the call was
-            // rewritten as a `use`.
             syn::Item::Use(item_use) => {
                 let mut paths = Vec::new();
                 expand_use_tree(&item_use.tree, &mut Vec::new(), &mut paths);
@@ -475,70 +428,114 @@ fn analyse_file(
         }
     }
 
-    let (direct, pending) = qualified_edges(&file, &module, &analysis.modules);
-    for target in direct {
+    // A qualified path is a dependency the `use` scan cannot see, and a call
+    // through one was how a real cycle stayed invisible.
+    for target in qualified_edges(&file, &module, &analysis.modules) {
         analysis
             .edges
             .entry(module.clone())
             .or_default()
             .insert(target);
     }
-    pending_prefixes.extend(pending);
 }
 
-/// Whether the path's root can name a module, decided against the crate's real
-/// module set rather than a hand-written list.
-///
-/// An earlier version of this checked a fixed set of module names, which meant
-/// a fixture crate (`mod a; mod b;`) never had its qualified paths counted and
-/// a synthetic cycle went undetected. A list of names is a list that goes stale;
-/// the module set is already known by the time this is called.
-fn root_names_a_module(known: &BTreeSet<String>, path: &str) -> bool {
-    let Some((root, _)) = path.split_once("::") else {
-        return false;
-    };
-    if matches!(root, "crate" | "super" | "self") {
-        return true;
-    }
-    known.contains(root)
-}
-
-/// The edges a file's qualified paths represent.
-///
-/// Returns the ones that resolve immediately and the ones that need the full
-/// module set (a bare root may be a submodule or a crate-level module).
-///
-/// Only a path whose root is a real module counts. `usize::MAX` and
-/// `u32::try_from` are inherent items, and `walk::visit_x` names an item
-/// brought in by `use` — counting those would give every file edges to nothing.
-fn qualified_edges(
-    file: &syn::File,
-    module: &str,
-    known: &BTreeSet<String>,
-) -> (Vec<String>, Vec<(String, String, String)>) {
+fn qualified_edges(file: &syn::File, module: &str, known: &BTreeSet<String>) -> Vec<String> {
     let mut direct = Vec::new();
-    let mut pending = Vec::new();
-
     for path in qualified_paths(file) {
-        if !root_names_a_module(known, &path) {
-            continue;
+        if let Some(target) = resolve_qualified(module, &path, known)
+            && target != module
+        {
+            direct.push(target);
         }
-        // `crate::` and `super::` already have an unambiguous base; the prefix
-        // walk is for bare roots. `pipeline`'s `analysis::hydration` is the
-        // crate root's `analysis`, not `pipeline::analysis`, and only the
-        // module set can tell.
-        if path.starts_with("crate::") || path.starts_with("super::") {
-            if let Resolution::Module(target) = resolve_use(module, &path)
-                && target != module
-            {
-                direct.push(target);
-            }
-            continue;
-        }
-        pending.push((module.to_string(), path.clone(), path));
     }
+    direct
+}
 
-    (direct, pending)
+/// Resolves a qualified path used as an expression to the module it names.
+///
+/// Rust resolves the first segment of a bare path against the current module
+/// first, then the crate root. `b::work()` inside `a` is `a::b` when that
+/// module exists, and `crate::b` when it does not. Only the real module set can
+/// tell, so every candidate prefix is tried and the deepest one that exists
+/// wins.
+///
+/// `None` means the path names no module — `usize::MAX`, a `use` alias, a local
+/// binding. Those are not edges, and they are not errors either: an expression
+/// path is not a declaration, so there is nothing to report.
+fn resolve_qualified(module: &str, path: &str, known: &BTreeSet<String>) -> Option<String> {
+    for (base, rest) in path_bases(module, path) {
+        if let Some(found) = deepest_known_module(&base, &rest, known) {
+            // Truncating `a::b::work` back to `a` — the module we are already
+            // in — means the path names something inside this module, not a
+            // dependency on it. A self-edge says nothing about the graph, and
+            // returning it would stop the search before the crate-root
+            // candidate (`b`) is tried.
+            if found == module {
+                continue;
+            }
+            return Some(found);
+        }
+    }
+    None
+}
+
+/// The candidate module bases for a path, in Rust's lookup order.
+fn path_bases(module: &str, path: &str) -> Vec<(String, String)> {
+    let mut segments = path.split("::");
+    let Some(root) = segments.next() else {
+        return Vec::new();
+    };
+    match root {
+        "crate" => vec![(String::new(), segments.collect::<Vec<_>>().join("::"))],
+        "super" => {
+            let mut base = super_of(module);
+            let mut rest: Vec<&str> = segments.collect();
+            while rest.first() == Some(&"super") {
+                rest.remove(0);
+                base = super_of(&base);
+            }
+            // At the crate root the base is the empty prefix, not the literal
+            // module name `lib`: `lib` is how the checker *labels* the root, and
+            // joining it produces `lib::root`, which matches `lib` on the way
+            // back down and reports a dependency on the crate root instead of
+            // on `root`.
+            if base == "lib" {
+                base.clear();
+            }
+            vec![(base, rest.join("::"))]
+        }
+        "self" => vec![(module.to_string(), segments.collect::<Vec<_>>().join("::"))],
+        _ => vec![
+            // The current module and its ancestors, nearest first.
+            (module.to_string(), path.to_string()),
+            // Then the crate root.
+            (String::new(), path.to_string()),
+        ],
+    }
+}
+
+/// The longest prefix of `base::rest` that names a real module.
+fn deepest_known_module(base: &str, rest: &str, known: &BTreeSet<String>) -> Option<String> {
+    let joined = if base.is_empty() {
+        rest.to_string()
+    } else if rest.is_empty() {
+        base.to_string()
+    } else {
+        format!("{base}::{rest}")
+    };
+    if joined.is_empty() {
+        return None;
+    }
+    let mut candidate = joined.as_str();
+    loop {
+        if known.contains(candidate) {
+            return Some(candidate.to_string());
+        }
+        match candidate.rsplit_once("::") {
+            Some((prefix, _)) => candidate = prefix,
+            None => return None,
+        }
+    }
 }
 
 fn expand_use_tree(tree: &syn::UseTree, prefix: &mut Vec<String>, out: &mut Vec<String>) {
@@ -576,22 +573,51 @@ fn expand_use_tree(tree: &syn::UseTree, prefix: &mut Vec<String>, out: &mut Vec<
 /// Kept explicit so a lowercase root is never mistaken for a sibling module.
 /// A crate added to `Cargo.toml` must be added here: guessing risks inventing an
 /// edge onto a real module name.
-const EXTERNAL_CRATES: &[&str] = &[
-    "alloc",
-    "core",
-    "oxc_allocator",
-    "oxc_ast",
-    "oxc_ast_visit",
-    "oxc_diagnostics",
-    "oxc_parser",
-    "oxc_semantic",
-    "oxc_sourcemap",
-    "oxc_span",
-    "oxc_syntax",
-    "serde",
-    "serde_json",
-    "std",
-];
+/// Dependency names as declared in the crate's own `Cargo.toml`.
+///
+/// This used to be a hand-written list. A list is a snapshot: adding a
+/// dependency and forgetting the list makes the checker resolve `newdep::foo`
+/// as a sibling module and report "no such module" — or, worse, match a local
+/// module of the same name and invent an edge. Reading the manifest means the
+/// answer comes from the same file that decides it for the compiler.
+fn external_crates() -> &'static BTreeSet<String> {
+    static CACHE: OnceLock<BTreeSet<String>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        let manifest = Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+        // `env!` guarantees the directory exists; a missing manifest would mean
+        // the crate was never in this shape, and the whole checker is then
+        // meaningless.
+        let text = fs::read_to_string(&manifest).expect("read the crate manifest");
+        let mut names: BTreeSet<String> = ["std", "alloc", "core", "crate", "self", "super"]
+            .into_iter()
+            .map(ToString::to_string)
+            .collect();
+        // Dependencies appear as `name.workspace = true` or `name = "…"` under
+        // `[dependencies]`; a line-oriented read is enough because the manifest
+        // is ours and the shape is checked by Cargo.
+        let mut in_dependencies = false;
+        for line in text.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with('[') {
+                in_dependencies = trimmed == "[dependencies]"
+                    || trimmed == "[dev-dependencies]"
+                    || trimmed == "[build-dependencies]";
+                continue;
+            }
+            if !in_dependencies || trimmed.is_empty() || trimmed.starts_with('#') {
+                continue;
+            }
+            if let Some((name, _)) = trimmed.split_once(['=', '.']) {
+                let name = name.trim();
+                if !name.is_empty() {
+                    // Cargo package names may contain `-`; Rust paths use `_`.
+                    names.insert(name.replace('-', "_"));
+                }
+            }
+        }
+        names
+    })
+}
 
 /// Resolves one `use` path to the module it names.
 fn resolve_use(module: &str, path: &str) -> Resolution {
@@ -653,7 +679,7 @@ fn resolve_use(module: &str, path: &str) -> Resolution {
         }
         "self" => module.to_string(),
         root if root.chars().next().is_some_and(char::is_uppercase) => return Resolution::External,
-        root if EXTERNAL_CRATES.contains(&root) => return Resolution::External,
+        root if external_crates().contains(root) => return Resolution::External,
         // A bare lowercase root names a sibling module — or, from the crate
         // root, a top-level module. This is the branch the text scanner got
         // wrong: `ssr` in `codegen/mod.rs` is `codegen::ssr`.
