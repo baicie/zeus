@@ -36,6 +36,13 @@ use crate::{
     span::{SourceIndex, SourceSpan},
 };
 
+// The cross-stage contracts live in `stage_contracts`; re-exported here so
+// `LowerResult`'s field types stay nameable without every caller importing
+// that module.
+pub(crate) use crate::stage_contracts::{
+    HmrInfo, HmrRenderCall, SsrImportReplacement, SsrImportRewrite,
+};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LowerResult {
     pub ir: Option<ModuleIr>,
@@ -45,19 +52,6 @@ pub struct LowerResult {
     pub(crate) hmr: HmrInfo,
     pub(crate) pure_define_element_calls: Vec<Span>,
     pub(crate) ssr_runtime_imports: Vec<SsrImportRewrite>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct HmrInfo {
-    pub manual_boundary: bool,
-    pub render_calls: Vec<HmrRenderCall>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct HmrRenderCall {
-    pub offset: u32,
-    pub end: u32,
-    pub terminate_statement: bool,
 }
 
 pub fn lower_module(source: &str, filename: &str) -> LowerResult {
@@ -155,33 +149,6 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
         pure_define_element_calls: collect_top_level_define_element_calls(&parsed.program),
         ssr_runtime_imports: collect_ssr_runtime_imports(source, &parsed.program),
     }
-}
-
-/// A source replacement the SSR emitter applies to one import statement.
-///
-/// A statement whose bindings are all served by the SSR facade only needs its
-/// module source rewritten. A mixed statement is split instead: the facade
-/// names move to a new import statement and the remaining client-only names
-/// keep importing from the original module.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SsrImportRewrite {
-    /// Span of the whole statement, replaced verbatim.
-    pub(crate) span: Span,
-    pub(crate) replacement: SsrImportReplacement,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum SsrImportReplacement {
-    /// Replace only the module specifier string of an all-facade import.
-    ModuleSource,
-    /// Split the statement into a facade import and a client import.
-    Split {
-        /// Verbatim specifier source text, in original order.
-        facade: Vec<String>,
-        client: Vec<String>,
-        /// Original module, which keeps serving the client-only names.
-        module: String,
-    },
 }
 
 /// SSR facade names: every binding the server entry can serve, plus the

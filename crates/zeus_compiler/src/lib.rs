@@ -2,6 +2,7 @@ mod codegen;
 pub mod ir;
 pub mod lower;
 mod ssr;
+mod stage_contracts;
 pub mod support;
 
 pub use support::{diagnostic, span};
