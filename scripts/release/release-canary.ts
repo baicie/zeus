@@ -1,11 +1,13 @@
 import { spawnSync } from 'node:child_process'
 import { appendFileSync } from 'node:fs'
+import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 import pico from 'picocolors'
 import semver from 'semver'
 
 import config, { zeusFixedPackages } from '../release.config'
+import { StageRecorder } from './canary-stages'
 import {
   assertCleanReleaseSource,
   restoreReleaseRewrite,
@@ -184,11 +186,31 @@ async function main(): Promise<void> {
     exposeCanaryEnvironment(version, stagingTag)
   }
 
+  // Written as the run proceeds, so a failure at any stage still leaves a file
+  // naming the stage, the command and the exit code. Without it the workflow's
+  // `if: always()` uploads found no files and the failure was diagnosed from
+  // log text.
+  const recorder = new StageRecorder(
+    path.join(process.cwd(), 'temp/release/canary-stages.json'),
+  )
+  recorder.setVersions(version, stagingTag)
+
   let failure: unknown
   try {
-    run('pnpm', ['release:version-packages', version])
-    run('pnpm', ['install', '--lockfile-only'])
-    run('pnpm', ['release:precheck', '--channel', 'canary'])
+    recorder.run(
+      'version-packages',
+      `pnpm release:version-packages ${version}`,
+      () => {
+        run('pnpm', ['release:version-packages', version])
+      },
+    )
+    recorder.run('install-lockfile', 'pnpm install --lockfile-only', () => {
+      run('pnpm', ['install', '--lockfile-only'])
+    })
+
+    recorder.run('precheck', 'pnpm release:precheck --channel canary', () => {
+      run('pnpm', ['release:precheck', '--channel', 'canary'])
+    })
 
     const packageDirs = new Map(
       findWorkspacePackages().map(pkg => [pkg.name, pkg.dir]),
@@ -215,7 +237,10 @@ async function main(): Promise<void> {
       wait,
     })
 
+    recorder.record({ name: 'publish-dry-run', status: 'pass' })
+
     if (result === 'dry-run-only') {
+      recorder.finish()
       console.log(
         pico.green(
           `Canary dry-run-only passed (${zeusFixedPackages.length} packages, ${stagingTag} -> ${version}); no packages were published.`,
@@ -225,6 +250,8 @@ async function main(): Promise<void> {
     }
 
     verifyCurrentMainHead()
+    recorder.record({ name: 'publish-staging', status: 'pass' })
+    recorder.finish()
     console.log(
       pico.green(
         `Canary staging publication complete (${stagingTag} -> ${version}).`,
@@ -232,6 +259,7 @@ async function main(): Promise<void> {
     )
   } catch (error) {
     failure = error
+    recorder.finish()
     throw error
   } finally {
     try {
