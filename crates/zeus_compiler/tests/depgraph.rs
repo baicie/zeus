@@ -164,52 +164,12 @@ pub fn analyse(root: &Path) -> Analysis {
     }
 
     for relative in &files {
-        let module = module_path_of(relative);
-        let source = fs::read_to_string(root.join(relative)).expect("readable source file");
-        let file = syn::parse_file(&source).unwrap_or_else(|error| {
-            panic!(
-                "{} is not valid Rust and could not be analysed: {error}",
-                relative.display()
-            )
-        });
-
-        for item in &file.items {
-            match item {
-                // `mod foo;` declares a child; `mod foo { … }` is inline and has
-                // no file, so it is not a module edge.
-                syn::Item::Mod(item_mod) if item_mod.content.is_none() => {
-                    let child = join_module(&module, &item_mod.ident.to_string());
-                    analysis
-                        .declarations
-                        .entry(module.clone())
-                        .or_default()
-                        .insert(child);
-                }
-                syn::Item::Use(item_use) => {
-                    let mut paths = Vec::new();
-                    expand_use_tree(&item_use.tree, &mut Vec::new(), &mut paths);
-                    for path in paths {
-                        match resolve_use(&module, &path) {
-                            Resolution::Module(target) => {
-                                analysis
-                                    .edges
-                                    .entry(module.clone())
-                                    .or_default()
-                                    .insert(target);
-                            }
-                            Resolution::External => {}
-                            Resolution::PrefixCandidates(deepest) => {
-                                pending_prefixes.push((module.clone(), deepest, path));
-                            }
-                            Resolution::Unresolved(reason) => analysis
-                                .unresolved
-                                .push(format!("{module}: {path} ({reason})")),
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
+        analyse_file(
+            &root.join(relative),
+            relative,
+            &mut analysis,
+            &mut pending_prefixes,
+        );
     }
 
     // `crate::a::b::c` may end at any of `crate::a`, `crate::a::b`, …: the rest
@@ -326,6 +286,261 @@ fn super_of(module: &str) -> String {
 
 /// Flattens a `use` tree into full paths, keeping the original path when an
 /// import is renamed so `use x::Y as Z` still records `x::Y`.
+/// Module paths used as expressions: `lower::lower_module(..)` and friends.
+///
+/// Only the leading lowercase segments are returned, because that is what names
+/// a module. `Type::method` and `Value::field` have a CamelCase or local root
+/// and are excluded by `resolve_use` itself.
+///
+/// Collecting these matters because a `use` scan is blind to them. When the
+/// hydration emitter was first moved out of `codegen`, `mod.rs` called it as
+/// `hydration::emit_auto_hydrated_component(..)` rather than importing it, and
+/// the checker reported a clean graph while the two modules depended on each
+/// other. Rewriting the call as a `use` made the cycle appear immediately.
+fn qualified_paths(file: &syn::File) -> Vec<String> {
+    let mut out = Vec::new();
+    walk_items(&file.items, &mut out);
+    out.sort();
+    out.dedup();
+    out
+}
+
+fn walk_items(items: &[syn::Item], out: &mut Vec<String>) {
+    for item in items {
+        match item {
+            syn::Item::Fn(function) => walk_block(&function.block, out),
+            syn::Item::Const(constant) => walk_expr(&constant.expr, out),
+            syn::Item::Static(stat) => walk_expr(&stat.expr, out),
+            syn::Item::Mod(item_mod) => {
+                if let Some((_, items)) = &item_mod.content {
+                    walk_items(items, out);
+                }
+            }
+            syn::Item::Impl(item_impl) => {
+                for inner in &item_impl.items {
+                    if let syn::ImplItem::Fn(function) = inner {
+                        walk_block(&function.block, out);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn walk_block(block: &syn::Block, out: &mut Vec<String>) {
+    for statement in &block.stmts {
+        match statement {
+            syn::Stmt::Expr(expr, _) => walk_expr(expr, out),
+            syn::Stmt::Local(local) => {
+                if let Some(init) = &local.init {
+                    walk_expr(&init.expr, out);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn walk_expr(expr: &syn::Expr, out: &mut Vec<String>) {
+    match expr {
+        // `a::b::c(..)` or `a::b::c` reached through a path expression.
+        syn::Expr::Path(path) => {
+            if let Some(joined) = join_path(&path.path) {
+                out.push(joined);
+            }
+        }
+        syn::Expr::Call(call) => {
+            walk_expr(&call.func, out);
+            for arg in &call.args {
+                walk_expr(arg, out);
+            }
+        }
+        syn::Expr::MethodCall(method) => {
+            walk_expr(&method.receiver, out);
+            for arg in &method.args {
+                walk_expr(arg, out);
+            }
+        }
+        syn::Expr::Block(block) => walk_block(&block.block, out),
+        syn::Expr::Closure(closure) => walk_expr(&closure.body, out),
+        syn::Expr::If(branch) => {
+            walk_block(&branch.then_branch, out);
+            if let Some((_, otherwise)) = &branch.else_branch {
+                walk_expr(otherwise, out);
+            }
+        }
+        syn::Expr::Match(matching) => {
+            walk_expr(&matching.expr, out);
+            for arm in &matching.arms {
+                walk_expr(&arm.body, out);
+            }
+        }
+        syn::Expr::Return(ret) => {
+            if let Some(value) = &ret.expr {
+                walk_expr(value, out);
+            }
+        }
+        syn::Expr::Try(try_expr) => walk_expr(&try_expr.expr, out),
+        syn::Expr::Paren(paren) => walk_expr(&paren.expr, out),
+        syn::Expr::Reference(reference) => walk_expr(&reference.expr, out),
+        syn::Expr::ForLoop(loop_expr) => {
+            walk_expr(&loop_expr.expr, out);
+            walk_block(&loop_expr.body, out);
+        }
+        syn::Expr::Let(let_expr) => walk_expr(&let_expr.expr, out),
+        _ => {}
+    }
+}
+
+/// `a::b::c` -> `"a::b::c"`, or `None` when the path is not a plain sequence of
+/// identifiers (`<T as Trait>::x`, `self::x` handled by `resolve_use`).
+fn join_path(path: &syn::Path) -> Option<String> {
+    if path.leading_colon.is_some() {
+        return None;
+    }
+    let mut parts = Vec::new();
+    for segment in &path.segments {
+        if !matches!(segment.arguments, syn::PathArguments::None) {
+            return None;
+        }
+        parts.push(segment.ident.to_string());
+    }
+    // A single segment is a local binding or a function in this module, not a
+    // module path. Only `a::b` and longer can name another module.
+    if parts.len() < 2 {
+        return None;
+    }
+    Some(parts.join("::"))
+}
+
+/// One file's declarations, `use` edges and qualified-path edges.
+fn analyse_file(
+    absolute: &Path,
+    relative: &Path,
+    analysis: &mut Analysis,
+    pending_prefixes: &mut Vec<(String, String, String)>,
+) {
+    let module = module_path_of(relative);
+    let source = fs::read_to_string(absolute).expect("readable source file");
+    let file = syn::parse_file(&source).unwrap_or_else(|error| {
+        panic!(
+            "{} is not valid Rust and could not be analysed: {error}",
+            relative.display()
+        )
+    });
+
+    for item in &file.items {
+        match item {
+            // `mod foo;` declares a child; `mod foo { … }` is inline and has
+            // no file, so it is not a module edge.
+            syn::Item::Mod(item_mod) if item_mod.content.is_none() => {
+                let child = join_module(&module, &item_mod.ident.to_string());
+                analysis
+                    .declarations
+                    .entry(module.clone())
+                    .or_default()
+                    .insert(child);
+            }
+            // A qualified path is a dependency the `use` scan cannot see:
+            // `lower::lower_module(...)` in `pipeline.rs` names the `lower`
+            // module without importing it. Missing these edges is how a cycle
+            // can exist while the checker reports a clean graph — an earlier
+            // attempt to move the hydration emitter out of `codegen` produced
+            // exactly that, and the move looked safe until the call was
+            // rewritten as a `use`.
+            syn::Item::Use(item_use) => {
+                let mut paths = Vec::new();
+                expand_use_tree(&item_use.tree, &mut Vec::new(), &mut paths);
+                for path in paths {
+                    match resolve_use(&module, &path) {
+                        Resolution::Module(target) => {
+                            analysis
+                                .edges
+                                .entry(module.clone())
+                                .or_default()
+                                .insert(target);
+                        }
+                        Resolution::External => {}
+                        Resolution::PrefixCandidates(deepest) => {
+                            pending_prefixes.push((module.clone(), deepest, path));
+                        }
+                        Resolution::Unresolved(reason) => analysis
+                            .unresolved
+                            .push(format!("{module}: {path} ({reason})")),
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let (direct, pending) = qualified_edges(&file, &module, &analysis.modules);
+    for target in direct {
+        analysis
+            .edges
+            .entry(module.clone())
+            .or_default()
+            .insert(target);
+    }
+    pending_prefixes.extend(pending);
+}
+
+/// Whether the path's root can name a module, decided against the crate's real
+/// module set rather than a hand-written list.
+///
+/// An earlier version of this checked a fixed set of module names, which meant
+/// a fixture crate (`mod a; mod b;`) never had its qualified paths counted and
+/// a synthetic cycle went undetected. A list of names is a list that goes stale;
+/// the module set is already known by the time this is called.
+fn root_names_a_module(known: &BTreeSet<String>, path: &str) -> bool {
+    let Some((root, _)) = path.split_once("::") else {
+        return false;
+    };
+    if matches!(root, "crate" | "super" | "self") {
+        return true;
+    }
+    known.contains(root)
+}
+
+/// The edges a file's qualified paths represent.
+///
+/// Returns the ones that resolve immediately and the ones that need the full
+/// module set (a bare root may be a submodule or a crate-level module).
+///
+/// Only a path whose root is a real module counts. `usize::MAX` and
+/// `u32::try_from` are inherent items, and `walk::visit_x` names an item
+/// brought in by `use` — counting those would give every file edges to nothing.
+fn qualified_edges(
+    file: &syn::File,
+    module: &str,
+    known: &BTreeSet<String>,
+) -> (Vec<String>, Vec<(String, String, String)>) {
+    let mut direct = Vec::new();
+    let mut pending = Vec::new();
+
+    for path in qualified_paths(file) {
+        if !root_names_a_module(known, &path) {
+            continue;
+        }
+        // `crate::` and `super::` already have an unambiguous base; the prefix
+        // walk is for bare roots. `pipeline`'s `analysis::hydration` is the
+        // crate root's `analysis`, not `pipeline::analysis`, and only the
+        // module set can tell.
+        if path.starts_with("crate::") || path.starts_with("super::") {
+            if let Resolution::Module(target) = resolve_use(module, &path)
+                && target != module
+            {
+                direct.push(target);
+            }
+            continue;
+        }
+        pending.push((module.to_string(), path.clone(), path));
+    }
+
+    (direct, pending)
+}
+
 fn expand_use_tree(tree: &syn::UseTree, prefix: &mut Vec<String>, out: &mut Vec<String>) {
     match tree {
         syn::UseTree::Path(path) => {

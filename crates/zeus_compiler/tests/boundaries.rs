@@ -384,3 +384,61 @@ fn an_orphan_module_is_reported() {
         "a is reachable through `mod a`"
     );
 }
+
+/// A call through a qualified path is an edge, and a cycle through one is a
+/// cycle.
+///
+/// This is the gap that let a real move look safe. When the hydration emitter
+/// was first extracted from `codegen`, `mod.rs` called it as
+/// `hydration::emit_auto_hydrated_component(..)` — a qualified path, not a
+/// `use`. The checker only read `use` statements, reported a clean graph, and
+/// the two modules were in fact mutually dependent; rewriting the call as a
+/// `use` made the cycle appear immediately. A checker that cannot see how the
+/// code is actually written is not a checker.
+#[test]
+fn a_cycle_through_a_qualified_call_is_reported() {
+    let fixture = Fixture::new("qualified-cycle")
+        .file("lib.rs", "mod a;\nmod b;\n")
+        .file("a.rs", "pub fn run() { b::work() }\n")
+        .file("b.rs", "use crate::a::run;\npub fn work() { run() }\n");
+    let analysis = fixture.analyse();
+
+    assert!(
+        analysis.imports("a", "b"),
+        "`b::work()` in a.rs is a dependency on b; edges were {:?}",
+        analysis.edges
+    );
+    let cycle = analysis
+        .first_cycle()
+        .expect("a -> b -> a through a qualified call must be caught");
+    assert!(cycle.contains(&"a".to_string()), "{cycle:?}");
+    assert!(cycle.contains(&"b".to_string()), "{cycle:?}");
+}
+
+/// A qualified path whose root is not a module is not an edge.
+///
+/// `usize::MAX` and `walk::visit_x` look like module paths to a tokeniser.
+/// Counting them would make every file depend on nothing in particular and
+/// drown the real edges.
+#[test]
+fn a_qualified_path_to_a_non_module_is_not_an_edge() {
+    let fixture = Fixture::new("qualified-nonmodule")
+        .file("lib.rs", "mod a;\n")
+        .file(
+            "a.rs",
+            "pub fn f() -> usize { usize::MAX }\n\
+             pub fn g(v: u64) -> u32 { u32::try_from(v).unwrap_or(0) }\n",
+        );
+    let analysis = fixture.analyse();
+
+    assert!(
+        analysis.unresolved.is_empty(),
+        "intrinsic paths must not be reported as unresolved: {:?}",
+        analysis.unresolved
+    );
+    assert!(
+        analysis.imports_of("a").is_empty(),
+        "`usize::MAX` is not a module; edges were {:?}",
+        analysis.imports_of("a")
+    );
+}
