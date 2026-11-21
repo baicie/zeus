@@ -11,52 +11,52 @@ Last run: 2026-11-19, `refactor/r17-compiler-pipeline`, Apple silicon.
 
 ## Local verification
 
-| Behaviour                                        | Verified by                                          | Result     |
-| ------------------------------------------------ | ---------------------------------------------------- | ---------- |
-| Static template generation                       | `tests/golden.rs` (45 fixtures)                      | pass       |
-| Dynamic text bindings                            | golden                                               | pass       |
-| Attribute / property / class / style bindings    | golden                                               | pass       |
-| Spread                                           | golden                                               | pass       |
-| Event delegation on                              | golden                                               | pass       |
-| Event delegation off                             | golden                                               | pass       |
-| Non-delegatable events                           | golden                                               | pass       |
-| Ref bindings                                     | golden                                               | pass       |
-| Components with props and children               | golden                                               | pass       |
-| `Show` with fallback                             | golden                                               | pass       |
-| `For` with item and index accessors              | golden                                               | pass       |
-| Nested `Show` in `For`                           | golden                                               | pass       |
-| `ErrorBoundary`                                  | golden                                               | pass       |
-| `Transition` with options                        | golden                                               | pass       |
-| Fragments                                        | golden                                               | pass       |
-| SVG namespace                                    | golden                                               | pass       |
-| Raw text elements                                | golden                                               | pass       |
-| Dynamic regions (expression, ternary, array-map) | golden                                               | pass       |
-| Pure `defineElement`                             | golden                                               | pass       |
-| HMR plan and manual-boundary skip                | golden                                               | pass       |
-| Auto hydration                                   | golden                                               | pass       |
-| SSR rendering, escaping, void elements, Show/For | golden (5 cases)                                     | pass       |
-| SSR rejects `ErrorBoundary`                      | golden                                               | pass       |
-| SSR rejects properties with no HTML equivalent   | golden                                               | pass       |
-| Non-JSX pass-through                             | golden                                               | pass       |
-| Unsupported source type diagnostic               | golden                                               | pass       |
-| Input-too-deep diagnostic                        | golden                                               | pass       |
-| Async component rejection                        | golden                                               | pass       |
-| Source map unicode / multiline                   | golden                                               | pass       |
-| Source map absent when not requested             | golden                                               | pass       |
-| TypeScript erasure                               | golden                                               | pass       |
-| Plain JS with JSX                                | golden                                               | pass       |
-| IR attribute union round-trip (TS fixture)       | `tests/ir.rs`                                        | pass       |
-| Lowering rules in isolation                      | `tests/lower.rs` (54 tests)                          | pass       |
-| Transform options and targets                    | `tests/transform.rs` (62 tests)                      | pass       |
-| HMR behaviour                                    | `tests/hmr.rs`                                       | pass       |
-| Playground IR snapshot                           | `tests/playground.rs`                                | pass       |
-| napi host compiles                               | `cargo check -p zeus_compiler_node`                  | pass       |
-| WASM host compiles                               | `cargo check -p zeus_compiler_wasm`                  | pass       |
-| Formatting                                       | `cargo fmt --all -- --check`                         | clean      |
-| Lints                                            | `cargo clippy --workspace --all-targets -D warnings` | clean      |
-| Throughput                                       | `examples/perf-baseline.rs`                          | within ±3% |
+| Behaviour                                        | Verified by                                          | Result               |
+| ------------------------------------------------ | ---------------------------------------------------- | -------------------- |
+| Static template generation                       | `tests/golden.rs` (45 fixtures)                      | pass                 |
+| Dynamic text bindings                            | golden                                               | pass                 |
+| Attribute / property / class / style bindings    | golden                                               | pass                 |
+| Spread                                           | golden                                               | pass                 |
+| Event delegation on                              | golden                                               | pass                 |
+| Event delegation off                             | golden                                               | pass                 |
+| Non-delegatable events                           | golden                                               | pass                 |
+| Ref bindings                                     | golden                                               | pass                 |
+| Components with props and children               | golden                                               | pass                 |
+| `Show` with fallback                             | golden                                               | pass                 |
+| `For` with item and index accessors              | golden                                               | pass                 |
+| Nested `Show` in `For`                           | golden                                               | pass                 |
+| `ErrorBoundary`                                  | golden                                               | pass                 |
+| `Transition` with options                        | golden                                               | pass                 |
+| Fragments                                        | golden                                               | pass                 |
+| SVG namespace                                    | golden                                               | pass                 |
+| Raw text elements                                | golden                                               | pass                 |
+| Dynamic regions (expression, ternary, array-map) | golden                                               | pass                 |
+| Pure `defineElement`                             | golden                                               | pass                 |
+| HMR plan and manual-boundary skip                | golden                                               | pass                 |
+| Auto hydration                                   | golden                                               | pass                 |
+| SSR rendering, escaping, void elements, Show/For | golden (5 cases)                                     | pass                 |
+| SSR rejects `ErrorBoundary`                      | golden                                               | pass                 |
+| SSR rejects properties with no HTML equivalent   | golden                                               | pass                 |
+| Non-JSX pass-through                             | golden                                               | pass                 |
+| Unsupported source type diagnostic               | golden                                               | pass                 |
+| Input-too-deep diagnostic                        | golden                                               | pass                 |
+| Async component rejection                        | golden                                               | pass                 |
+| Source map unicode / multiline                   | golden                                               | pass                 |
+| Source map absent when not requested             | golden                                               | pass                 |
+| TypeScript erasure                               | golden                                               | pass                 |
+| Plain JS with JSX                                | golden                                               | pass                 |
+| IR attribute union round-trip (TS fixture)       | `tests/ir.rs`                                        | pass                 |
+| Lowering rules in isolation                      | `tests/lower.rs` (54 tests)                          | pass                 |
+| Transform options and targets                    | `tests/transform.rs` (62 tests)                      | pass                 |
+| HMR behaviour                                    | `tests/hmr.rs`                                       | pass                 |
+| Playground IR snapshot                           | `tests/playground.rs`                                | pass                 |
+| napi host compiles                               | `cargo check -p zeus_compiler_node`                  | pass                 |
+| WASM host compiles                               | `cargo check -p zeus_compiler_wasm`                  | pass                 |
+| Formatting                                       | `cargo fmt --all -- --check`                         | clean                |
+| Lints                                            | `cargo clippy --workspace --all-targets -D warnings` | clean                |
+| Throughput                                       | `examples/perf-protocol.rs`                          | report only, no gate |
 
-Total local: 153 Rust tests, of which 45 are golden fixtures.
+Total local: 261 Rust tests, of which 45 are golden fixtures.
 
 ---
 
@@ -123,9 +123,9 @@ consumers, release canary — all require CI.
 ## Reproducing
 
 ```bash
-cargo test -p zeus_compiler              # 153 tests
+cargo test -p zeus_compiler
 cargo test --workspace --locked
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
-cargo run -p zeus_compiler --example perf-baseline --release
+cargo run -p zeus_compiler --example perf-protocol --release
 ```

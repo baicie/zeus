@@ -188,3 +188,51 @@ Re-run this when:
 
 A future comparison should use this table, not the raw numbers from an older
 machine.
+
+---
+
+## Superseded method (R20, `aa1e7f4b`)
+
+The numbers above were taken with `examples/perf-baseline.rs`, which reports a
+median per input and nothing else. That file has been replaced by
+`examples/perf-protocol.rs`, and the reason is written in the section above
+without being named: the spread this document measures — `many-bindings`
+ranging 1.41–2.33 ms — is **larger than the ±3% the table judges against**.
+The conclusions drawn were still right, because they were "no measurable
+regression" and a regression large enough to matter would have exceeded that
+spread. A smaller change could not have been seen at all.
+
+What changed:
+
+| Before                    | After                                                                |
+| ------------------------- | -------------------------------------------------------------------- |
+| One median, no conditions | Commit, toolchain, CPU, OS, profile, features printed with every run |
+| 1 process, 50 samples     | 3 processes × 30 samples, medians compared across processes          |
+| No spread reported        | Q1, Q3, MAD and relative spread per input                            |
+| No verdict                | `STABLE` or `INCONCLUSIVE` printed                                   |
+| ±3% treated as a gate     | No gate; the protocol reports and a human decides                    |
+| No fragment-dense input   | `fragment-dense (80)` added                                          |
+
+The `±3%` row in `validation-matrix.md` is now "report only, no gate".
+
+**`fragment-dense` is the input this document lacked.** The removed fragment
+clone (#353) was paid per fragment per helper-collection pass, and
+`many-bindings` has no fragments at all — so the one shape where that cost
+could appear was not measured. It is now the most expensive input at ~2.8 ms,
+above `many-bindings` at ~1.4 ms.
+
+Stage attribution on the same input set:
+
+```text
+lower    42.8%
+emit     52.9%
+analysis  3.2%
+validate  0.0%
+```
+
+`emit` is the hot stage. Future work on compiler throughput should start there,
+not in fragment collection.
+
+> Protocol and current numbers: [`perf-measurement-protocol.md`](perf-measurement-protocol.md).
+> The numbers in this file remain valid as a historical record of that
+> comparison; they are not a baseline to compare against now.
