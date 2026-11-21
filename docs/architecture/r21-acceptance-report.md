@@ -10,8 +10,8 @@
 ## 最终状态
 
 ```text
-R21-A HYDRATION_CORRECTNESS_CLOSED:   PARTIAL   — 01/03/04/05/06/08 完成；07/09 未执行
-R21-B RUNTIME_LIFECYCLE_VERIFIED:     PARTIAL   — 11/13 完成；12/14–18 未执行
+R21-A HYDRATION_CORRECTNESS_CLOSED:   PARTIAL   — 01/03/04/05/06/07/08 完成；09 未执行
+R21-B RUNTIME_LIFECYCLE_VERIFIED:     PARTIAL   — 11/12/13/14 完成；15–18 未执行
 R21-C BROWSER_MATRIX_VERIFIED:        PARTIAL   — 19/20/21 完成；22–26 未执行
 R21-D CONSUMER_CONTRACT_VERIFIED:     PARTIAL   — 10 完成；27–32 未执行
 R21-E RC_RECOVERY_READY:              PARTIAL   — 33/34 取证完成；35 未确认；37–39 未执行
@@ -160,9 +160,25 @@ autoHydration 专属的 7 个（`DUPLICATE_OWNER`、`REGION_UNTERMINATED`、
 `UNSUPPORTED`）在 harness 注释中列明，**未通过 `hydratePlan` 测试**——那样只会
 证明错误的东西。
 
-### TASK 07 / 09：NOT_RUN
+### TASK 07 — Marker 边界：VERIFIED
 
-边界与 SSR+autoHydrate 组合契约未执行。
+新增 `check:hydration-boundaries-browser`（5 项），全部用编译器真实产物：
+
+| 用例                     | 结果                                     |
+| ------------------------ | ---------------------------------------- |
+| `{''}` 空文本            | hydration 成功，保持为空，无孤立闭合标记 |
+| `{a}{b}` 相邻文本        | 两者按序保留（`AB`）                     |
+| `{'   '}` 纯空白         | 空白被保留（`'   '`），不是空            |
+| `<For each={[]}>` 空列表 | hydration 成功，无残留 `<li>`            |
+| JSX 注释在两个文本之间   | 不被误读为 marker，两段文本完整          |
+
+**写这个时抓到的是我自己的错误**：早期手写探针漏发开启 marker，让空文本看起来
+是缺陷。编译器两个 marker 都发；harness 现在直接导入编译器产物，同样的误判不
+会重演。
+
+### TASK 09：NOT_RUN
+
+SSR + autoHydrate 组合契约未执行。
 
 ---
 
@@ -199,10 +215,42 @@ mounts: 6, cleanups: 4, effects: 2
 **局限**：只测 effect 执行粒度。同一 effect 内部是否有冗余子表达式求值，
 从这个 harness 看不见，**未声称**。
 
-### TASK 12 / 14–18：NOT_RUN
+### TASK 12 — HMR 多代与异常恢复：VERIFIED
 
-HMR 多代异常恢复、For 压力、Show/For 嵌套作用域、Event Delegation、
-ErrorBoundary、Web Components 长生命周期——均未执行。
+五次更新扩到**十次**，并在第 4 次更新时点击触发 signal：
+
+```
+mounts: 11, cleanups: 10, effects: 1
+```
+
+**中途交互是关键**：点击创建的 effect 若未被下一次更新清理，最终的 `effects`
+会是 2。五次无交互的更新测不到这一点。
+
+语法错误恢复**没有重复实现**——`check:hmr-browser` 已覆盖（打断模块、断言旧树
+存活、修复、断言修复不被当作初次加载）。
+
+### TASK 14 — For 键控压力：VERIFIED
+
+在原有重排/删除之上补四项：
+
+| 检查                               | 结果          |
+| ---------------------------------- | ------------- |
+| 追加复用全部既有项                 | ✓             |
+| **全量替换时旧项全部脱离**         | ✓ 0/3 存活    |
+| 同 key 换 label 保留节点并更新文本 | ✓             |
+| 五次同步写入收敛到最后一次         | ✓ `L5-*` 全部 |
+
+**全量替换是容易漏掉的那一项**：只断言"复用"的测试无法区分键控列表和无淘汰
+的缓存。
+
+### TASK 11（补充）— 十次更新的计数
+
+TASK 11 的累积计数器在十次更新下同样成立（见 TASK 12 的实测）。
+
+### TASK 15–18：NOT_RUN
+
+Show/For 嵌套作用域、Event Delegation、ErrorBoundary、Web Components 长生命
+周期——未执行。
 
 ---
 
@@ -393,7 +441,9 @@ Vite 闭环、性能基线——未执行。
 - Hydration 会拒绝标签不符的节点，并在失败时保持容器可恢复
 - Hydration 后的 DOM **确实**是响应式的，dispose 后**确实**停止
 - 一次 signal 写入只运行它自己的绑定，不波及其他
-- HMR 五次连续更新只留一个活 effect，且**跨代际的泄漏能被看见**
+- HMR **十次**连续更新（含中途交互）只留一个活 effect，且**跨代际的泄漏能被看见**
+- 空文本、相邻文本、纯空白、空列表、普通注释都不破坏 hydration
+- 键控列表在追加时复用、在全量替换时清空、快速写入收敛到最后一次
 - SSR 与 DOM 目标的 marker 契约一致，节点被采纳而非重建
 
 这些都在真实浏览器里用编译器真实产物证明过，且经过注入验证。
