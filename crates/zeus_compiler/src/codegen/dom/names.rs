@@ -27,7 +27,7 @@ use crate::ir::{
 };
 
 use super::model::{
-    AttributeBindingKind, DynamicBinding, collect_dynamic_bindings, collect_root_dynamic_bindings,
+    AttributeBindingKind, DynamicBinding, collect_dynamic_bindings, collect_fragment_bindings,
     dynamic_binding,
 };
 
@@ -314,10 +314,13 @@ pub(crate) fn collect_component_helper_usage(
                     }
                 }
                 ChildIr::Fragment(fragment) => {
-                    for binding in
-                        collect_root_dynamic_bindings(&RootIr::Fragment(fragment.clone()))
-                    {
-                        collect_binding_helper_usage(&binding, usage);
+                    // Collecting through `RootIr::Fragment(fragment.clone())`
+                    // cloned the whole subtree to read its children. The
+                    // fragment collector takes `&FragmentIr` directly.
+                    let mut bindings = Vec::new();
+                    collect_fragment_bindings(fragment, &mut bindings);
+                    for binding in &bindings {
+                        collect_binding_helper_usage(binding, usage);
                     }
                 }
                 ChildIr::Component(component) => collect_component_helper_usage(component, usage),
@@ -379,8 +382,10 @@ pub(crate) fn collect_builtin_helper_usage(
                 }
             }
             ChildIr::Fragment(fragment) => {
-                for binding in collect_root_dynamic_bindings(&RootIr::Fragment(fragment.clone())) {
-                    collect_binding_helper_usage(&binding, usage);
+                let mut bindings = Vec::new();
+                collect_fragment_bindings(fragment, &mut bindings);
+                for binding in &bindings {
+                    collect_binding_helper_usage(binding, usage);
                 }
             }
             ChildIr::Component(component) => collect_component_helper_usage(component, usage),
