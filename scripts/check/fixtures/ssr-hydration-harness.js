@@ -17,7 +17,6 @@
  */
 import { hydratePlan } from '@zeus-js/runtime-dom'
 
-/* eslint-env browser */
 import { renderToString } from '@zeus-js/runtime-ssr'
 import { App as SsrApp } from '/modules/ssr.js'
 
@@ -271,4 +270,32 @@ export function probeDiagnostics(html) {
   })
 
   return results
+}
+
+/**
+ * Renders and hydrates one of the edge-case fixtures, reporting what happened.
+ *
+ * `caseName` selects a source compiled at build time by the check script; this
+ * function only places the HTML and runs the session, so the measurement is of
+ * the runtime rather than of a hand-written marker sequence.
+ */
+export function hydrateEdgeCase(caseName) {
+  const entry = window.__edgeCases?.[caseName]
+  if (!entry) return { ok: false, error: `no such case: ${caseName}` }
+  const container = document.getElementById('server')
+  container.innerHTML = entry.html
+  let error = null
+  try {
+    window.__edgeDispose = entry.mount(container)
+  } catch (thrown) {
+    error = String(thrown)
+  }
+  return {
+    ok: error === null,
+    error,
+    html: container.innerHTML,
+    // A lone `<!--zeus:hydrate:/-->` with no open marker before it would mean
+    // the server wrote a close for a region it never opened.
+    orphanClose: /^<!--zeus:hydrate:\/-->/.test(container.innerHTML),
+  }
 }
