@@ -16,7 +16,7 @@
 //! emitted code is. Nothing here reads `SourceIndex`, and nothing here decides
 //! module-level ordering.
 
-use crate::codegen::RuntimeNames;
+use super::names::RuntimeNames;
 use crate::codegen::infra::{
     CodeWriter, ForAccessorScope, NameAllocator, attribute_key, element_has_spread,
     is_static_expression, object_key, quote_js,

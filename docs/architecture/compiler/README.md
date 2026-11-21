@@ -22,11 +22,11 @@ for Node (`packages/compiler/compiler-native`) and a WASM build
 ```
 input
   → nesting guard          support/nesting.rs     reject input that would exhaust the parser stack
-  → parse + semantic       lower.rs                Oxc parser and SemanticBuilder
-  → lower                  lower.rs                JSX semantics → ModuleIr
+  → parse + semantic       lower/mod.rs            Oxc parser and SemanticBuilder
+  → lower                  lower/mod.rs            JSX semantics → ModuleIr
   → validate               ssr.rs                  target-specific rejection
   → analyse                analysis/, codegen/analysis.rs   facts the emitter needs
-  → emit                   codegen/{mod,ssr}.rs    ModuleIr + facts → JavaScript
+  → emit                   codegen/dom/, ssr.rs    ModuleIr + facts → JavaScript
   → plans                  analysis/hydration.rs, passes/hmr.rs   hydration plan, HMR slots
 ```
 
@@ -39,7 +39,7 @@ facts and record them; it may not reach into a later stage to re-derive them.**
 
 ## Changing the compiler
 
-- **A new JSX semantic** goes in `lower.rs` as a `lower_*` method producing an
+- **A new JSX semantic** goes in `lower/mod.rs` as a `lower_*` method producing an
   IR node, plus an emitter for each target. Add a golden fixture first.
 - **A new diagnostic** is a `CompilerDiagnostic::error(code, message, file,
 span)` pushed through the lowering context. Codes are `ZEUS_*` and stable.

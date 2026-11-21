@@ -10,8 +10,6 @@
 
 pub(crate) mod emit;
 pub(crate) mod model;
+pub(crate) mod names;
 
-pub(crate) use model::{
-    AttributeBindingKind, DynamicBinding, GeneratedComponent, collect_dynamic_bindings,
-    collect_root_dynamic_bindings, dynamic_binding,
-};
+pub(crate) use model::{DynamicBinding, GeneratedComponent, collect_root_dynamic_bindings};
