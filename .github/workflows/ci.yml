@@ -759,6 +759,11 @@ jobs:
       # cannot see a tree that was adopted and then frozen.
       - name: Hydration reactive bindings in Chromium, Firefox and WebKit
         run: pnpm check:hydration-reactivity-browser
+      # Marker bookkeeping: empty text, adjacent texts, whitespace, an empty
+      # For and a stray comment. These produce HTML that looks right and a tree
+      # the client cannot walk, and no happy-path test reaches them.
+      - name: Hydration marker boundaries in Chromium, Firefox and WebKit
+        run: pnpm check:hydration-boundaries-browser
       # Repeated hot updates and unmount. `check:hmr-browser` covers a single
       # update; this covers five in a row and the teardown after them, which is
       # where effect leaks show up.
@@ -777,6 +782,7 @@ jobs:
             temp/dom-update-browser
             temp/ssr-hydration-browser
             temp/hydration-reactivity-browser
+            temp/hydration-boundaries-browser
             temp/hmr-lifecycle-browser
 
   create-zeus-candidates:
