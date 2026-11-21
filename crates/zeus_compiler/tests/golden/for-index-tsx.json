@@ -1,6 +1,6 @@
 {
   "purpose": "For with index accessor",
-  "source": "export function App(props) {\n  return <For each={props.items}>{(item, index) => <li>{index()}: {item.name}</li>}</For>\n}\n",
+  "source": "import { For } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <For each={props.items}>{(item, index) => <li>{index()}: {item.name}</li>}</For>\n}\n",
   "filename": "for-index.tsx",
   "options": {
     "target": "dom",
@@ -12,30 +12,71 @@
     "autoHydrate": false
   },
   "expected": {
-    "code": "",
-    "map": null,
-    "diagnostics": [
-      {
-        "code": "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
-        "message": "Nested JSX expressions are not supported by this compiler slice.",
-        "severity": "error",
-        "filename": "for-index.tsx",
-        "hint": "Move the JSX into a component or a variable, or use <Show> and <For> for conditions and lists.",
-        "span": {
-          "start": {
-            "offset": 62,
-            "line": 2,
-            "column": 33
-          },
-          "end": {
-            "offset": 112,
-            "line": 2,
-            "column": 83
-          }
+    "code": "import { template as $zeusTemplate, mountFor as $zeusMountFor, mountDynamic as $zeusMountDynamic, insert as $zeusInsert, bindText as $zeusBindText } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"\");\nimport { For } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return (() => {\nconst $zeusRegion = $zeusTemplate(\"<!>\")();\nconst $zeusRegionMarker = $zeusRegion.firstChild;\n$zeusMountFor($zeusRegion, $zeusRegionMarker, () => props.items, undefined, ($zeusItem, $zeusIndex) => (() => {\nconst $zeusInlineTemplate = $zeusTemplate(\"<li><!>: <!></li>\");\nreturn (() => {\nconst $zeusInlineElement = $zeusInlineTemplate().firstChild;\nconst $zeusWalker = $zeusInlineElement.ownerDocument.createTreeWalker($zeusInlineElement, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\nconst $zeusMarker0 = $zeusWalker.nextNode();\n$zeusMountDynamic($zeusMarker.parentNode, $zeusMarker, () => ((index) => (index()))($zeusIndex()));\nconst $zeusText0 = $zeusMarker0.ownerDocument.createTextNode(\"\");\n$zeusInsert($zeusMarker0.parentNode, $zeusText0, $zeusMarker0);\n$zeusMarker0.remove();\n$zeusBindText($zeusText0, () => (((item) => (item.name))($zeusItem())));\nreturn $zeusInlineElement;\n})();\n})());\nreturn $zeusRegion;\n})()\n}\n",
+    "map": {
+      "version": 3,
+      "file": "for-index.tsx",
+      "sources": ["for-index.tsx"],
+      "sourcesContent": [
+        "import { For } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <For each={props.items}>{(item, index) => <li>{index()}: {item.name}</li>}</For>\n}\n"
+      ],
+      "names": [],
+      "mappings": ";;AAAA,SAAS,MAAM,OAAO,KAAK,GAAG,QAAQ;AACtC,OAAO,SAAS,IAAI;EAClB,O;;;oDAAkB,MAAM,K;;;;;;;0EAA8B,O;;;;6CAAW,KAAK,I;;;;;;AACxE"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.f2",
+              "kind": "for",
+              "nodeId": 2,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e3",
+              "kind": "element",
+              "nodeId": 3,
+              "optional": true,
+              "tagName": "li"
+            },
+            {
+              "bindings": [],
+              "id": "c1.r4",
+              "kind": "region",
+              "nodeId": 4,
+              "optional": true
+            },
+            {
+              "bindings": [
+                {
+                  "id": 6,
+                  "kind": "text",
+                  "once": false
+                }
+              ],
+              "id": "c1.t6",
+              "kind": "text",
+              "nodeId": 6,
+              "optional": true
+            }
+          ],
+          "templateId": "c1.root"
         }
-      }
-    ],
-    "hydrationPlan": null,
+      ],
+      "version": 1
+    },
     "hmrPlan": null
   }
 }

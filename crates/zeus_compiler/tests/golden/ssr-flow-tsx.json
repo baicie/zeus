@@ -1,6 +1,6 @@
 {
   "purpose": "SSR Show and For",
-  "source": "export function App(props) {\n  return <div><Show when={props.open}><b>y</b></Show><For each={props.items}>{i => <i>{i}</i>}</For></div>\n}\n",
+  "source": "import { Show, For } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <div><Show when={props.open}><b>y</b></Show><For each={props.items}>{i => <i>{i}</i>}</For></div>\n}\n",
   "filename": "ssr-flow.tsx",
   "options": {
     "target": "ssr",
@@ -12,30 +12,87 @@
     "autoHydrate": false
   },
   "expected": {
-    "code": "",
-    "map": null,
-    "diagnostics": [
-      {
-        "code": "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
-        "message": "Nested JSX expressions are not supported by this compiler slice.",
-        "severity": "error",
-        "filename": "ssr-flow.tsx",
-        "hint": "Move the JSX into a component or a variable, or use <Show> and <For> for conditions and lists.",
-        "span": {
-          "start": {
-            "offset": 106,
-            "line": 2,
-            "column": 77
-          },
-          "end": {
-            "offset": 123,
-            "line": 2,
-            "column": 94
-          }
+    "code": "import { ssrStatic as $zeusSsrStatic, ssrText as $zeusSsrText, ssrElement as $zeusSsrElement, ssrAttr as $zeusSsrAttr, ssrProp as $zeusSsrProp, ssrComponent as $zeusSsrComponent, ssrShow as $zeusSsrShow, ssrFor as $zeusSsrFor, ssrSpread as $zeusSsrSpread, mergeProps as $zeusMergeProps, ssrHydrationMarker as $zeusHydrationMarker, defineElement as $zeusSsrDefineElement, Host as $zeusSsrHost, Slot as $zeusSsrSlot } from \"zeus/server\";\nimport { Show, For } from \"zeus/server\"\nexport function App(props) {\n  return [$zeusHydrationMarker(\"c1.root\"), [$zeusHydrationMarker(\"c1.e2\"), $zeusSsrElement(\"div\", [], [[$zeusHydrationMarker(\"c1.s3\"), $zeusSsrShow(() => props.open, () => [$zeusHydrationMarker(\"c1.e4\"), $zeusSsrElement(\"b\", [], $zeusSsrStatic(\"y\"))])], [$zeusHydrationMarker(\"c1.f6\"), $zeusSsrFor(() => props.items, (i) => [$zeusHydrationMarker(\"c1.e7\"), $zeusSsrElement(\"i\", [], [$zeusHydrationMarker(\"c1.t8\"), $zeusSsrText(i), $zeusSsrStatic(\"<!--zeus:hydrate:/-->\")])])]])]]\n}\n",
+    "map": {
+      "version": 3,
+      "file": "ssr-flow.tsx",
+      "sources": ["ssr-flow.tsx"],
+      "sourcesContent": [
+        "import { Show, For } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <div><Show when={props.open}><b>y</b></Show><For each={props.items}>{i => <i>{i}</i>}</For></div>\n}\n"
+      ],
+      "names": [],
+      "mappings": ";AAAA,SAAS,MAAM,MAAM,K;AACrB,OAAO,SAAS,IAAI;EAClB,O,iJAAwB,MAAM,I,4IAAgC,MAAM,K,+GAAiB,C;AACvF"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e2",
+              "kind": "element",
+              "nodeId": 2,
+              "optional": false,
+              "tagName": "div"
+            },
+            {
+              "bindings": [],
+              "id": "c1.s3",
+              "kind": "show",
+              "nodeId": 3,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e4",
+              "kind": "element",
+              "nodeId": 4,
+              "optional": true,
+              "tagName": "b"
+            },
+            {
+              "bindings": [],
+              "id": "c1.f6",
+              "kind": "for",
+              "nodeId": 6,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e7",
+              "kind": "element",
+              "nodeId": 7,
+              "optional": true,
+              "tagName": "i"
+            },
+            {
+              "bindings": [
+                {
+                  "id": 8,
+                  "kind": "text",
+                  "once": false
+                }
+              ],
+              "id": "c1.t8",
+              "kind": "text",
+              "nodeId": 8,
+              "optional": true
+            }
+          ],
+          "templateId": "c1.root"
         }
-      }
-    ],
-    "hydrationPlan": null,
+      ],
+      "version": 1
+    },
     "hmrPlan": null
   }
 }

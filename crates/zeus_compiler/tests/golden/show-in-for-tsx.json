@@ -1,6 +1,6 @@
 {
   "purpose": "nested Show inside For",
-  "source": "export function App(props) {\n  return <For each={props.items}>{item => <Show when={item.visible}>{item.name}</Show>}</For>\n}\n",
+  "source": "import { For, Show } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <For each={props.items}>{item => <Show when={item.visible}>{item.name}</Show>}</For>\n}\n",
   "filename": "show-in-for.tsx",
   "options": {
     "target": "dom",
@@ -12,30 +12,63 @@
     "autoHydrate": false
   },
   "expected": {
-    "code": "",
-    "map": null,
-    "diagnostics": [
-      {
-        "code": "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
-        "message": "Nested JSX expressions are not supported by this compiler slice.",
-        "severity": "error",
-        "filename": "show-in-for.tsx",
-        "hint": "Move the JSX into a component or a variable, or use <Show> and <For> for conditions and lists.",
-        "span": {
-          "start": {
-            "offset": 62,
-            "line": 2,
-            "column": 33
-          },
-          "end": {
-            "offset": 116,
-            "line": 2,
-            "column": 87
-          }
+    "code": "import { template as $zeusTemplate, mountShow as $zeusMountShow, mountFor as $zeusMountFor, insert as $zeusInsert, bindText as $zeusBindText } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"\");\nimport { For, Show } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return (() => {\nconst $zeusRegion = $zeusTemplate(\"<!>\")();\nconst $zeusRegionMarker = $zeusRegion.firstChild;\n$zeusMountFor($zeusRegion, $zeusRegionMarker, () => props.items, undefined, ($zeusItem) => (() => {\nconst $zeusRegion0 = $zeusTemplate(\"<!>\")();\nconst $zeusRegionMarker0 = $zeusRegion0.firstChild;\n$zeusMountShow($zeusRegion0, $zeusRegionMarker0, () => ((item) => (item.visible))($zeusItem()), () => (() => {\nconst $zeusInlineTemplate = $zeusTemplate(\"<!>\");\nreturn (() => {\nconst $zeusInlineElement = $zeusInlineTemplate();\nconst $zeusWalker = $zeusInlineElement.ownerDocument.createTreeWalker($zeusInlineElement, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\nconst $zeusText = $zeusMarker.ownerDocument.createTextNode(\"\");\n$zeusInsert($zeusMarker.parentNode, $zeusText, $zeusMarker);\n$zeusMarker.remove();\n$zeusBindText($zeusText, () => (((item) => (item.name))($zeusItem())));\nreturn $zeusInlineElement;\n})();\n})(), undefined);\nreturn $zeusRegion0;\n})());\nreturn $zeusRegion;\n})()\n}\n",
+    "map": {
+      "version": 3,
+      "file": "show-in-for.tsx",
+      "sources": ["show-in-for.tsx"],
+      "sourcesContent": [
+        "import { For, Show } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <For each={props.items}>{item => <Show when={item.visible}>{item.name}</Show>}</For>\n}\n"
+      ],
+      "names": [],
+      "mappings": ";;AAAA,SAAS,KAAK,OAAO,OAAO,KAAK,GAAG,QAAQ;AAC5C,OAAO,SAAS,IAAI;EAClB,O;;;oDAAkB,MAAM,K;;;mEAA4B,KAAK,O;;;;;;;;;4CAAU,KAAK,I;;;;;;;;AAC1E"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.f2",
+              "kind": "for",
+              "nodeId": 2,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.s3",
+              "kind": "show",
+              "nodeId": 3,
+              "optional": true
+            },
+            {
+              "bindings": [
+                {
+                  "id": 4,
+                  "kind": "text",
+                  "once": false
+                }
+              ],
+              "id": "c1.t4",
+              "kind": "text",
+              "nodeId": 4,
+              "optional": true
+            }
+          ],
+          "templateId": "c1.root"
         }
-      }
-    ],
-    "hydrationPlan": null,
+      ],
+      "version": 1
+    },
     "hmrPlan": null
   }
 }

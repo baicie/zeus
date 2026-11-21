@@ -181,3 +181,43 @@ fn a_semantic_error_from_oxc_is_forwarded_with_its_own_span() {
         .expect("just asserted");
     assert!(matched.span.is_some(), "the Oxc span must be carried over");
 }
+
+#[test]
+fn an_unimported_builtin_is_treated_as_an_ordinary_component() {
+    // `<Show>` only becomes a builtin when `Show` is imported from the runtime
+    // module. Without the import it is an ordinary component, and its JSX
+    // `fallback` is then a JSX value in a component prop — which the compiler
+    // rejects.
+    //
+    // This is worth pinning because it silently invalidated six golden
+    // fixtures: they were written as `<Show ...>` without the import, took the
+    // component path, were rejected, and snapshot the rejection under a name
+    // that claims to cover control flow. The fixtures now import the builtin;
+    // this test keeps the failure mode from being rediscovered as a bug.
+    let imported = dom("import { Show } from '@zeus-js/runtime-dom'\n\
+         export const A = (p) => <Show when={p.o} fallback={<p>c</p>}><p>open</p></Show>\n");
+    assert!(
+        imported.diagnostics.is_empty(),
+        "with the import the element must be lowered as a builtin, got {:?}",
+        imported
+            .diagnostics
+            .iter()
+            .map(|d| &d.code)
+            .collect::<Vec<_>>()
+    );
+    assert!(!imported.code.is_empty(), "the builtin form must emit code");
+
+    let unimported =
+        dom("export const A = (p) => <Show when={p.o} fallback={<p>c</p>}><p>open</p></Show>\n");
+    let codes: Vec<&str> = unimported
+        .diagnostics
+        .iter()
+        .map(|d| d.code.as_str())
+        .collect();
+    assert!(
+        codes.contains(&"ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE"),
+        "without the import the JSX fallback must be rejected as a component \
+         prop, got {codes:?}"
+    );
+    assert_eq!(unimported.code, "");
+}
