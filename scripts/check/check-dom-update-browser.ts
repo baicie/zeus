@@ -731,3 +731,8 @@ const outcomes = await runAcrossEngines({
 })
 
 reportAcrossEngines(outcomes, 'DOM precise updates')
+// The server holds a handle, so without this the process never exits and CI
+// waits for the job timeout. The other checks call it; this one lost the call
+// when its run block was rewritten, and the first `browser-runtime` run sat in
+// `DOM precise updates` for twenty minutes before being killed.
+await new Promise<void>(resolve => server.close(() => resolve()))

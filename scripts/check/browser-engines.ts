@@ -43,6 +43,19 @@ export interface EngineOutcome {
 export interface RunAcrossEnginesOptions {
   /** Directory for screenshots and traces; created on first failure. */
   readonly outputDir: string
+  /**
+   * Wall-clock budget for one engine, in milliseconds.
+   *
+   * Without it, an engine whose page never finishes loading consumes the job's
+   * entire timeout and the log says nothing about which check was in flight.
+   * That is what happened on the first CI run of these checks: `browser-runtime`
+   * sat in `DOM precise updates` for twenty minutes with no output, and the
+   * checks after it never reported at all.
+   *
+   * Defaults to five minutes, which is several times what the slowest check
+   * needs on any engine.
+   */
+  readonly engineTimeoutMs?: number
   /** One engine's worth of checks. `page` is a fresh page per engine. */
   readonly run: (
     page: import('@playwright/test').Page,
@@ -62,6 +75,7 @@ export async function runAcrossEngines(
   options: RunAcrossEnginesOptions,
 ): Promise<EngineOutcome[]> {
   const targets = engineTargets({ chromium, firefox, webkit }, options.engines)
+  const budget = options.engineTimeoutMs ?? 5 * 60_000
   const outcomes: EngineOutcome[] = []
 
   for (const target of targets) {
@@ -84,6 +98,12 @@ export async function runAcrossEngines(
       }
 
       const version = browser.version()
+      // A fresh page per engine; the budget applies to the checks, not to the
+      // launch (a launch that hangs is caught by the job timeout, and is a
+      // different failure).
+      if (typeof version !== 'string' || version.length === 0) {
+        throw new Error('the browser reported no version')
+      }
       const context = await browser.newContext()
       await context.tracing.start({
         screenshots: true,
@@ -91,7 +111,28 @@ export async function runAcrossEngines(
         sources: true,
       })
       const page = await context.newPage()
-      const checks = await options.run(page)
+      // The page gets a default navigation and action timeout too, so an
+      // engine whose requests never resolve fails the check it is in rather
+      // than the whole engine.
+      page.setDefaultTimeout(Math.min(budget, 60_000))
+      page.setDefaultNavigationTimeout(Math.min(budget, 60_000))
+      const checks = await Promise.race([
+        options.run(page),
+        new Promise<never>((_, reject) => {
+          const timer = setTimeout(
+            () =>
+              reject(
+                new Error(
+                  `the checks did not finish within ${Math.round(budget / 1000)}s ` +
+                    `on ${target.name}; the last check to start is the one that hung`,
+                ),
+              ),
+            budget,
+          )
+          // `unref` so a completed run does not keep the process alive.
+          timer.unref?.()
+        }),
+      ])
 
       const failed = checks.some(check => check.status === 'failed')
       // The trace is always stopped: `context.close()` with tracing still
