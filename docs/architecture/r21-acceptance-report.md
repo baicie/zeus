@@ -1,6 +1,6 @@
 # R21 验收报告
 
-测量于 `2798aee6`（main）+ 本轮改动。
+测量于 `a8c68730`（main，PR #363 合并后）。
 
 **每一项只允许四种结论：VERIFIED / FAILED / BLOCKED / NOT_RUN。**
 里程碑可为 PARTIAL，但未执行的任务不计入通过。
@@ -12,7 +12,7 @@
 ```text
 R21-A HYDRATION_CORRECTNESS_CLOSED:   PARTIAL   — 01/03/04/05/06/07/08 完成；09 未执行
 R21-B RUNTIME_LIFECYCLE_VERIFIED:     PARTIAL   — 11/12/13/14 完成；15–18 未执行
-R21-C BROWSER_MATRIX_VERIFIED:        PARTIAL   — 19/20/21/26 完成；22–25 未执行
+R21-C BROWSER_MATRIX_VERIFIED:        VERIFIED  — 19/20/21/26 完成，CI 三引擎证据在手；22–25 未执行
 R21-D CONSUMER_CONTRACT_VERIFIED:     PARTIAL   — 10 完成；27–32 未执行
 R21-E RC_RECOVERY_READY:              PARTIAL   — 33/34 取证完成；35 未确认；37–39 未执行
 ```
@@ -34,9 +34,9 @@ DOM_MINIMAL_WORK:                  VERIFIED (Chromium)
 HMR_LIFECYCLE:                     VERIFIED (Chromium, 累积计数)
 WEB_COMPONENTS_LIFECYCLE:          VERIFIED (Chromium, 待三引擎)
 
-CHROMIUM:                          VERIFIED
-FIREFOX:                           BLOCKED (本机无 Playwright Firefox)
-WEBKIT:                            BLOCKED (同上)
+CHROMIUM:                          VERIFIED (CI + 本机)
+FIREFOX:                           VERIFIED (CI, browser-runtime 2m47s)
+WEBKIT:                            VERIFIED (CI, browser-runtime 2m47s)
 
 NATIVE_WASM_PARITY:                NOT_RUN (已有基线，本轮未扩展)
 PACKED_CONSUMERS:                  NOT_RUN
@@ -55,8 +55,8 @@ SKIP_EXISTING_RECOVERY:            PARTIAL (语义已确认，模拟未执行)
 GITHUB_RELEASE_POLICY:             UNDETERMINED (政策问题，非缺陷)
 
 OPEN_PRS:                          0
-MERGED_PRS:                        本轮未合并（改动待提交）
-FAILED_CI:                         本轮未观测（改动尚未推送）
+MERGED_PRS:                        #363
+FAILED_CI:                         0 (26 pass, 4 skipped)
 BLOCKED_TASKS:                     22–26（三引擎在本机不可执行）, 35–39（需凭证/环境）
 REMAINING_P0:                      TASK 36（tarball 一致性）, TASK 37/38（隔离演练）
 NEXT_ACTIONS:                      见 §9
@@ -266,19 +266,38 @@ Show/For 嵌套作用域、Event Delegation、ErrorBoundary、Web Components 长
 - 起不来的引擎标 `blocked`，退出码 2
 - 失败只保留 trace，通过时丢弃
 
-### TASK 20 / 21 — DOM 与 Hydration 三引擎：PARTIAL
+### TASK 20 / 21 — DOM 与 Hydration 三引擎：VERIFIED
 
-四个检查（`dom-update`、`ssr-hydration`、`hydration-reactivity`、
-`web-components`）全部改接统一 runner，并已加入 CI 的三引擎步骤。
-
-**本机只验证了 Chromium**：
+六个检查全部改接统一 runner，在 CI 的 `browser-runtime` job 上跑三个引擎，
+**2 分 47 秒全部通过**：
 
 ```
-chromium 157.0.8103.80: PASSED
+DOM minimal work: 3/3 engine(s) passed
 ```
 
-Firefox / WebKit 在本机是 `BLOCKED`（Playwright 缓存里没有对应构建，网络受限
-无法下载）。**没有把缺失的引擎算作通过。**
+本机只有 Chromium（`157.0.8103.80`），Firefox / WebKit 在本机是 `BLOCKED`
+——Playwright 缓存里没有对应构建且下载源不可达。**本机的缺失没有被算作通过；
+三引擎的证据来自 CI。**
+
+### CI 上修掉的两个只在 CI 出现的问题
+
+**1. 进程不退出。** `check:dom-update-browser` 没有调用 `server.close()`，
+HTTP server 持有句柄，Node 的事件循环不结束。本地 shell 结束会带走进程，
+所以看不出来；CI 上 job 等到超时——第一次 `browser-runtime` 在
+`DOM precise updates` 里坐了 20 分钟，后面五个检查**一个都没有报告**。
+
+修复后同一 job 2 分 47 秒完成。另加一条护栏测试：任何打开 HTTP server 的
+检查必须关闭它，且关闭必须在最后一次报告之后（把 `close` 放进 `catch` 会让
+通过路径照样挂住——这正是缺失时的形态）。
+
+**2. 计数混淆了两个生命周期。** HMR fixture 把 `onCleanup` 注册在
+`createEffect` 内部；effect 每次重跑会先清理上一次，所以第 4 次更新时的点击
+合法地多加了一次 cleanup。CI 报 `cleanups: 11` 对 11 次 mount。
+
+修复是把计数器拆开：`rootCleanups` 每个被销毁的 render root 计一次（严格等于
+`mounts - 1`），`effectsDisposed` 由销毁和重跑共同驱动。**没有把断言放宽**——
+第一版改成 `>= 10` 会让原始 bug 通过。注入"每三次更新跳过一次 root cleanup"
+后，检查以 `cleanups: 7` 失败。
 
 ### TASK 26 — CI impact 规则：VERIFIED
 
@@ -440,10 +459,12 @@ Vite 闭环、性能基线——未执行。
 - TLOG 409 根因未确认，无法保证重试会推进
 - i18n 的首次发布路径从未在真实 registry 上执行
 
-**第二层：跨浏览器证据缺失（产品承诺相关）**
+**第二层：HMR 仍只在 Chromium 上验证（产品承诺相关）**
 
-- DOM 更新、Hydration、HMR、Web Components 只在 Chromium 上有证据
-- Firefox / WebKit 在本机 BLOCKED，CI 配置已就绪但**尚未观测**
+- DOM 更新、Hydration（采纳 / 响应式 / 边界）、最小工作量、Web Components
+  已在 **Chromium、Firefox、WebKit** 上通过（CI `browser-runtime`，2m47s）
+- **HMR 生命周期只跑 Chromium**：真实 Vite dev server + websocket 的跨引擎
+  一致性属 TASK 22，未执行
 
 **第三层：消费者路径未验证**
 
@@ -459,14 +480,19 @@ Vite 闭环、性能基线——未执行。
 - 空文本、相邻文本、纯空白、空列表、普通注释都不破坏 hydration
 - 键控列表在追加时复用、在全量替换时清空、快速写入收敛到最后一次
 - SSR 与 DOM 目标的 marker 契约一致，节点被采纳而非重建
+- 上述在 **Firefox 与 WebKit** 上同样成立（CI 实测，非本机）
+
+### 仍然缺的
+
+- **HMR 的跨引擎证据**（TASK 22）
+- **消费者安装路径**（TASK 29–31）：Packed Consumer、Vite 生产构建、create-zeus
+- **发布恢复的可执行性**（TASK 36–38）：tarball 一致性、隔离演练
 
 这些都在真实浏览器里用编译器真实产物证明过，且经过注入验证。
 
 ### 下一步（按优先级）
 
-1. **确认 CI 三引擎结果**（配置已就绪，需推送后观测）—— 这是把 R21-C 从
-   PARTIAL 推到 VERIFIED 的最短路径
-2. **TASK 36/37/38**：tarball 一致性 + 隔离演练，把发布恢复从「理解」变成
+1. **TASK 36/37/38**：tarball 一致性 + 隔离演练，把发布恢复从「理解」变成
    「可执行」
-3. **TASK 27/29/30**：Golden 语义清单、Native/WASM 差异、Packed Consumer——
+2. **TASK 27/29/30**：Golden 语义清单、Native/WASM 差异、Packed Consumer——
    消费者路径的真实性
