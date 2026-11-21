@@ -58,6 +58,7 @@ jobs:
       packed-consumers: ${{ steps.plan.outputs.packed-consumers }}
       browser-web-components: ${{ steps.plan.outputs.browser-web-components }}
       browser-playground: ${{ steps.plan.outputs.browser-playground }}
+      browser-runtime: ${{ steps.plan.outputs.browser-runtime }}
       create-zeus-candidates: ${{ steps.plan.outputs.create-zeus-candidates }}
       docs-build: ${{ steps.plan.outputs.docs-build }}
       full-run: ${{ steps.plan.outputs.full-run }}
@@ -690,7 +691,7 @@ jobs:
   # and a change to any of them has to run all of them.
   browser-runtime:
     needs: impact
-    if: needs.impact.outputs.browser-web-components == 'true'
+    if: needs.impact.outputs.browser-runtime == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
