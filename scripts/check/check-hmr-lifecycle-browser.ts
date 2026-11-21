@@ -424,9 +424,9 @@ try {
   })
 
   await check(
-    'five consecutive hot updates leave exactly one live effect',
+    'ten consecutive hot updates leave exactly one live effect',
     async () => {
-      for (let index = 1; index <= 5; index += 1) {
+      for (let index = 1; index <= 10; index += 1) {
         await update(fixtureSource(`value${index}`, `note${index}`), index + 1)
         // A moment of quiet between writes. Two `writeFile` calls close
         // together are one change as far as the watcher is concerned, which
@@ -434,28 +434,41 @@ try {
         // coalescing artefact of the test, not a framework defect. The wait
         // above already proves this update landed; this only keeps the next
         // one from being merged into it.
-        await tab.waitForTimeout(250)
+        await tab.waitForTimeout(200)
+
+        // Interact mid-stream. A signal written while the module graph is
+        // still settling must be counted by the live tree only, and the next
+        // update must still dispose exactly one root — a leaked effect here
+        // would surface as `effects > 1` at the end rather than as a wrong
+        // value.
+        if (index === 4) {
+          await tab.click('#inc')
+          await tab.waitForFunction(() =>
+            document.querySelector('#inc')?.textContent?.includes(': 1'),
+          )
+        }
       }
       const current = await counts(tab)
-      if (current.mounts !== 6) {
+      if (current.mounts !== 11) {
         throw new Error(
-          `expected six mounts after five updates, got ${JSON.stringify(current)}`,
+          `expected eleven mounts after ten updates, got ${JSON.stringify(current)}`,
         )
       }
-      if (current.cleanups !== 5) {
+      if (current.cleanups !== 10) {
         throw new Error(
           `each update must dispose the previous root, got ${JSON.stringify(current)}`,
         )
       }
       if (current.effects !== 1) {
         throw new Error(
-          `five updates must leave one live effect, got ${JSON.stringify(current)}`,
+          `ten updates, one with a click in flight, must leave one live ` +
+            `effect, got ${JSON.stringify(current)}`,
         )
       }
       const text = String(await tab.textContent('#inc'))
-      if (!text.includes('value5: 0')) {
+      if (!text.includes('value10: 0')) {
         throw new Error(
-          `the fifth update's code must be live, got ${JSON.stringify(text)}`,
+          `the tenth update's code must be live, got ${JSON.stringify(text)}`,
         )
       }
     },
