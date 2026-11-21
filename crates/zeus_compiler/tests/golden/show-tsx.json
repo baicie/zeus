@@ -1,6 +1,6 @@
 {
-  "purpose": "Show with fallback",
-  "source": "export function App(props) {\n  return <Show when={props.open} fallback={<p>closed</p>}><p>open</p></Show>\n}\n",
+  "purpose": "Show with a JSX fallback",
+  "source": "import { Show } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <Show when={props.open} fallback={<p>closed</p>}><p>open</p></Show>\n}\n",
   "filename": "show.tsx",
   "options": {
     "target": "dom",
@@ -12,30 +12,59 @@
     "autoHydrate": false
   },
   "expected": {
-    "code": "",
-    "map": null,
-    "diagnostics": [
-      {
-        "code": "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE",
-        "message": "JSX values inside component props are not supported.",
-        "severity": "error",
-        "filename": "show.tsx",
-        "hint": "Pass the JSX as children, or wrap it in a component and pass that component.",
-        "span": {
-          "start": {
-            "offset": 71,
-            "line": 2,
-            "column": 42
-          },
-          "end": {
-            "offset": 86,
-            "line": 2,
-            "column": 57
-          }
+    "code": "import { template as $zeusTemplate, mountShow as $zeusMountShow } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"\");\nimport { Show } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return (() => {\nconst $zeusRegion = $zeusTemplate(\"<!>\")();\nconst $zeusRegionMarker = $zeusRegion.firstChild;\n$zeusMountShow($zeusRegion, $zeusRegionMarker, () => props.open, () => (() => {\nconst $zeusInlineTemplate = $zeusTemplate(\"<p>open</p>\");\nreturn $zeusInlineTemplate().firstChild;\n})(), () => (() => {\nconst $zeusInlineTemplate0 = $zeusTemplate(\"<p>closed</p>\");\nreturn $zeusInlineTemplate0().firstChild;\n})());\nreturn $zeusRegion;\n})()\n}\n",
+    "map": {
+      "version": 3,
+      "file": "show.tsx",
+      "sources": ["show.tsx"],
+      "sourcesContent": [
+        "import { Show } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <Show when={props.open} fallback={<p>closed</p>}><p>open</p></Show>\n}\n"
+      ],
+      "names": [],
+      "mappings": ";;AAAA,SAAS,OAAO,OAAO,KAAK,GAAG,QAAQ;AACvC,OAAO,SAAS,IAAI;EAClB,O;;;qDAAmB,MAAM,I;;;;;;;;;AAC3B"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.s2",
+              "kind": "show",
+              "nodeId": 2,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e5",
+              "kind": "element",
+              "nodeId": 5,
+              "optional": true,
+              "tagName": "p"
+            },
+            {
+              "bindings": [],
+              "id": "c1.e3",
+              "kind": "element",
+              "nodeId": 3,
+              "optional": true,
+              "tagName": "p"
+            }
+          ],
+          "templateId": "c1.root"
         }
-      }
-    ],
-    "hydrationPlan": null,
+      ],
+      "version": 1
+    },
     "hmrPlan": null
   }
 }

@@ -1,6 +1,6 @@
 {
-  "purpose": "Transition with options",
-  "source": "export function App(props) {\n  return <Transition when={props.visible} name=\"fade\"><p>x</p></Transition>\n}\n",
+  "purpose": "Transition driven by an inline style pair",
+  "source": "import { Transition } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <Transition when={props.visible} enter={{ opacity: '1' }} leave={{ opacity: '0' }}><p>x</p></Transition>\n}\n",
   "filename": "transition.tsx",
   "options": {
     "target": "dom",
@@ -12,16 +12,16 @@
     "autoHydrate": false
   },
   "expected": {
-    "code": "import { template as $zeusTemplate, createComponent as $zeusCreateComponent } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"\");\nexport function App(props) {\n  return $zeusCreateComponent(Transition, {get when() { return props.visible }, name: \"fade\", get children() { return (() => {\nconst $zeusInlineTemplate = $zeusTemplate(\"<p>x</p>\");\nreturn $zeusInlineTemplate().firstChild;\n})() }})\n}\n",
+    "code": "import { template as $zeusTemplate, mountTransition as $zeusMountTransition } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"\");\nimport { Transition } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return (() => {\nconst $zeusRegion = $zeusTemplate(\"<!>\")();\nconst $zeusRegionMarker = $zeusRegion.firstChild;\n$zeusMountTransition($zeusRegion, $zeusRegionMarker, () => props.visible, () => (() => {\nconst $zeusInlineTemplate = $zeusTemplate(\"<p>x</p>\");\nreturn $zeusInlineTemplate().firstChild;\n})(), {get enter() { return { opacity: '1' } }, get leave() { return { opacity: '0' } }});\nreturn $zeusRegion;\n})()\n}\n",
     "map": {
       "version": 3,
       "file": "transition.tsx",
       "sources": ["transition.tsx"],
       "sourcesContent": [
-        "export function App(props) {\n  return <Transition when={props.visible} name=\"fade\"><p>x</p></Transition>\n}\n"
+        "import { Transition } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <Transition when={props.visible} enter={{ opacity: '1' }} leave={{ opacity: '0' }}><p>x</p></Transition>\n}\n"
       ],
       "names": [],
-      "mappings": ";;AAAA,OAAO,SAAS,IAAI;EAClB,O,qBAAQ,U,uBAAiB,MAAM,O,UAAS,CAAC,K;;;;AAC3C"
+      "mappings": ";;AAAA,SAAS,aAAa,OAAO,KAAK,GAAG,QAAQ;AAC7C,OAAO,SAAS,IAAI;EAClB,O;;;2DAAyB,MAAM,O;;;4BAAgB,EAAE,c,yBAAuB,EAAE,c;;;AAC5E"
     },
     "diagnostics": [],
     "hydrationPlan": {
@@ -38,8 +38,8 @@
             },
             {
               "bindings": [],
-              "id": "c1.c2",
-              "kind": "component",
+              "id": "c1.x2",
+              "kind": "transition",
               "nodeId": 2,
               "optional": false
             },
@@ -48,7 +48,7 @@
               "id": "c1.e5",
               "kind": "element",
               "nodeId": 5,
-              "optional": false,
+              "optional": true,
               "tagName": "p"
             }
           ],

@@ -1,6 +1,6 @@
 {
-  "purpose": "ErrorBoundary with fallback",
-  "source": "export function App() {\n  return <ErrorBoundary fallback={err => <p>{err.message}</p>}><Child /></ErrorBoundary>\n}\n",
+  "purpose": "ErrorBoundary with a render fallback",
+  "source": "import { ErrorBoundary } from '@zeus-js/runtime-dom'\nexport function App() {\n  return <ErrorBoundary fallback={err => <p>{err.message}</p>}><Child /></ErrorBoundary>\n}\n",
   "filename": "error-boundary.tsx",
   "options": {
     "target": "dom",
@@ -12,30 +12,36 @@
     "autoHydrate": false
   },
   "expected": {
-    "code": "",
-    "map": null,
-    "diagnostics": [
-      {
-        "code": "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE",
-        "message": "JSX values inside component props are not supported.",
-        "severity": "error",
-        "filename": "error-boundary.tsx",
-        "hint": "Pass the JSX as children, or wrap it in a component and pass that component.",
-        "span": {
-          "start": {
-            "offset": 57,
-            "line": 2,
-            "column": 33
-          },
-          "end": {
-            "offset": 86,
-            "line": 2,
-            "column": 62
-          }
+    "code": "import { template as $zeusTemplate, createComponent as $zeusCreateComponent, ErrorBoundary as $zeusErrorBoundary, insert as $zeusInsert, bindText as $zeusBindText } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"\");\nimport { ErrorBoundary } from '@zeus-js/runtime-dom'\nexport function App() {\n  return $zeusErrorBoundary({ children: () => $zeusCreateComponent(Child, {}), fallback: (err) => (() => {\nconst $zeusInlineTemplate = $zeusTemplate(\"<p><!></p>\");\nreturn (() => {\nconst $zeusInlineElement = $zeusInlineTemplate().firstChild;\nconst $zeusWalker = $zeusInlineElement.ownerDocument.createTreeWalker($zeusInlineElement, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\nconst $zeusText = $zeusMarker.ownerDocument.createTextNode(\"\");\n$zeusInsert($zeusMarker.parentNode, $zeusText, $zeusMarker);\n$zeusMarker.remove();\n$zeusBindText($zeusText, () => (err.message));\nreturn $zeusInlineElement;\n})();\n})() })\n}\n",
+    "map": {
+      "version": 3,
+      "file": "error-boundary.tsx",
+      "sources": ["error-boundary.tsx"],
+      "sourcesContent": [
+        "import { ErrorBoundary } from '@zeus-js/runtime-dom'\nexport function App() {\n  return <ErrorBoundary fallback={err => <p>{err.message}</p>}><Child /></ErrorBoundary>\n}\n"
+      ],
+      "names": [],
+      "mappings": ";;AAAA,SAAS,gBAAgB,OAAO,KAAK,GAAG,QAAQ;AAChD,OAAO,SAAS;EACd,O,0DAA8D,K;;;;;;;;;gCAAnB,IAAI,O;;;;AACjD"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            }
+          ],
+          "templateId": "c1.root"
         }
-      }
-    ],
-    "hydrationPlan": null,
+      ],
+      "version": 1
+    },
     "hmrPlan": null
   }
 }

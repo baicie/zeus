@@ -222,41 +222,54 @@ fn cases() -> Vec<GoldenCase> {
     );
 
     // ---- Control flow ---------------------------------------------------
+    //
+    // Every fixture in this section imports the builtin it uses. Without the
+    // import the element is not recognised as a builtin at all: it takes the
+    // ordinary-component path, its JSX-valued `fallback` prop is rejected as
+    // `ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE`, and the module emits no code.
+    // That is what these six fixtures used to do — they were named for control
+    // flow and snapshotting a rejection instead. `ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION`
+    // (For), `ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE` (Show, ErrorBoundary) and
+    // a silently-accepted `name` attribute (Transition) were the tell.
+    //
+    // The rejections are still covered: `tests/diagnostics.rs` builds each of
+    // them deliberately, and the misnamed-builtin shape is pinned by
+    // `an_unimported_builtin_is_treated_as_a_component`.
     golden!(
-        "Show with fallback",
+        "Show with a JSX fallback",
         "show.tsx",
         dom(),
-        "export function App(props) {\n  return <Show when={props.open} fallback={<p>closed</p>}><p>open</p></Show>\n}\n"
+        "import { Show } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <Show when={props.open} fallback={<p>closed</p>}><p>open</p></Show>\n}\n"
     );
     golden!(
         "For with accessor",
         "for.tsx",
         dom(),
-        "export function App(props) {\n  return <For each={props.items}>{item => <li>{item.name}</li>}</For>\n}\n"
+        "import { For } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <For each={props.items}>{item => <li>{item.name}</li>}</For>\n}\n"
     );
     golden!(
         "For with index accessor",
         "for-index.tsx",
         dom(),
-        "export function App(props) {\n  return <For each={props.items}>{(item, index) => <li>{index()}: {item.name}</li>}</For>\n}\n"
+        "import { For } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <For each={props.items}>{(item, index) => <li>{index()}: {item.name}</li>}</For>\n}\n"
     );
     golden!(
         "nested Show inside For",
         "show-in-for.tsx",
         dom(),
-        "export function App(props) {\n  return <For each={props.items}>{item => <Show when={item.visible}>{item.name}</Show>}</For>\n}\n"
+        "import { For, Show } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <For each={props.items}>{item => <Show when={item.visible}>{item.name}</Show>}</For>\n}\n"
     );
     golden!(
-        "ErrorBoundary with fallback",
+        "ErrorBoundary with a render fallback",
         "error-boundary.tsx",
         dom(),
-        "export function App() {\n  return <ErrorBoundary fallback={err => <p>{err.message}</p>}><Child /></ErrorBoundary>\n}\n"
+        "import { ErrorBoundary } from '@zeus-js/runtime-dom'\nexport function App() {\n  return <ErrorBoundary fallback={err => <p>{err.message}</p>}><Child /></ErrorBoundary>\n}\n"
     );
     golden!(
-        "Transition with options",
+        "Transition driven by an inline style pair",
         "transition.tsx",
         dom(),
-        "export function App(props) {\n  return <Transition when={props.visible} name=\"fade\"><p>x</p></Transition>\n}\n"
+        "import { Transition } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <Transition when={props.visible} enter={{ opacity: '1' }} leave={{ opacity: '0' }}><p>x</p></Transition>\n}\n"
     );
 
     // ---- Fragments and SVG ----------------------------------------------
@@ -309,7 +322,7 @@ fn cases() -> Vec<GoldenCase> {
             pure_define_element: true,
             ..dom()
         },
-        "const Card = defineElement('z-x', { props: { n: Number } }, props => <Host><span>{props.n}</span></Host>)\n"
+        "const Card = defineElement('z-x', { props: { n: Number } }, props => <Host><Slot name=\"heading\">fallback</Slot><span>{props.n}</span></Host>)\n"
     );
 
     // ---- HMR ------------------------------------------------------------
@@ -360,13 +373,13 @@ fn cases() -> Vec<GoldenCase> {
         "SSR Show and For",
         "ssr-flow.tsx",
         ssr(),
-        "export function App(props) {\n  return <div><Show when={props.open}><b>y</b></Show><For each={props.items}>{i => <i>{i}</i>}</For></div>\n}\n"
+        "import { Show, For } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <div><Show when={props.open}><b>y</b></Show><For each={props.items}>{i => <i>{i}</i>}</For></div>\n}\n"
     );
     golden!(
         "ErrorBoundary is rejected by SSR",
         "ssr-error-boundary.tsx",
         ssr(),
-        "export function App() {\n  return <ErrorBoundary fallback={<p>e</p>}><Child /></ErrorBoundary>\n}\n"
+        "import { ErrorBoundary } from '@zeus-js/runtime-dom'\nexport function App() {\n  return <ErrorBoundary fallback={<p>e</p>}><Child /></ErrorBoundary>\n}\n"
     );
     golden!(
         "SSR rejects a property with no HTML equivalent",

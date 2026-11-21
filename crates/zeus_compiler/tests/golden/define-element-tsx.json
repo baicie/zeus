@@ -1,6 +1,6 @@
 {
   "purpose": "defineElement with pure mode",
-  "source": "const Card = defineElement('z-x', { props: { n: Number } }, props => <Host><span>{props.n}</span></Host>)\n",
+  "source": "const Card = defineElement('z-x', { props: { n: Number } }, props => <Host><Slot name=\"heading\">fallback</Slot><span>{props.n}</span></Host>)\n",
   "filename": "define-element.tsx",
   "options": {
     "target": "dom",
@@ -12,16 +12,16 @@
     "autoHydrate": false
   },
   "expected": {
-    "code": "import { template as $zeusTemplate, createComponent as $zeusCreateComponent, insert as $zeusInsert, bindText as $zeusBindText } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"\");\nconst Card = defineElement('z-x', { props: { n: Number } }, props => $zeusCreateComponent(Host, {get children() { return (() => {\nconst $zeusInlineTemplate = $zeusTemplate(\"<span><!></span>\");\nreturn (() => {\nconst $zeusInlineElement = $zeusInlineTemplate().firstChild;\nconst $zeusWalker = $zeusInlineElement.ownerDocument.createTreeWalker($zeusInlineElement, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\nconst $zeusText = $zeusMarker.ownerDocument.createTextNode(\"\");\n$zeusInsert($zeusMarker.parentNode, $zeusText, $zeusMarker);\n$zeusMarker.remove();\n$zeusBindText($zeusText, () => (props.n));\nreturn $zeusInlineElement;\n})();\n})() }}))\n",
+    "code": "import { template as $zeusTemplate, createComponent as $zeusCreateComponent, insert as $zeusInsert, bindText as $zeusBindText } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"\");\nconst Card = defineElement('z-x', { props: { n: Number } }, props => $zeusCreateComponent(Host, {get children() { return [$zeusCreateComponent(Slot, {name: \"heading\", get children() { return \"fallback\" }}), (() => {\nconst $zeusInlineTemplate = $zeusTemplate(\"<span><!></span>\");\nreturn (() => {\nconst $zeusInlineElement = $zeusInlineTemplate().firstChild;\nconst $zeusWalker = $zeusInlineElement.ownerDocument.createTreeWalker($zeusInlineElement, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\nconst $zeusText = $zeusMarker.ownerDocument.createTextNode(\"\");\n$zeusInsert($zeusMarker.parentNode, $zeusText, $zeusMarker);\n$zeusMarker.remove();\n$zeusBindText($zeusText, () => (props.n));\nreturn $zeusInlineElement;\n})();\n})()] }}))\n",
     "map": {
       "version": 3,
       "file": "define-element.tsx",
       "sources": ["define-element.tsx"],
       "sourcesContent": [
-        "const Card = defineElement('z-x', { props: { n: Number } }, props => <Host><span>{props.n}</span></Host>)\n"
+        "const Card = defineElement('z-x', { props: { n: Number } }, props => <Host><Slot name=\"heading\">fallback</Slot><span>{props.n}</span></Host>)\n"
       ],
       "names": [],
-      "mappings": ";;AAAA,MAAM,OAAO,eAAe,EAAE,MAAM,SAAS,GAAG,YAAY,S,qBAAU,I;;;;;;;;;gCAAY,MAAM,C;;;QAAgB"
+      "mappings": ";;AAAA,MAAM,OAAO,eAAe,EAAE,MAAM,SAAS,GAAG,YAAY,S,qBAAU,I,iDAAM,I,SAAK,CAAC,Q;;;;;;;;;gCAAoC,MAAM,C;;;SAAgB"
     },
     "diagnostics": [],
     "hydrationPlan": {
@@ -45,23 +45,30 @@
             },
             {
               "bindings": [],
-              "id": "c1.e3",
-              "kind": "element",
+              "id": "c1.c3",
+              "kind": "component",
               "nodeId": 3,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e7",
+              "kind": "element",
+              "nodeId": 7,
               "optional": false,
               "tagName": "span"
             },
             {
               "bindings": [
                 {
-                  "id": 4,
+                  "id": 8,
                   "kind": "text",
                   "once": false
                 }
               ],
-              "id": "c1.t4",
+              "id": "c1.t8",
               "kind": "text",
-              "nodeId": 4,
+              "nodeId": 8,
               "optional": false
             }
           ],
