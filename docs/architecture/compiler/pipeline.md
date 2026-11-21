@@ -19,7 +19,9 @@ crates/zeus_compiler/src/
 ├── lib.rs              公开入口 transform_module（委托给 pipeline）
 ├── pipeline.rs         阶段顺序与三种早退形状
 ├── ir.rs               Zeus IR：编译语义的唯一事实来源
-├── lower.rs            解析、语义分析、JSX → ModuleIr
+├── lower/              解析、语义分析、JSX → ModuleIr
+│   ├── mod.rs          Lowerer 及其递归降级核心
+│   └── frontend.rs     AST 事实收集（只读，不碰 Lowerer）
 ├── ssr.rs              目标相关的拒绝规则（SSR 属性校验）
 ├── stage_contracts.rs  跨阶段传递类型，不 import 任何阶段
 ├── analysis/           读 IR 得出事实，不发射、不改写
@@ -27,7 +29,11 @@ crates/zeus_compiler/src/
 ├── passes/             对 IR 的重写，不改语义
 │   └── hmr.rs          HMR 槽位准备与绑定重写
 ├── codegen/            事实 → JavaScript
-│   ├── mod.rs          DOM 发射与模板渲染
+│   ├── mod.rs          模块编排（不含任何目标的发射逻辑）
+│   ├── dom/            DOM 子系统
+│   │   ├── emit.rs     42 个发射函数 + 4 个元素查找器（一个递归单元）
+│   │   ├── model.rs    GeneratedComponent、DynamicBinding 及构造
+│   │   └── names.rs    RuntimeNames、HelperUsage（DOM 专属）
 │   ├── ssr.rs          SSR 发射
 │   ├── analysis.rs     发射前的事实收集（AnalysisResult）
 │   ├── emit_plan.rs    哪些段落会发射（EmitPlan）

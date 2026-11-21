@@ -182,12 +182,22 @@ pub fn analyse(root: &Path) -> Analysis {
     for (module, deepest, original) in pending_prefixes {
         let mut candidate = deepest.as_str();
         loop {
-            if known_modules.contains(candidate) {
+            // The walk must not stop at the module that wrote the path. A bare
+            // `nowhere::thing` truncates to `nowhere` and then, one step
+            // further, to the current module — `a` in `a.rs`. Recording that
+            // would turn every dangling import into a self-edge and hide it.
+            if candidate != module && known_modules.contains(candidate) {
                 analysis
                     .edges
                     .entry(module.clone())
                     .or_default()
                     .insert(candidate.to_string());
+                break;
+            }
+            if candidate == module {
+                analysis
+                    .unresolved
+                    .push(format!("{module}: {original} (no module prefix exists)"));
                 break;
             }
             if let Some((prefix, _)) = candidate.rsplit_once("::") {
@@ -684,19 +694,28 @@ fn resolve_use(module: &str, path: &str) -> Resolution {
         // root, a top-level module. This is the branch the text scanner got
         // wrong: `ssr` in `codegen/mod.rs` is `codegen::ssr`.
         root if root.chars().next().is_some_and(|c| c.is_ascii_lowercase()) => {
-            // A bare root names a module under the current one. `ssr` in
-            // `codegen/mod.rs` is `codegen::ssr`.
+            // A bare root names a module under the current one (`ssr` in
+            // `codegen/mod.rs` is `codegen::ssr`), and the remaining lowercase
+            // segments narrow it further (`dom::emit` is `codegen::dom::emit`).
             //
-            // **Known limit:** only the first segment survives, so
-            // `dom::emit::emit_component` records an edge to `codegen::dom`,
-            // not to `codegen::dom::emit`. A cycle that runs through a
-            // submodule *and back out to the parent* can therefore be missed
-            // when the parent's only link is through an intermediate module.
-            // Preserving the full path here was tried and reverted: it changes
-            // what `resolve_use` means for every caller, including the
-            // sibling-resolution tests, and needs a module-set-aware API
-            // rather than a patch to this branch.
-            join_module(module, root)
+            // `resolve_use` has no module set, so it cannot know which prefix
+            // exists. It returns the deepest candidate and lets the caller's
+            // prefix walk find the longest real module — the same mechanism
+            // `crate::` already uses. Reporting only `codegen::dom` for
+            // `dom::emit::emit_component` is what let a cycle through
+            // `dom::emit` stay invisible.
+            let mut deepest = join_module(module, root);
+            for segment in parts {
+                if segment
+                    .chars()
+                    .next()
+                    .is_some_and(|c| c.is_ascii_uppercase())
+                {
+                    break;
+                }
+                deepest = format!("{deepest}::{segment}");
+            }
+            return Resolution::PrefixCandidates(deepest);
         }
         _ => return Resolution::Unresolved("unrecognised use root"),
     };
@@ -712,7 +731,7 @@ mod tests {
     fn sibling_import_from_a_mod_file_resolves_to_the_full_path() {
         assert!(matches!(
             resolve_use("codegen", "ssr::emit_ssr_module"),
-            Resolution::Module(m) if m == "codegen::ssr"
+            Resolution::PrefixCandidates(m) if m == "codegen::ssr::emit_ssr_module"
         ));
     }
 
@@ -767,14 +786,26 @@ mod tests {
     }
 
     #[test]
-    fn lowercase_roots_are_siblings() {
+    fn a_bare_root_defers_the_deepest_module_to_the_prefix_walk() {
+        // `resolve_use` cannot know which prefix exists, so it hands the full
+        // candidate to the caller, including the item name. The prefix walk
+        // then truncates to the longest real module: `dom::emit::emit_component`
+        // becomes `codegen::dom::emit`, not `codegen::dom`.
+        //
+        // Returning only the first segment — the previous behaviour — is what
+        // hid a cycle that ran through `dom::emit`.
         assert!(matches!(
-            resolve_use("codegen", "analysis::RuntimeHelper"),
-            Resolution::Module(m) if m == "codegen::analysis"
+            resolve_use("codegen", "ssr::emit_ssr_module"),
+            Resolution::PrefixCandidates(m) if m == "codegen::ssr::emit_ssr_module"
         ));
         assert!(matches!(
-            resolve_use("lib", "support::diagnostic"),
-            Resolution::Module(m) if m == "support"
+            resolve_use("codegen", "dom::emit::emit_component"),
+            Resolution::PrefixCandidates(m) if m == "codegen::dom::emit::emit_component"
+        ));
+        // A CamelCase segment ends the module path.
+        assert!(matches!(
+            resolve_use("codegen", "analysis::RuntimeHelper"),
+            Resolution::PrefixCandidates(m) if m == "codegen::analysis"
         ));
     }
 

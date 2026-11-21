@@ -79,25 +79,35 @@ pub fn f(_x: crate::b::Thing) -> Option<crate::b::Thing> { None }
 检查器认为它不依赖那个模块——这在"运行时耦合"的意义上是正确的，
 在"编译期耦合"的意义上不是。
 
-### 3.3 裸根路径只保留第一段
+### 3.3 裸根路径：候选交给前缀遍历
 
 ```rust
 use dom::emit::emit_component;   // in codegen/mod.rs
 ```
 
-记录成 `codegen -> codegen::dom`，**不是** `codegen -> codegen::dom::emit`。
+`resolve_use` 不知道哪些模块真实存在，所以它把**完整候选**
+（`codegen::dom::emit::emit_component`）交出去，由调用方的前缀遍历截断到最长的真实模块
+（`codegen::dom::emit`）。这与 `crate::` 走的是同一条路径。
 
-后果：一个环如果经由子模块再回到父模块，且父模块只通过中间模块相连，
-可能被漏掉。R18.6 就遇到了这个情形——`dom/emit.rs` 依赖 `codegen`
-（为了 `RuntimeNames`），`codegen` 依赖 `dom::emit`（为了 `emit_component`），
-但检查器看到的是 `codegen -> codegen::dom`，所以没报环。
+**曾经的行为**：只保留第一段，记成 `codegen -> codegen::dom`。后果是一个经由子模块
+再返回父模块的环可能被漏掉——R18.6 就遇到了：`dom/emit.rs` 依赖 `codegen`
+（为 `RuntimeNames`），`codegen` 依赖 `dom::emit`（为 `emit_component`），
+但检查器看到的是 `codegen::dom`，所以没报环。
 
-尝试过保留完整路径，**已回退**：那会改变 `resolve_use` 对所有调用方的含义，
-包括兄弟模块解析的既有测试，需要的是模块集合感知的 API，不是这一分支的补丁。
+**R18.8 修复后**，边图从 55 条增加到 66 条——多出来的就是这些以前被截断的子模块边：
 
-**实际影响**：真实的环是 `codegen <-> RuntimeNames`，而 `RuntimeNames`
-住在 `codegen` 里。这个环是已知的、有意的（见 §6 的尝试记录），
-不是检查器漏掉的隐患。
+```
+codegen -> {codegen::analysis, codegen::dom, codegen::dom::emit,
+            codegen::dom::names, codegen::emit_plan, codegen::infra,
+            codegen::ssr, ir, passes::hmr, stage_contracts, support::span}
+```
+
+同一轮里 `RuntimeNames` 也从 `codegen/mod.rs` 移到了 `codegen/dom/names.rs`，
+那条真实存在的环因此消失了，而不是被隐藏。
+
+**前缀遍历不得停在写下这条路径的模块本身。** 否则 `use nowhere::thing` 会截断成
+当前模块，把悬空的 import 变成一条自环并静默通过——测试
+`an_edge_to_a_module_that_does_not_exist_is_reported` 钉住这一点。
 
 ### 3.4 由 trait 解析决定的调用
 

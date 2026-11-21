@@ -793,3 +793,114 @@ fn a_bare_root_use_records_only_the_first_module() {
         analysis.edges
     );
 }
+
+// ---------------------------------------------------------------------------
+// The DOM subsystem's one-way contract (R18.8 TASK 03)
+// ---------------------------------------------------------------------------
+
+/// The orchestrator may depend on the DOM subsystem; the reverse is forbidden.
+///
+/// This is the edge that R18.8 TASK 01 removed. `RuntimeNames` used to live in
+/// `codegen/mod.rs`, so `dom/emit.rs` imported the orchestrator to name its
+/// runtime bindings. Moving it and `HelperUsage` into `dom/names.rs` removed
+/// the edge; this test keeps it removed.
+///
+/// It replaces a check for one specific import string, which only caught the
+/// spelling it was written against. Any path from `dom::emit` to `codegen` now
+/// fails, whether written as `use`, as `crate::codegen::X`, or as a qualified
+/// call.
+#[test]
+fn the_dom_emitter_does_not_reach_the_orchestrator() {
+    let analysis = analyse_crate();
+    for module in depgraph::modules_under(&analysis, "codegen::dom") {
+        assert!(
+            !analysis.imports(&module, "codegen"),
+            "{module} imports the codegen orchestrator. The DOM subsystem is a \
+             lower layer; anything it needs from the orchestrator belongs here \
+             or below. Imports were {:?}",
+            analysis.imports_of(&module)
+        );
+    }
+}
+
+/// The DOM model does not depend on the DOM emitter.
+///
+/// `model` describes a cloned node and its bindings; `emit` writes code from
+/// that description. A model that imports the emitter has the layering
+/// backwards, and it is how a "data type" quietly grows an emitter dependency.
+#[test]
+fn the_dom_model_does_not_depend_on_the_emitter() {
+    let analysis = analyse_crate();
+    assert!(
+        !analysis.imports("codegen::dom::model", "codegen::dom::emit"),
+        "dom/model.rs imports the emitter; the model is what the emitter consumes, \
+         not the other way round"
+    );
+}
+
+/// The analysis stage never imports an emitter.
+///
+/// Both `codegen::analysis` and `analysis::hydration` read the IR and return
+/// facts. An emitter import means the stage has started deciding what the
+/// output looks like, which is the one thing it must not do.
+#[test]
+fn analysis_does_not_import_any_emitter() {
+    let analysis = analyse_crate();
+    for module in ["codegen::analysis", "analysis::hydration"] {
+        let offenders: Vec<String> = analysis
+            .imports_of(module)
+            .into_iter()
+            .filter(|target| {
+                target == "codegen::dom"
+                    || target == "codegen::dom::emit"
+                    || target == "codegen::ssr"
+                    || target == "codegen"
+            })
+            .collect();
+        assert!(
+            offenders.is_empty(),
+            "{module} imports {offenders:?}; an analysis stage reads the IR and \
+             returns facts, it does not reach into an emitter"
+        );
+    }
+}
+
+/// The SSR emitter does not use DOM-only types.
+///
+/// `GeneratedComponent` and `DynamicBinding` describe cloned DOM nodes. SSR
+/// builds straight from `ModuleIr`; if it starts importing the DOM model, one
+/// of the two emitters has absorbed the other's job.
+#[test]
+fn the_ssr_emitter_does_not_depend_on_the_dom_subsystem() {
+    let analysis = analyse_crate();
+    assert!(
+        !analysis.imports("codegen::ssr", "codegen::dom"),
+        "codegen/ssr.rs imports the DOM subsystem; SSR builds from ModuleIr and \
+         has no cloned-node model of its own. Imports were {:?}",
+        analysis.imports_of("codegen::ssr")
+    );
+}
+
+/// `infra` holds writer and allocator primitives shared by both targets.
+///
+/// If it imports a target's emitter, the shared layer has started depending on
+/// one of the things that was supposed to depend on it.
+#[test]
+fn infra_does_not_depend_on_a_target_emitter() {
+    let analysis = analyse_crate();
+    let offenders: Vec<String> = analysis
+        .imports_of("codegen::infra")
+        .into_iter()
+        .filter(|target| {
+            target == "codegen::dom"
+                || target == "codegen::dom::emit"
+                || target == "codegen::ssr"
+                || target == "codegen"
+        })
+        .collect();
+    assert!(
+        offenders.is_empty(),
+        "codegen/infra.rs imports {offenders:?}; infra is the layer both targets \
+         build on, so it cannot name either of them"
+    );
+}

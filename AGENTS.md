@@ -136,7 +136,8 @@ pipeline.rs    阶段顺序与早退形状（transform_module 委托给它）
 | `lower/mod.rs`         | ~2680 | `Lowerer` 及其递归降级核心                       |
 | `codegen/dom/emit.rs`  | ~1790 | DOM 发射族，42 个函数 + 4 个元素查找器           |
 | `codegen/dom/model.rs` | ~600  | `GeneratedComponent`、`DynamicBinding` 及构造    |
-| `codegen/mod.rs`       | ~1000 | 模块编排                                         |
+| `codegen/dom/names.rs` | ~525  | `RuntimeNames`、`HelperUsage`（DOM 专属）        |
+| `codegen/mod.rs`       | ~516  | 模块编排                                         |
 
 **两处是强连通分量，不要再尝试按行切分：**
 
