@@ -126,7 +126,33 @@ pipeline.rs    阶段顺序与早退形状（transform_module 委托给它）
 **不要把 Babel AST 当作框架的长期内部协议。** 编译语义必须表达在 Zeus IR 中，
 而不是 Babel 节点结构上——这是 Rust 编译器能够接管的前提。
 
-### 5.2 必须遵守
+### 5.2 当前结构：哪些已经分开，哪些是一个整体
+
+测量于 `b1519092` 之后，每次重构后应重新测量：
+
+| 文件                   | 行数  | 性质                                             |
+| ---------------------- | ----- | ------------------------------------------------ |
+| `lower/frontend.rs`    | ~970  | AST 事实收集。只读程序，返回数据，不碰 `Lowerer` |
+| `lower/mod.rs`         | ~2680 | `Lowerer` 及其递归降级核心                       |
+| `codegen/dom/emit.rs`  | ~1790 | DOM 发射族，42 个函数 + 4 个元素查找器           |
+| `codegen/dom/model.rs` | ~600  | `GeneratedComponent`、`DynamicBinding` 及构造    |
+| `codegen/mod.rs`       | ~1000 | 模块编排                                         |
+
+**两处是强连通分量，不要再尝试按行切分：**
+
+- `Lowerer` 的 21 个 `lower_*` 方法互相递归（child → component → 该组件的 children）。
+  降级一棵树必然递归降级子节点，这不是可消除的耦合。
+- `dom/emit.rs` 的 43 个函数同理：`emit_children_value` → `emit_inline_root` →
+  `emit_component` → 该组件的 children。
+
+把 DOM 发射族按 bindings / hydration / component 切开失败了两次；第三次把整块
+作为一个单元移走才成功。失败的原因是同一个：**对一个递归单元做切片，然后期待
+切片独立成立。** `Lowerer` 还没有被这样整块移动过——它现在就在原位，是一个整体。
+
+`lower/mod.rs` 里剩下的辅助函数（`contains_jsx`、`kebab_to_camel`、
+`decode_jsx_entities` 等）全部在 `Lowerer` 方法体内被调用，属于该单元的一部分。
+
+### 5.3 必须遵守
 
 1. **Rust IR 是编译语义的唯一事实来源**（`crates/zeus_compiler/src/ir.rs`）。
    `packages/compiler/compiler-shared` 是历史遗留、无源码消费者，
