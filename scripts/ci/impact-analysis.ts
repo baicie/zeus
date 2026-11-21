@@ -430,6 +430,14 @@ export const JOB_NEEDS: readonly JobNeed[] = [
     areas: BROWSER_GATE_AREAS,
   },
   {
+    // The runtime correctness checks moved out of `browser-playground` for
+    // timeout budget, not for scope. Same areas: a change that makes any of the
+    // other browser jobs run must make this one run too, or the checks would be
+    // skipped exactly when they matter.
+    name: 'browser-runtime',
+    areas: BROWSER_GATE_AREAS,
+  },
+  {
     name: 'create-zeus-candidates',
     areas: [
       'core-runtime',

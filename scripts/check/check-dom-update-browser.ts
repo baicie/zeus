@@ -51,15 +51,14 @@ import fs from 'node:fs/promises'
 import http from 'node:http'
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import process from 'node:process'
-
-import { chromium, type Page } from '@playwright/test'
 
 import {
-  chromiumLaunchOptions,
-  describeBrowser,
-  explainLaunchFailure,
-} from './browser-channel'
+  type EngineCheckResult,
+  reportAcrossEngines,
+  runAcrossEngines,
+} from './browser-engines'
+
+import type { Page } from '@playwright/test'
 
 declare global {
   interface Window {
@@ -70,6 +69,8 @@ declare global {
     __before: Record<string, Element | null>
     __byId: Record<string, Element>
     __beforeRemoval: Record<string, Element>
+    __beforeReplace: Element[]
+    __sameKey: Element | null
   }
 }
 
@@ -559,94 +560,179 @@ const checks: Array<{ name: string; run: (tab: Page) => Promise<void> }> = [
       assert.ok(removed.removedDetached, 'the removed item must be detached')
     },
   },
+  {
+    name: 'appending to a keyed list reuses every existing node',
+    async run(tab) {
+      await load(tab, 'for')
+      await tab.evaluate(() => {
+        window.__byId = Object.fromEntries(
+          [...document.querySelectorAll('#list li')].map(item => [
+            (item as HTMLElement).dataset.id,
+            item,
+          ]),
+        )
+        window.__handle.setItems([
+          { id: 'a', label: 'A' },
+          { id: 'b', label: 'B' },
+          { id: 'c', label: 'C' },
+          { id: 'd', label: 'D' },
+        ])
+      })
+      await tab.waitForFunction(
+        () => document.querySelectorAll('#list li').length === 4,
+      )
+      const reused = await tab.evaluate(() =>
+        ['a', 'b', 'c'].map(
+          id =>
+            window.__byId[id] === document.querySelector(`[data-id="${id}"]`),
+        ),
+      )
+      assert.deepEqual(
+        reused,
+        [true, true, true],
+        'an append must not rebuild the items that were already there',
+      )
+    },
+  },
+  {
+    name: 'replacing the whole list rebuilds every node',
+    async run(tab) {
+      await load(tab, 'for')
+      const before = await tab.evaluate(() => {
+        const nodes = [...document.querySelectorAll('#list li')]
+        window.__beforeReplace = nodes
+        window.__handle.setItems([
+          { id: 'x', label: 'X' },
+          { id: 'y', label: 'Y' },
+        ])
+        return nodes.length
+      })
+      await tab.waitForFunction(
+        () => document.querySelectorAll('#list li').length === 2,
+      )
+      const reused = await tab.evaluate(
+        () =>
+          window.__beforeReplace.filter((node: Element) => node.isConnected)
+            .length,
+      )
+      assert.equal(
+        reused,
+        0,
+        `no old item may survive a full replacement, ${reused} did (of ${before})`,
+      )
+    },
+  },
+  {
+    name: 'a changed label on the same key keeps the node',
+    async run(tab) {
+      await load(tab, 'for')
+      await tab.evaluate(() => {
+        window.__sameKey = document.querySelector('[data-id="b"]')
+        window.__handle.setItems([
+          { id: 'a', label: 'A' },
+          { id: 'b', label: 'B changed' },
+          { id: 'c', label: 'C' },
+        ])
+      })
+      await tab.waitForFunction(
+        () =>
+          document.querySelector('[data-id="b"]')?.textContent === 'B changed',
+      )
+      const survived = await tab.evaluate(
+        () => window.__sameKey === document.querySelector('[data-id="b"]'),
+      )
+      assert.ok(survived, 'a keyed item whose data changed must keep its node')
+    },
+  },
+  {
+    name: 'rapid successive updates converge on the last list',
+    async run(tab) {
+      await load(tab, 'for')
+      // Five synchronous writes in one evaluate: no frame between them, which
+      // is the shape a user produces by holding a key down.
+      await tab.evaluate(() => {
+        for (let index = 1; index <= 5; index += 1) {
+          window.__handle.setItems(
+            Array.from({ length: index + 1 }, (_, position) => ({
+              id: `k${position}`,
+              label: `L${index}-${position}`,
+            })),
+          )
+        }
+      })
+      await tab.waitForFunction(
+        () => document.querySelectorAll('#list li').length === 6,
+      )
+      const state = await tab.evaluate(() => ({
+        ids: [...document.querySelectorAll('#list li')].map(
+          item => (item as HTMLElement).dataset.id,
+        ),
+        labels: [...document.querySelectorAll('#list li')].map(
+          item => item.textContent,
+        ),
+      }))
+      assert.deepEqual(state.ids, ['k0', 'k1', 'k2', 'k3', 'k4', 'k5'])
+      assert.deepEqual(
+        state.labels,
+        ['L5-0', 'L5-1', 'L5-2', 'L5-3', 'L5-4', 'L5-5'],
+        'the last write must win for every row',
+      )
+    },
+  },
 ]
 
 // ---- Run --------------------------------------------------------------------
 
-const results: Array<{ check: string; status: string; error?: string }> = []
-let browser
-/** Declared here so the `finally` block can stop its trace after a failure. */
-let context: import('@playwright/test').BrowserContext | undefined
+/**
+ * Runs every check once per engine.
+ *
+ * A fresh page per engine, so one engine's state cannot leak into the next.
+ * Each check is independent of the others by construction — every one of them
+ * navigates and mounts its own fixture — so a failure in Firefox does not stop
+ * WebKit from being measured.
+ */
+const outcomes = await runAcrossEngines({
+  outputDir: output,
+  async run(tab) {
+    const results: EngineCheckResult[] = []
+    const pageErrors: string[] = []
+    tab.on('pageerror', error => pageErrors.push(error.message))
 
-try {
-  const options = chromiumLaunchOptions()
-  try {
-    browser = await chromium.launch(options)
-  } catch (error) {
-    throw explainLaunchFailure(options.channel, error)
-  }
-
-  // A trace is the difference between "this assertion failed" and "here is
-  // what the DOM looked like when it did". Written to `temp/`, which the CI
-  // job uploads on failure.
-  context = await browser.newContext()
-  await context.tracing.start({
-    screenshots: true,
-    snapshots: true,
-    sources: true,
-  })
-  const tab = await context.newPage()
-  const pageErrors: string[] = []
-  tab.on('pageerror', error => pageErrors.push(error.message))
-
-  for (const check of checks) {
-    try {
-      await check.run(tab)
-      results.push({ check: check.name, status: 'passed' })
-    } catch (error) {
-      results.push({
-        check: check.name,
-        status: 'failed',
-        error: error instanceof Error ? error.message : String(error),
-      })
-      // A screenshot is what makes a browser failure actionable from a log.
-      await fs.mkdir(output, { recursive: true })
-      await tab.screenshot({
-        path: path.join(output, `${check.name.replace(/\W+/g, '-')}.png`),
-        fullPage: true,
-      })
-    }
-  }
-
-  results.push(
-    pageErrors.length === 0
-      ? { check: 'no uncaught page errors', status: 'passed' }
-      : {
-          check: 'no uncaught page errors',
+    for (const check of checks) {
+      try {
+        await check.run(tab)
+        results.push({ check: check.name, status: 'passed' })
+      } catch (error) {
+        results.push({
+          check: check.name,
           status: 'failed',
-          error: pageErrors.join('\n'),
-        },
-  )
-} catch (error) {
-  console.error(
-    `BLOCKED: the DOM update E2E could not start a browser.\n${
-      error instanceof Error ? error.message : String(error)
-    }`,
-  )
-  await new Promise<void>(resolve => server.close(() => resolve()))
-  process.exit(2)
-} finally {
-  // Only a failed run keeps its trace: a passing run's trace is several
-  // megabytes of nothing, and uploading it every time trains people to ignore
-  // the artifact.
-  const failing = results.some(result => result.status !== 'passed')
-  if (failing && context) {
-    await fs.mkdir(output, { recursive: true })
-    await context.tracing.stop({ path: path.join(output, 'trace.zip') })
-  }
-  await browser?.close()
-  await new Promise<void>(resolve => server.close(() => resolve()))
-}
+          error: error instanceof Error ? error.message : String(error),
+        })
+        // A screenshot is what makes a browser failure actionable from a log.
+        await fs.mkdir(output, { recursive: true })
+        await tab.screenshot({
+          path: path.join(output, `${check.name.replace(/\W+/g, '-')}.png`),
+          fullPage: true,
+        })
+      }
+    }
 
-console.log(`browser: ${describeBrowser()}`)
-console.log(JSON.stringify(results, null, 2))
+    results.push(
+      pageErrors.length === 0
+        ? { check: 'no uncaught page errors', status: 'passed' }
+        : {
+            check: 'no uncaught page errors',
+            status: 'failed',
+            error: pageErrors.join('\n'),
+          },
+    )
+    return results
+  },
+})
 
-const failures = results.filter(result => result.status === 'failed')
-if (failures.length > 0) {
-  throw new Error(
-    `${failures.length} DOM update check(s) failed:\n${failures
-      .map(failure => `  - ${failure.check}: ${failure.error}`)
-      .join('\n')}`,
-  )
-}
-console.log(`${results.length} DOM update check(s) passed.`)
+reportAcrossEngines(outcomes, 'DOM precise updates')
+// The server holds a handle, so without this the process never exits and CI
+// waits for the job timeout. The other checks call it; this one lost the call
+// when its run block was rewritten, and the first `browser-runtime` run sat in
+// `DOM precise updates` for twenty minutes before being killed.
+await new Promise<void>(resolve => server.close(() => resolve()))

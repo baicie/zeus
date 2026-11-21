@@ -1,6 +1,6 @@
 {
-  "purpose": "ErrorBoundary is rejected by SSR",
-  "source": "import { ErrorBoundary } from '@zeus-js/runtime-dom'\nexport function App() {\n  return <ErrorBoundary fallback={<p>e</p>}><Child /></ErrorBoundary>\n}\n",
+  "purpose": "ErrorBoundary is rejected by SSR, not by its fallback",
+  "source": "import { ErrorBoundary } from '@zeus-js/runtime-dom'\nexport function App() {\n  return <ErrorBoundary fallback={err => <p>{err.message}</p>}><Child /></ErrorBoundary>\n}\n",
   "filename": "ssr-error-boundary.tsx",
   "options": {
     "target": "ssr",
@@ -16,21 +16,20 @@
     "map": null,
     "diagnostics": [
       {
-        "code": "ZEUS_INVALID_ERROR_BOUNDARY_FALLBACK",
-        "message": "ErrorBoundary fallback must be a function value or a synchronous arrow render factory with up to two identifier parameters and a JSX expression or single return statement.",
+        "code": "ZEUS_SSR_ERROR_BOUNDARY_UNSUPPORTED",
+        "message": "ErrorBoundary is a Native DOM boundary and cannot be rendered by the SSR target.",
         "severity": "error",
         "filename": "ssr-error-boundary.tsx",
-        "hint": "Pass a render function, for example `fallback={(error, reset) => <p>{String(error)}</p>}`.",
         "span": {
           "start": {
-            "offset": 111,
+            "offset": 86,
             "line": 3,
-            "column": 34
+            "column": 9
           },
           "end": {
-            "offset": 119,
+            "offset": 165,
             "line": 3,
-            "column": 42
+            "column": 88
           }
         }
       }

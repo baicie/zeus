@@ -25,7 +25,7 @@
  * The fixture increments counters on the page:
  *
  *   mounts    the module body ran
- *   cleanups  an `onCleanup` callback ran
+ *   cleanups  a root-level `onCleanup` ran (one per disposed render root)
  *   effects   a live effect body is running (incremented on create,
  *             decremented on cleanup)
  *
@@ -35,6 +35,11 @@
  *   effects  === 1              exactly one live effect, not N
  *
  * After the final dispose: `cleanups === mounts` and `effects === 0`.
+ *
+ * The effect registers its own `onCleanup` too, and an effect re-runs after
+ * every signal write, disposing its previous run first. That counter is kept
+ * separate (`effectsDisposed`) because it moves for a different reason — folding
+ * the two made a click look like an extra root disposal.
  *
  * ## The negative test
  *
@@ -74,8 +79,9 @@ declare global {
   interface Window {
     __hmr?: {
       mounts: number
-      cleanups: number
-      effects: number
+      rootCleanups: number
+      effectsCreated: number
+      effectsDisposed: number
       clicks: number
       dispose?: () => void
     }
@@ -100,20 +106,40 @@ function fixtureSource(
   return `import { createEffect, createSignal, onCleanup } from '@zeus-js/signal'
 import { render } from '@zeus-js/runtime-dom'
 
-const state = (globalThis.__hmr ??= { mounts: 0, cleanups: 0, effects: 0, clicks: 0 })
+// Counters survive HMR generations because they live on the global object,
+// which a reloaded module does not replace. effectsCreated and
+// effectsDisposed are cumulative: an effect leaked in generation 1 is still
+// visible in generation 5, which a per-generation reset to zero would hide.
+// The live count is the difference between them.
+const state = (globalThis.__hmr ??= {
+  mounts: 0,
+  rootCleanups: 0,
+  effectsCreated: 0,
+  effectsDisposed: 0,
+  clicks: 0,
+})
 state.mounts += 1
-state.effects = 0
 
 const [count, setCount] = createSignal(0)
 
 const dispose = render(() => {
+  // Two cleanups, counted apart. The root one runs when the render root is
+  // disposed — once per hot update. The effect one runs both when the root is
+  // disposed *and* each time the effect re-runs after a signal write, so it
+  // cannot be compared against the mount count. Folding them into one counter
+  // made the click at update four look like an extra root disposal.
+  ${
+    options.skipCleanup
+      ? '// negative test: no cleanup at all, so the live count stays above zero'
+      : 'onCleanup(() => { state.rootCleanups += 1 })'
+  }
   createEffect(() => {
-    state.effects += 1
+    state.effectsCreated += 1
     count()
     ${
       options.skipCleanup
-        ? '// negative test: no onCleanup, so the counters must go unbalanced'
-        : 'onCleanup(() => { state.cleanups += 1; state.effects -= 1 })'
+        ? '// no effect cleanup either'
+        : 'onCleanup(() => { state.effectsDisposed += 1 })'
     }
   })
   return (
@@ -179,11 +205,22 @@ const tsconfig = JSON.stringify(
   2,
 )
 
+/**
+ * The counters, with `effects` derived as created minus disposed.
+ *
+ * Deriving it rather than storing it is the point: a per-generation reset would
+ * make a leak from an earlier module instance invisible, and the whole check is
+ * about leaks that survive several updates.
+ */
 const counts = (tab: Page) =>
   tab.evaluate(() => ({
     mounts: window.__hmr?.mounts ?? -1,
-    cleanups: window.__hmr?.cleanups ?? -1,
-    effects: window.__hmr?.effects ?? -1,
+    cleanups: window.__hmr?.rootCleanups ?? -1,
+    effects:
+      (window.__hmr?.effectsCreated ?? -1) -
+      (window.__hmr?.effectsDisposed ?? 0),
+    effectsCreated: window.__hmr?.effectsCreated ?? -1,
+    effectsDisposed: window.__hmr?.effectsDisposed ?? -1,
     clicks: window.__hmr?.clicks ?? -1,
   }))
 
@@ -402,9 +439,9 @@ try {
   })
 
   await check(
-    'five consecutive hot updates leave exactly one live effect',
+    'ten consecutive hot updates leave exactly one live effect',
     async () => {
-      for (let index = 1; index <= 5; index += 1) {
+      for (let index = 1; index <= 10; index += 1) {
         await update(fixtureSource(`value${index}`, `note${index}`), index + 1)
         // A moment of quiet between writes. Two `writeFile` calls close
         // together are one change as far as the watcher is concerned, which
@@ -412,28 +449,46 @@ try {
         // coalescing artefact of the test, not a framework defect. The wait
         // above already proves this update landed; this only keeps the next
         // one from being merged into it.
-        await tab.waitForTimeout(250)
+        await tab.waitForTimeout(200)
+
+        // Interact mid-stream. A signal written while the module graph is
+        // still settling must be counted by the live tree only, and the next
+        // update must still dispose exactly one root — a leaked effect here
+        // would surface as `effects > 1` at the end rather than as a wrong
+        // value.
+        if (index === 4) {
+          await tab.click('#inc')
+          await tab.waitForFunction(() =>
+            document.querySelector('#inc')?.textContent?.includes(': 1'),
+          )
+        }
       }
       const current = await counts(tab)
-      if (current.mounts !== 6) {
+      if (current.mounts !== 11) {
         throw new Error(
-          `expected six mounts after five updates, got ${JSON.stringify(current)}`,
+          `expected eleven mounts after ten updates, got ${JSON.stringify(current)}`,
         )
       }
-      if (current.cleanups !== 5) {
+      // `cleanups` is the root-level counter, so it must be exactly one per
+      // superseded root. The effect-level counter is separate: an effect
+      // re-runs after a signal write and disposes its own previous run each
+      // time, which is why the click at update four moved that one and not
+      // this one.
+      if (current.cleanups !== 10) {
         throw new Error(
-          `each update must dispose the previous root, got ${JSON.stringify(current)}`,
+          `each update must dispose exactly one previous root, got ${JSON.stringify(current)}`,
         )
       }
       if (current.effects !== 1) {
         throw new Error(
-          `five updates must leave one live effect, got ${JSON.stringify(current)}`,
+          `ten updates, one with a click in flight, must leave one live ` +
+            `effect, got ${JSON.stringify(current)}`,
         )
       }
       const text = String(await tab.textContent('#inc'))
-      if (!text.includes('value5: 0')) {
+      if (!text.includes('value10: 0')) {
         throw new Error(
-          `the fifth update's code must be live, got ${JSON.stringify(text)}`,
+          `the tenth update's code must be live, got ${JSON.stringify(text)}`,
         )
       }
     },

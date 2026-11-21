@@ -179,16 +179,19 @@ describe('planJobs', () => {
     expect(running(planFor(['docs/guide/state.md']))).toEqual(['docs-build'])
   })
 
-  it('keeps the three browser jobs on exactly the same trigger', () => {
+  it('keeps every browser job on exactly the same trigger', () => {
     // `browser-web-components` and `browser-playground` were steps inside
-    // `packed-consumers`. Splitting them for wall clock must not give any of
-    // them a narrower trigger than the job it left: that would be a coverage
-    // hole that reports green. They share `BROWSER_GATE_AREAS`, and this test
-    // is what stops a future edit from breaking that.
+    // `packed-consumers`, and `browser-runtime` was later split out of
+    // `browser-playground` for its own timeout budget. None of those splits may
+    // give a job a narrower trigger than the one it left: that would be a
+    // coverage hole that reports green, because a skipped job satisfies the
+    // gate exactly as a passing one does. They share `BROWSER_GATE_AREAS`, and
+    // this test is what stops a future edit from breaking that.
     const browserJobs = [
       'packed-consumers',
       'browser-web-components',
       'browser-playground',
+      'browser-runtime',
     ]
     const changes: string[][] = [
       ['examples/admin/src/pages.tsx'],

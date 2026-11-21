@@ -177,18 +177,39 @@ export function hydratePlan(
   )
 }
 
+/**
+ * Resolves the DOM nodes a plan node names.
+ *
+ * The expected tag is passed for `kind === 'element'` and for nothing else.
+ * `tagName` is only ever recorded for an element, and only an element has a tag
+ * to compare: a root marker points at a container, a text marker at a text
+ * node, and a region marker at a comment. Passing a tag for those would turn a
+ * correct hydration into `ZEUS_HYDRATION_TAG_MISMATCH`.
+ *
+ * The comparison is exact, not case-folded. The compiler records the tag as it
+ * appears in the JSX, and that is what the browser produces: `localName` is
+ * lowercased for HTML and keeps its case for SVG (`linearGradient`,
+ * `foreignObject`). A JSX tag written `<DIV>` never reaches here at all — the
+ * lowering step treats an uppercase identifier as a component, not an element.
+ */
 function nodeOccurrences(
   context: HydrationContext,
   node: HydrationPlanNode,
 ): Node[] {
+  const expectedTag = node.kind === 'element' ? node.tagName : undefined
   try {
-    return context.nodes(node.id)
+    return context.nodes(node.id, expectedTag)
   } catch (error) {
     if (
       node.optional &&
       error instanceof Error &&
       error.message.startsWith('ZEUS_HYDRATION_MARKER_MISSING:')
     ) {
+      // An optional node that is absent is the branch not being taken. A
+      // present marker whose target is missing or of the wrong kind is a
+      // different failure and must not be swallowed here — that distinction is
+      // the whole point of checking `MARKER_MISSING` by name rather than
+      // catching everything.
       return []
     }
     throw error

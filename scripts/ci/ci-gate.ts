@@ -41,6 +41,7 @@ export const REQUIRED_DEPENDENCIES = [
   'packed-consumers',
   'browser-web-components',
   'browser-playground',
+  'browser-runtime',
   'create-zeus-candidates',
   'cross-platform-evidence',
   'docs-build',
@@ -65,6 +66,7 @@ export const PLANNED_SKIP_JOBS = [
   'packed-consumers',
   'browser-web-components',
   'browser-playground',
+  'browser-runtime',
   'create-zeus-candidates',
   'docs-build',
 ] as const

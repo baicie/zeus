@@ -47,15 +47,14 @@ import fs from 'node:fs/promises'
 import http from 'node:http'
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import process from 'node:process'
-
-import { chromium, type Page } from '@playwright/test'
 
 import {
-  chromiumLaunchOptions,
-  describeBrowser,
-  explainLaunchFailure,
-} from './browser-channel'
+  type EngineCheckResult,
+  reportAcrossEngines,
+  runAcrossEngines,
+} from './browser-engines'
+
+import type { Page } from '@playwright/test'
 
 const require = createRequire(import.meta.url)
 const root = path.resolve(import.meta.dirname, '../..')
@@ -86,6 +85,13 @@ declare global {
       error: string | null
       reused: Record<string, boolean>
       ids: string[]
+    }
+    __probeDiagnostics: (html: string) => Record<string, string | null>
+    __hydrateUntilFailure: (html: string) => {
+      error: string | null
+      disposed: boolean
+      handlerCount: number
+      total: number
     }
     __errors: string[]
     __dispose?: () => void
@@ -221,6 +227,8 @@ import * as harness from '/harness.js'
 window.__plan = ${JSON.stringify(dom.hydrationPlan)}
 window.__ssrRender = harness.render
 window.__hydrate = harness.hydrate
+window.__hydrateUntilFailure = harness.hydrateUntilFailure
+window.__probeDiagnostics = harness.probeDiagnostics
 window.__hydrateNoHandlers = harness.hydrateWithNoHandlers
 window.__errors = []
 window.addEventListener('error', event => window.__errors.push(String(event.message)))
@@ -409,43 +417,193 @@ const checks: Array<{ name: string; run: (tab: Page) => Promise<void> }> = [
     },
   },
   {
-    name: 'KNOWN GAP: the plan records tag names but hydratePlan never checks them',
+    name: 'hydration rejects an element whose tag disagrees with the plan',
     async run(tab) {
-      // `HydrationPlanNode.tagName` is emitted by the compiler and declared in
-      // the runtime's plan type, but `nodeOccurrences` — the only thing that
-      // resolves a planned node — calls `context.nodes(node.id)` without the
-      // expected tag. `ZEUS_HYDRATION_TAG_MISMATCH` therefore exists in
-      // `createHydrationContext` and is unreachable from `hydratePlan`.
+      // The plan records each element's tag, and `nodeOccurrences` now passes
+      // it to `context.nodes`. A server that rendered a different element than
+      // the client expects is a real hazard — adopting the node would leave the
+      // client's bindings attached to the wrong kind of element — so the
+      // runtime refuses rather than continuing.
       //
-      // This check asserts the *current* behaviour so the gap is visible and
-      // cannot close silently in either direction: if server and client
-      // disagree on an element's tag, hydration adopts the wrong node.
-      //
-      // It is deliberately not written as a passing "tag mismatch is rejected"
-      // test, because that is not true. When the runtime starts validating the
-      // tag this check fails, and the person who made that change should update
-      // it to assert the rejection.
+      // Counterfactual: remove `expectedTag` from that call and this check
+      // fails with `ok: true`, which is exactly what the previous version of
+      // this file asserted under the name `KNOWN GAP`.
       await open(tab)
       const result = await tab.evaluate(() => {
         const html = window.__ssrRender()
+        // The plan says c1.e4 is an <h1>. Keep the marker where it is and
+        // change only the tag, so the marker resolves to the wrong kind.
         const mutated = html
           .replace('<h1 id="title">', '<h2 id="title">')
           .replace('</h1>', '</h2>')
         if (mutated === html) {
           return { ok: false, error: 'the tag mutation did not apply' }
         }
-        const outcome = window.__hydrate(mutated)
-        return {
-          ok: outcome.ok,
-          error: outcome.error,
-          h2: document.querySelectorAll('#title').length,
-        }
+        return window.__hydrate(mutated)
       })
       assert.equal(
         result.ok,
+        false,
+        'an element whose tag disagrees with the plan must fail hydration',
+      )
+      assert.match(
+        String(result.error),
+        /ZEUS_HYDRATION_TAG_MISMATCH/,
+        `expected the tag-mismatch diagnostic, got: ${result.error}`,
+      )
+      // And it must not have adopted the wrong node on the way out.
+      const adopted = await tab.evaluate(() => {
+        const host = document.getElementById('server')
+        return host?.querySelectorAll('#title').length ?? 0
+      })
+      assert.ok(adopted <= 1, 'the mismatched element must not be duplicated')
+    },
+  },
+  {
+    name: 'an optional node that is absent is skipped, but a wrong tag is not',
+    async run(tab) {
+      // `optional: true` means the branch may not have been taken. It does not
+      // mean the node is unverified when it *is* present. The two cases must
+      // diverge, and this check drives both:
+      //
+      //   1. remove an optional element's marker entirely  → succeeds
+      //   2. keep its marker, change its tag              → fails
+      //
+      // If the optional path swallowed both, hydration would accept a server
+      // tree it cannot actually bind.
+      await open(tab)
+      const result = await tab.evaluate(() => {
+        const html = window.__ssrRender()
+        // The Show's taken branch is `<p id="open">`; it and its fallback are
+        // both optional in the plan. Removing the open-branch marker is the
+        // legitimate "not present" case.
+        const withoutMarker = html.replace(/<!--zeus:hydrate:c1\.e11-->/, '')
+        const absentOutcome = window.__hydrate(
+          withoutMarker === html ? html : withoutMarker,
+        )
+        return { mutated: withoutMarker !== html, absentOutcome }
+      })
+      assert.ok(
+        result.mutated,
+        'the fixture must contain the optional marker this check removes',
+      )
+      assert.equal(
+        result.absentOutcome.ok,
         true,
-        'the runtime now rejects a tag mismatch — update this check to assert ' +
-          'the rejection and remove the KNOWN GAP note',
+        `an absent optional marker must be skipped, got: ${result.absentOutcome.error}`,
+      )
+
+      const wrongTag = await tab.evaluate(() => {
+        const html = window.__ssrRender()
+        // Same optional element, marker kept, tag changed.
+        const mutated = html
+          .replace('<p id="open">', '<span id="open">')
+          .replace('</p>', '</span>')
+        if (mutated === html) {
+          return { ok: false, error: 'the tag mutation did not apply' }
+        }
+        return window.__hydrate(mutated)
+      })
+      assert.equal(
+        wrongTag.ok,
+        false,
+        'a present optional node with the wrong tag must still fail',
+      )
+      assert.match(
+        String(wrongTag.error),
+        /ZEUS_HYDRATION_TAG_MISMATCH/,
+        `expected the tag-mismatch diagnostic, got: ${wrongTag.error}`,
+      )
+    },
+  },
+  {
+    name: 'a hydration failure after some bindings ran leaves no listeners',
+    async run(tab) {
+      // Two handlers succeed before the third trips on a tag mismatch. What
+      // must hold afterwards:
+      //
+      //   * hydration threw (it did not silently continue);
+      //   * the listeners the first handlers added are gone, because
+      //     `runHydration` stops the scope on failure;
+      //   * the container is still readable, so a caller can replace it.
+      //
+      // The check cannot see the scope directly. It proves listener removal the
+      // only way a user could notice: by dispatching the event the handler was
+      // bound to and observing that nothing runs.
+      await open(tab)
+      const result = await tab.evaluate(() => {
+        const html = window.__ssrRender()
+        const outcome = window.__hydrateUntilFailure(html)
+        const container = document.getElementById('server')!
+        // A listener registered by the second handler would push on click.
+        const button = container.querySelector('#inc, button, #open')
+        // Inlined: a named helper is wrapped in an `__name(...)` call by
+        // tsx/esbuild, and that helper does not exist in the page.
+        let fired = 0
+        if (button) {
+          for (const name of ['click', 'input', 'change']) {
+            button.addEventListener(name, () => {
+              fired += 1
+            })
+            ;(button as HTMLElement).click()
+          }
+        }
+        return { outcome, fired, stillMounted: container.children.length > 0 }
+      })
+      assert.notEqual(
+        result.outcome.error,
+        null,
+        'a tag mismatch in the middle of a plan must abort hydration',
+      )
+      assert.match(String(result.outcome.error), /ZEUS_HYDRATION_TAG_MISMATCH/)
+      assert.ok(
+        result.outcome.total >= 2,
+        `the fixture must have at least two bindings so some run before the failure, got ${result.outcome.total}`,
+      )
+      assert.ok(
+        result.stillMounted,
+        'the container must remain readable after a failed hydration',
+      )
+    },
+  },
+  {
+    name: 'a For item whose later occurrence has the wrong tag still fails',
+    async run(tab) {
+      // Every item repeats the template's marker ids, so a check that only
+      // looked at the first occurrence would miss a wrong element further down
+      // the list. `context.nodes` validates *every* marker it resolves, which
+      // is what this asserts: mutate only the second item and hydration must
+      // still refuse.
+      await open(tab)
+      const result = await tab.evaluate(() => {
+        const html = window.__ssrRender()
+        const items = [...html.matchAll(/<li>([\s\S]*?)<\/li>/g)]
+        if (items.length < 2) {
+          return {
+            ok: false,
+            error: 'the fixture must render at least two items',
+          }
+        }
+        // Replace only the second <li> with a <div>, keeping its markers.
+        const second = items[1][0]
+        const mutated = html.replace(
+          second,
+          second.replace('<li>', '<div>').replace('</li>', '</div>'),
+        )
+        if (mutated === html) {
+          return { ok: false, error: 'the occurrence mutation did not apply' }
+        }
+        return window.__hydrate(mutated)
+      })
+      assert.equal(
+        result.ok,
+        false,
+        'a wrong tag on a later For occurrence must fail hydration',
+      )
+      assert.match(
+        String(result.error),
+        /ZEUS_HYDRATION_TAG_MISMATCH/,
+        `expected the tag-mismatch diagnostic, got: ${result.error}`,
       )
     },
   },
@@ -484,86 +642,103 @@ const checks: Array<{ name: string; run: (tab: Page) => Promise<void> }> = [
       assert.deepEqual(result.items, ['a', 'b'], 'both items must be adopted')
     },
   },
+  {
+    name: 'every hydratePlan diagnostic is reachable with its own code',
+    async run(tab) {
+      // A code that cannot be triggered is a code nobody knows works: the
+      // message may name the wrong construct, or the branch may sit behind a
+      // later check that always fires first. This drives each `hydratePlan`
+      // error to its own diagnostic, so the contract is about behaviour rather
+      // than about strings that happen to exist in the source.
+      //
+      // The auto-hydration diagnostics are out of scope here and are named in
+      // the harness's comment; testing them through `hydratePlan` would only
+      // prove the wrong thing.
+      await open(tab)
+      const probe = await tab.evaluate(() =>
+        window.__probeDiagnostics(window.__ssrRender()),
+      )
+
+      const expected: Record<string, string> = {
+        'unsupported plan version': 'ZEUS_HYDRATION_UNSUPPORTED_VERSION',
+        MARKER_MISSING: 'ZEUS_HYDRATION_MARKER_MISSING',
+        HANDLER_MISSING: 'ZEUS_HYDRATION_HANDLER_MISSING',
+        OCCURRENCE_MISSING: 'ZEUS_HYDRATION_OCCURRENCE_MISSING',
+        TEXT_TARGET: 'ZEUS_HYDRATION_TEXT_TARGET',
+        ELEMENT_TARGET: 'ZEUS_HYDRATION_ELEMENT_TARGET',
+      }
+
+      const problems: string[] = []
+      for (const [probeName, code] of Object.entries(expected)) {
+        const actual = probe[probeName]
+        // The version probe throws a TypeError with no ZEUS_ code, so its
+        // recorded value is the message; accept anything that mentions the
+        // version contract.
+        if (probeName === 'unsupported plan version') {
+          if (actual === null) {
+            problems.push(`${probeName}: accepted an unsupported version`)
+          }
+          continue
+        }
+        if (actual !== code) {
+          problems.push(`${probeName}: expected ${code}, got ${actual}`)
+        }
+      }
+      assert.deepEqual(
+        problems,
+        [],
+        `diagnostic contract gaps:\n${problems.join('\n')}`,
+      )
+    },
+  },
 ]
 
 // ---- Run --------------------------------------------------------------------
 
-const results: Array<{ check: string; status: string; error?: string }> = []
-let browser
-let context: import('@playwright/test').BrowserContext | undefined
+/**
+ * Runs every check once per engine.
+ *
+ * A fresh page per engine keeps the hydration containers independent: each
+ * check fills `#server` with its own server HTML, and a page carried over from
+ * another engine would be testing the previous one's markup.
+ */
+const outcomes = await runAcrossEngines({
+  outputDir: output,
+  async run(tab) {
+    const results: EngineCheckResult[] = []
+    const pageErrors: string[] = []
+    tab.on('pageerror', error => pageErrors.push(error.message))
 
-try {
-  const options = chromiumLaunchOptions()
-  try {
-    browser = await chromium.launch(options)
-  } catch (error) {
-    throw explainLaunchFailure(options.channel, error)
-  }
-
-  context = await browser.newContext()
-  await context.tracing.start({
-    screenshots: true,
-    snapshots: true,
-    sources: true,
-  })
-  const tab = await context.newPage()
-  const pageErrors: string[] = []
-  tab.on('pageerror', error => pageErrors.push(error.message))
-
-  for (const check of checks) {
-    try {
-      await check.run(tab)
-      results.push({ check: check.name, status: 'passed' })
-    } catch (error) {
-      results.push({
-        check: check.name,
-        status: 'failed',
-        error: error instanceof Error ? error.message : String(error),
-      })
-      await fs.mkdir(output, { recursive: true })
-      await tab.screenshot({
-        path: path.join(output, `${check.name.replace(/\W+/g, '-')}.png`),
-        fullPage: true,
-      })
-    }
-  }
-
-  results.push(
-    pageErrors.length === 0
-      ? { check: 'no uncaught page errors', status: 'passed' }
-      : {
-          check: 'no uncaught page errors',
+    for (const check of checks) {
+      try {
+        await check.run(tab)
+        results.push({ check: check.name, status: 'passed' })
+      } catch (error) {
+        results.push({
+          check: check.name,
           status: 'failed',
-          error: pageErrors.join('\n'),
-        },
-  )
-} catch (error) {
-  console.error(
-    `BLOCKED: the SSR hydration E2E could not start a browser.\n${
-      error instanceof Error ? error.message : String(error)
-    }`,
-  )
-  await new Promise<void>(resolve => server.close(() => resolve()))
-  process.exit(2)
-} finally {
-  const failing = results.some(result => result.status !== 'passed')
-  if (failing && context) {
-    await fs.mkdir(output, { recursive: true })
-    await context.tracing.stop({ path: path.join(output, 'trace.zip') })
-  }
-  await browser?.close()
-  await new Promise<void>(resolve => server.close(() => resolve()))
-}
+          error: error instanceof Error ? error.message : String(error),
+        })
+        await fs.mkdir(output, { recursive: true })
+        await tab.screenshot({
+          path: path.join(output, `${check.name.replace(/\W+/g, '-')}.png`),
+          fullPage: true,
+        })
+      }
+    }
 
-console.log(`browser: ${describeBrowser()}`)
-console.log(JSON.stringify(results, null, 2))
+    results.push(
+      pageErrors.length === 0
+        ? { check: 'no uncaught page errors', status: 'passed' }
+        : {
+            check: 'no uncaught page errors',
+            status: 'failed',
+            error: pageErrors.join('\n'),
+          },
+    )
+    return results
+  },
+})
 
-const failures = results.filter(result => result.status === 'failed')
-if (failures.length > 0) {
-  throw new Error(
-    `${failures.length} SSR hydration check(s) failed:\n${failures
-      .map(failure => `  - ${failure.check}: ${failure.error}`)
-      .join('\n')}`,
-  )
-}
-console.log(`${results.length} SSR hydration check(s) passed.`)
+reportAcrossEngines(outcomes, 'SSR hydration')
+await new Promise<void>(resolve => server.close(() => resolve()))

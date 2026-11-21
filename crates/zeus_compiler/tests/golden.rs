@@ -375,11 +375,17 @@ fn cases() -> Vec<GoldenCase> {
         ssr(),
         "import { Show, For } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <div><Show when={props.open}><b>y</b></Show><For each={props.items}>{i => <i>{i}</i>}</For></div>\n}\n"
     );
+    // The fallback is a render function, not a JSX value. A JSX `fallback`
+    // would be rejected as a component prop before the SSR target ever sees the
+    // boundary, which is what this fixture used to snapshot — under a name that
+    // claimed to cover SSR. With the fallback valid, the only diagnostic is the
+    // one the fixture is named for. `tests/diagnostics.rs` keeps the invalid
+    // fallback covered on its own terms.
     golden!(
-        "ErrorBoundary is rejected by SSR",
+        "ErrorBoundary is rejected by SSR, not by its fallback",
         "ssr-error-boundary.tsx",
         ssr(),
-        "import { ErrorBoundary } from '@zeus-js/runtime-dom'\nexport function App() {\n  return <ErrorBoundary fallback={<p>e</p>}><Child /></ErrorBoundary>\n}\n"
+        "import { ErrorBoundary } from '@zeus-js/runtime-dom'\nexport function App() {\n  return <ErrorBoundary fallback={err => <p>{err.message}</p>}><Child /></ErrorBoundary>\n}\n"
     );
     golden!(
         "SSR rejects a property with no HTML equivalent",

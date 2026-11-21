@@ -41,15 +41,14 @@ import fs from 'node:fs/promises'
 import http from 'node:http'
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import process from 'node:process'
-
-import { chromium, type Page } from '@playwright/test'
 
 import {
-  chromiumLaunchOptions,
-  describeBrowser,
-  explainLaunchFailure,
-} from './browser-channel'
+  type EngineCheckResult,
+  reportAcrossEngines,
+  runAcrossEngines,
+} from './browser-engines'
+
+import type { Page } from '@playwright/test'
 
 const require = createRequire(import.meta.url)
 const root = path.resolve(import.meta.dirname, '../..')
@@ -260,345 +259,325 @@ async function open(tab: Page): Promise<void> {
 
 // ---- Checks -----------------------------------------------------------------
 
-const results: Array<{ check: string; status: string; error?: string }> = []
-let browser
-let context: import('@playwright/test').BrowserContext | undefined
+/**
+ * Runs every check once per engine.
+ *
+ * Each engine gets a fresh page, so custom element definitions and adopted
+ * nodes from one engine cannot leak into the next. `customElements.define` is
+ * a document-wide registry — running two engines against one page would throw
+ * `NotSupportedError` on the second definition rather than measuring anything.
+ */
+const outcomes = await runAcrossEngines({
+  outputDir: output,
+  async run(tab) {
+    const results: EngineCheckResult[] = []
+    const pageErrors: string[] = []
+    tab.on('pageerror', error => pageErrors.push(error.message))
 
-try {
-  const options = chromiumLaunchOptions()
-  try {
-    browser = await chromium.launch(options)
-  } catch (error) {
-    throw explainLaunchFailure(options.channel, error)
-  }
-  context = await browser.newContext()
-  await context.tracing.start({
-    screenshots: true,
-    snapshots: true,
-    sources: true,
-  })
-  const tab = await context.newPage()
-  const pageErrors: string[] = []
-  tab.on('pageerror', error => pageErrors.push(error.message))
-
-  const check = async (name: string, run: () => Promise<void>) => {
-    try {
-      await run()
-      results.push({ check: name, status: 'passed' })
-    } catch (error) {
-      results.push({
-        check: name,
-        status: 'failed',
-        error: error instanceof Error ? error.message : String(error),
-      })
-      await fs.mkdir(output, { recursive: true })
-      await tab.screenshot({
-        path: path.join(output, `${name.replace(/\W+/g, '-')}.png`),
-        fullPage: true,
-      })
+    const check = async (name: string, run: () => Promise<void>) => {
+      try {
+        await run()
+        results.push({ check: name, status: 'passed' })
+      } catch (error) {
+        results.push({
+          check: name,
+          status: 'failed',
+          error: error instanceof Error ? error.message : String(error),
+        })
+        await fs.mkdir(output, { recursive: true })
+        await tab.screenshot({
+          path: path.join(output, `${name.replace(/\W+/g, '-')}.png`),
+          fullPage: true,
+        })
+      }
     }
-  }
 
-  await check('a custom element renders into a shadow root', async () => {
-    await open(tab)
-    const evidence = await tab.evaluate(() => {
-      const host = document.createElement('z-shadow-card')
-      host.setAttribute('title', 'shadow title')
-      host.setAttribute('count', '3')
-      document.body.append(host)
-      const root = host.shadowRoot
-      return {
-        hasShadow: root !== null,
-        heading: root?.querySelector('#heading')?.textContent ?? null,
-        count: root?.querySelector('#count')?.textContent ?? null,
-        // The element's own children are the light-DOM, which must not be
-        // rendered inside the shadow root.
-        lightChildren: host.children.length,
-      }
-    })
-    assert.ok(evidence.hasShadow, 'the element must attach a shadow root')
-    assert.equal(evidence.heading, 'shadow title')
-    assert.equal(evidence.count, 'count: 3', 'the Number prop must be coerced')
-  })
-
-  await check('attributes reflect to typed properties', async () => {
-    await open(tab)
-    const evidence = await tab.evaluate(() => {
-      const host = document.createElement('z-shadow-card') as HTMLElement & {
-        count?: number
-        active?: boolean
-        title?: string
-      }
-      document.body.append(host)
-      host.setAttribute('title', 'typed')
-      host.setAttribute('count', '42')
-      host.setAttribute('active', '')
-      const afterAttributes = {
-        title: host.title,
-        count: host.count,
-        active: host.active,
-      }
-      // HTML boolean-attribute semantics: presence is truth, not the string.
-      // `value !== null` is the documented coercion, so the literal "false"
-      // must still read as true. A test asserting the opposite would be
-      // asserting a bug.
-      host.setAttribute('active', 'false')
-      const afterFalse = { active: host.active }
-      host.removeAttribute('active')
-      const afterRemoval = { active: host.active }
-      return { afterAttributes, afterFalse, afterRemoval }
-    })
-    assert.equal(
-      evidence.afterAttributes.title,
-      'typed',
-      'String reflects verbatim',
-    )
-    assert.equal(
-      evidence.afterAttributes.count,
-      42,
-      'Number must coerce to a number',
-    )
-    assert.equal(
-      typeof evidence.afterAttributes.count,
-      'number',
-      'a Number prop must not stay a string',
-    )
-    assert.equal(
-      evidence.afterAttributes.active,
-      true,
-      'a bare Boolean attribute must be true',
-    )
-    assert.equal(
-      evidence.afterFalse.active,
-      true,
-      'a Boolean attribute is true when present, whatever its string value',
-    )
-    assert.equal(
-      evidence.afterRemoval.active,
-      false,
-      'removing a Boolean attribute must set it false',
-    )
-  })
-
-  await check('the rendered output follows attribute changes', async () => {
-    await open(tab)
-    const evidence = await tab.evaluate(async () => {
-      const host = document.createElement('z-shadow-card')
-      host.setAttribute('title', 'first')
-      host.setAttribute('count', '1')
-      document.body.append(host)
-      await new Promise(resolve => requestAnimationFrame(resolve))
-      const before =
-        host.shadowRoot?.querySelector('#heading')?.textContent ?? null
-      host.setAttribute('title', 'second')
-      host.setAttribute('count', '2')
-      await new Promise(resolve => requestAnimationFrame(resolve))
-      return {
-        before,
-        after: host.shadowRoot?.querySelector('#heading')?.textContent ?? null,
-        count: host.shadowRoot?.querySelector('#count')?.textContent ?? null,
-      }
-    })
-    assert.equal(evidence.before, 'first')
-    assert.equal(evidence.after, 'second', 'a prop change must reach the DOM')
-    assert.equal(evidence.count, 'count: 2', 'the second prop must update too')
-  })
-
-  await check(
-    'named and default slots project light DOM children',
-    async () => {
+    await check('a custom element renders into a shadow root', async () => {
       await open(tab)
-      const evidence = await tab.evaluate(async () => {
+      const evidence = await tab.evaluate(() => {
         const host = document.createElement('z-shadow-card')
-        host.setAttribute('title', 'slotted')
-        const named = document.createElement('span')
-        named.slot = 'heading'
-        named.textContent = 'projected heading'
-        const body = document.createElement('em')
-        body.textContent = 'projected body'
-        host.append(named, body)
+        host.setAttribute('title', 'shadow title')
+        host.setAttribute('count', '3')
         document.body.append(host)
-        await new Promise(resolve => requestAnimationFrame(resolve))
-        const slots = [...(host.shadowRoot?.querySelectorAll('slot') ?? [])]
+        const root = host.shadowRoot
         return {
-          slotNames: slots.map(slot => slot.name),
-          namedAssigned: slots
-            .find(slot => slot.name === 'heading')
-            ?.assignedNodes()
-            .map(node => node.textContent),
-          defaultAssigned: slots
-            .find(slot => slot.name === '')
-            ?.assignedNodes()
-            .map(node => node.textContent),
+          hasShadow: root !== null,
+          heading: root?.querySelector('#heading')?.textContent ?? null,
+          count: root?.querySelector('#count')?.textContent ?? null,
+          // The element's own children are the light-DOM, which must not be
+          // rendered inside the shadow root.
+          lightChildren: host.children.length,
         }
       })
-      assert.deepEqual(
-        evidence.slotNames.sort(),
-        ['', 'heading'],
-        'the element must render one named and one default slot',
+      assert.ok(evidence.hasShadow, 'the element must attach a shadow root')
+      assert.equal(evidence.heading, 'shadow title')
+      assert.equal(
+        evidence.count,
+        'count: 3',
+        'the Number prop must be coerced',
       )
-      assert.deepEqual(evidence.namedAssigned, ['projected heading'])
-      assert.deepEqual(evidence.defaultAssigned, ['projected body'])
-    },
-  )
+    })
 
-  await check(
-    'a slot with no assigned content renders its fallback',
-    async () => {
+    await check('attributes reflect to typed properties', async () => {
+      await open(tab)
+      const evidence = await tab.evaluate(() => {
+        const host = document.createElement('z-shadow-card') as HTMLElement & {
+          count?: number
+          active?: boolean
+          title?: string
+        }
+        document.body.append(host)
+        host.setAttribute('title', 'typed')
+        host.setAttribute('count', '42')
+        host.setAttribute('active', '')
+        const afterAttributes = {
+          title: host.title,
+          count: host.count,
+          active: host.active,
+        }
+        // HTML boolean-attribute semantics: presence is truth, not the string.
+        // `value !== null` is the documented coercion, so the literal "false"
+        // must still read as true. A test asserting the opposite would be
+        // asserting a bug.
+        host.setAttribute('active', 'false')
+        const afterFalse = { active: host.active }
+        host.removeAttribute('active')
+        const afterRemoval = { active: host.active }
+        return { afterAttributes, afterFalse, afterRemoval }
+      })
+      assert.equal(
+        evidence.afterAttributes.title,
+        'typed',
+        'String reflects verbatim',
+      )
+      assert.equal(
+        evidence.afterAttributes.count,
+        42,
+        'Number must coerce to a number',
+      )
+      assert.equal(
+        typeof evidence.afterAttributes.count,
+        'number',
+        'a Number prop must not stay a string',
+      )
+      assert.equal(
+        evidence.afterAttributes.active,
+        true,
+        'a bare Boolean attribute must be true',
+      )
+      assert.equal(
+        evidence.afterFalse.active,
+        true,
+        'a Boolean attribute is true when present, whatever its string value',
+      )
+      assert.equal(
+        evidence.afterRemoval.active,
+        false,
+        'removing a Boolean attribute must set it false',
+      )
+    })
+
+    await check('the rendered output follows attribute changes', async () => {
       await open(tab)
       const evidence = await tab.evaluate(async () => {
         const host = document.createElement('z-shadow-card')
-        host.setAttribute('title', 'fallback')
+        host.setAttribute('title', 'first')
+        host.setAttribute('count', '1')
         document.body.append(host)
         await new Promise(resolve => requestAnimationFrame(resolve))
-        const slots = [...(host.shadowRoot?.querySelectorAll('slot') ?? [])]
+        const before =
+          host.shadowRoot?.querySelector('#heading')?.textContent ?? null
+        host.setAttribute('title', 'second')
+        host.setAttribute('count', '2')
+        await new Promise(resolve => requestAnimationFrame(resolve))
         return {
-          namedFallback: slots
-            .find(slot => slot.name === 'heading')
-            ?.textContent?.trim(),
-          defaultFallback: slots
-            .find(slot => slot.name === '')
-            ?.textContent?.trim(),
-          represented: host.matches(':defined'),
+          before,
+          after:
+            host.shadowRoot?.querySelector('#heading')?.textContent ?? null,
+          count: host.shadowRoot?.querySelector('#count')?.textContent ?? null,
         }
       })
-      assert.equal(evidence.namedFallback, 'default heading')
-      assert.equal(evidence.defaultFallback, 'default body')
-      assert.ok(evidence.represented, 'the element must be upgraded')
-    },
-  )
-
-  await check('a light-DOM element renders into its own children', async () => {
-    await open(tab)
-    const evidence = await tab.evaluate(async () => {
-      const host = document.createElement('z-light-card')
-      host.setAttribute('title', 'light title')
-      const named = document.createElement('span')
-      named.slot = 'heading'
-      named.textContent = 'light projected'
-      host.append(named)
-      document.body.append(host)
-      await new Promise(resolve => requestAnimationFrame(resolve))
-      return {
-        hasShadow: host.shadowRoot !== null,
-        heading: host.querySelector('#light-heading')?.textContent ?? null,
-        html: host.innerHTML.slice(0, 300),
-      }
+      assert.equal(evidence.before, 'first')
+      assert.equal(evidence.after, 'second', 'a prop change must reach the DOM')
+      assert.equal(
+        evidence.count,
+        'count: 2',
+        'the second prop must update too',
+      )
     })
-    assert.equal(
-      evidence.hasShadow,
-      false,
-      'a light-DOM element must not attach a shadow root',
-    )
-    assert.equal(
-      evidence.heading,
-      'light title',
-      `a light-DOM element renders into itself; got ${evidence.html}`,
-    )
-  })
 
-  await check(
-    'repeated connect and disconnect cycles do not leak',
-    async () => {
-      await open(tab)
-      const evidence = await tab.evaluate(async () => {
-        // Inlined, not a named helper: tsx/esbuild wraps named functions in an
-        // `__name(...)` call, and that helper does not exist in the page, so a
-        // serialized named function throws `__name is not defined`.
-        const before = {
-          mounts: window.__fixture?.mounts ?? -1,
-          cleanups: window.__fixture?.cleanups ?? -1,
-        }
-        const host = document.createElement('z-shadow-card')
-        host.setAttribute('title', 'cycling')
-        document.body.append(host)
-        await new Promise(resolve =>
-          requestAnimationFrame(() => requestAnimationFrame(resolve)),
+    await check(
+      'named and default slots project light DOM children',
+      async () => {
+        await open(tab)
+        const evidence = await tab.evaluate(async () => {
+          const host = document.createElement('z-shadow-card')
+          host.setAttribute('title', 'slotted')
+          const named = document.createElement('span')
+          named.slot = 'heading'
+          named.textContent = 'projected heading'
+          const body = document.createElement('em')
+          body.textContent = 'projected body'
+          host.append(named, body)
+          document.body.append(host)
+          await new Promise(resolve => requestAnimationFrame(resolve))
+          const slots = [...(host.shadowRoot?.querySelectorAll('slot') ?? [])]
+          return {
+            slotNames: slots.map(slot => slot.name),
+            namedAssigned: slots
+              .find(slot => slot.name === 'heading')
+              ?.assignedNodes()
+              .map(node => node.textContent),
+            defaultAssigned: slots
+              .find(slot => slot.name === '')
+              ?.assignedNodes()
+              .map(node => node.textContent),
+          }
+        })
+        assert.deepEqual(
+          evidence.slotNames.sort(),
+          ['', 'heading'],
+          'the element must render one named and one default slot',
         )
-        const afterFirstMount = window.__fixture?.mounts ?? -1
-        for (let cycle = 0; cycle < 10; cycle += 1) {
-          host.remove()
-          await new Promise(resolve =>
-            requestAnimationFrame(() => requestAnimationFrame(resolve)),
-          )
+        assert.deepEqual(evidence.namedAssigned, ['projected heading'])
+        assert.deepEqual(evidence.defaultAssigned, ['projected body'])
+      },
+    )
+
+    await check(
+      'a slot with no assigned content renders its fallback',
+      async () => {
+        await open(tab)
+        const evidence = await tab.evaluate(async () => {
+          const host = document.createElement('z-shadow-card')
+          host.setAttribute('title', 'fallback')
+          document.body.append(host)
+          await new Promise(resolve => requestAnimationFrame(resolve))
+          const slots = [...(host.shadowRoot?.querySelectorAll('slot') ?? [])]
+          return {
+            namedFallback: slots
+              .find(slot => slot.name === 'heading')
+              ?.textContent?.trim(),
+            defaultFallback: slots
+              .find(slot => slot.name === '')
+              ?.textContent?.trim(),
+            represented: host.matches(':defined'),
+          }
+        })
+        assert.equal(evidence.namedFallback, 'default heading')
+        assert.equal(evidence.defaultFallback, 'default body')
+        assert.ok(evidence.represented, 'the element must be upgraded')
+      },
+    )
+
+    await check(
+      'a light-DOM element renders into its own children',
+      async () => {
+        await open(tab)
+        const evidence = await tab.evaluate(async () => {
+          const host = document.createElement('z-light-card')
+          host.setAttribute('title', 'light title')
+          const named = document.createElement('span')
+          named.slot = 'heading'
+          named.textContent = 'light projected'
+          host.append(named)
+          document.body.append(host)
+          await new Promise(resolve => requestAnimationFrame(resolve))
+          return {
+            hasShadow: host.shadowRoot !== null,
+            heading: host.querySelector('#light-heading')?.textContent ?? null,
+            html: host.innerHTML.slice(0, 300),
+          }
+        })
+        assert.equal(
+          evidence.hasShadow,
+          false,
+          'a light-DOM element must not attach a shadow root',
+        )
+        assert.equal(
+          evidence.heading,
+          'light title',
+          `a light-DOM element renders into itself; got ${evidence.html}`,
+        )
+      },
+    )
+
+    await check(
+      'repeated connect and disconnect cycles do not leak',
+      async () => {
+        await open(tab)
+        const evidence = await tab.evaluate(async () => {
+          // Inlined, not a named helper: tsx/esbuild wraps named functions in an
+          // `__name(...)` call, and that helper does not exist in the page, so a
+          // serialized named function throws `__name is not defined`.
+          const before = {
+            mounts: window.__fixture?.mounts ?? -1,
+            cleanups: window.__fixture?.cleanups ?? -1,
+          }
+          const host = document.createElement('z-shadow-card')
+          host.setAttribute('title', 'cycling')
           document.body.append(host)
           await new Promise(resolve =>
             requestAnimationFrame(() => requestAnimationFrame(resolve)),
           )
-        }
-        const after = {
-          mounts: window.__fixture?.mounts ?? -1,
-          cleanups: window.__fixture?.cleanups ?? -1,
-        }
-        host.remove()
-        await new Promise(resolve =>
-          requestAnimationFrame(() => requestAnimationFrame(resolve)),
+          const afterFirstMount = window.__fixture?.mounts ?? -1
+          for (let cycle = 0; cycle < 10; cycle += 1) {
+            host.remove()
+            await new Promise(resolve =>
+              requestAnimationFrame(() => requestAnimationFrame(resolve)),
+            )
+            document.body.append(host)
+            await new Promise(resolve =>
+              requestAnimationFrame(() => requestAnimationFrame(resolve)),
+            )
+          }
+          const after = {
+            mounts: window.__fixture?.mounts ?? -1,
+            cleanups: window.__fixture?.cleanups ?? -1,
+          }
+          host.remove()
+          await new Promise(resolve =>
+            requestAnimationFrame(() => requestAnimationFrame(resolve)),
+          )
+          const afterRemoval = {
+            mounts: window.__fixture?.mounts ?? -1,
+            cleanups: window.__fixture?.cleanups ?? -1,
+          }
+          return { before, afterFirstMount, after, afterRemoval }
+        })
+
+        // Each reconnect re-runs setup, so mounts grows. What must hold is that the
+        // previous root was disposed every time: cleanups tracks mounts - 1 while
+        // connected, and equals mounts once removed.
+        assert.ok(
+          evidence.after.mounts > evidence.before.mounts,
+          `reconnecting must re-run setup, got ${JSON.stringify(evidence)}`,
         )
-        const afterRemoval = {
-          mounts: window.__fixture?.mounts ?? -1,
-          cleanups: window.__fixture?.cleanups ?? -1,
-        }
-        return { before, afterFirstMount, after, afterRemoval }
-      })
+        assert.equal(
+          evidence.after.cleanups,
+          evidence.after.mounts - 1,
+          `every reconnect must dispose the previous root, got ${JSON.stringify(evidence)}`,
+        )
+        assert.equal(
+          evidence.afterRemoval.cleanups,
+          evidence.afterRemoval.mounts,
+          `the final disconnect must dispose the last root, got ${JSON.stringify(evidence)}`,
+        )
+      },
+    )
 
-      // Each reconnect re-runs setup, so mounts grows. What must hold is that the
-      // previous root was disposed every time: cleanups tracks mounts - 1 while
-      // connected, and equals mounts once removed.
-      assert.ok(
-        evidence.after.mounts > evidence.before.mounts,
-        `reconnecting must re-run setup, got ${JSON.stringify(evidence)}`,
-      )
-      assert.equal(
-        evidence.after.cleanups,
-        evidence.after.mounts - 1,
-        `every reconnect must dispose the previous root, got ${JSON.stringify(evidence)}`,
-      )
-      assert.equal(
-        evidence.afterRemoval.cleanups,
-        evidence.afterRemoval.mounts,
-        `the final disconnect must dispose the last root, got ${JSON.stringify(evidence)}`,
-      )
-    },
-  )
+    results.push(
+      pageErrors.length === 0
+        ? { check: 'no uncaught page errors', status: 'passed' }
+        : {
+            check: 'no uncaught page errors',
+            status: 'failed',
+            error: pageErrors.join('\n'),
+          },
+    )
+    return results
+  },
+})
 
-  results.push(
-    pageErrors.length === 0
-      ? { check: 'no uncaught page errors', status: 'passed' }
-      : {
-          check: 'no uncaught page errors',
-          status: 'failed',
-          error: pageErrors.join('\n'),
-        },
-  )
-} catch (error) {
-  console.error(
-    `BLOCKED: the Web Components E2E could not start a browser.\n${
-      error instanceof Error ? error.message : String(error)
-    }`,
-  )
-  await new Promise<void>(resolve => server.close(() => resolve()))
-  process.exit(2)
-} finally {
-  const failing = results.some(result => result.status !== 'passed')
-  if (failing && context) {
-    await fs.mkdir(output, { recursive: true })
-    await context.tracing.stop({ path: path.join(output, 'trace.zip') })
-  }
-  await browser?.close()
-  await new Promise<void>((resolve, reject) =>
-    server.close(error => (error ? reject(error) : resolve())),
-  )
-}
-
-console.log(`browser: ${describeBrowser()}`)
-console.log(JSON.stringify(results, null, 2))
-
-const failures = results.filter(result => result.status === 'failed')
-if (failures.length > 0) {
-  throw new Error(
-    `${failures.length} Web Components check(s) failed:\n${failures
-      .map(failure => `  - ${failure.check}: ${failure.error}`)
-      .join('\n')}`,
-  )
-}
-console.log(`${results.length} Web Components check(s) passed.`)
+reportAcrossEngines(outcomes, 'Web Components')
+await new Promise<void>(resolve => server.close(() => resolve()))

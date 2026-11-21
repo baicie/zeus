@@ -147,3 +147,55 @@ export function isMissingBrowser(error: unknown): boolean {
     message,
   )
 }
+
+/**
+ * A Playwright launcher paired with the name and launch options for one engine.
+ *
+ * The new R20/R21 browser checks each launched `chromium` directly, so a change
+ * that only affected Firefox or WebKit could not be seen by any of them. This
+ * returns the launcher and the options separately because they differ per
+ * engine: only a Chromium-family launch takes a `channel`.
+ */
+export interface EngineTarget {
+  readonly name: 'chromium' | 'firefox' | 'webkit'
+  readonly launcher: (typeof import('@playwright/test'))['chromium']
+  readonly options: { headless: true; channel?: string }
+}
+
+/**
+ * The engine targets a check should run, from `requestedEngines`.
+ *
+ * `launchers` is passed in rather than imported so this module stays free of a
+ * runtime dependency on `@playwright/test` — it is also imported by checks that
+ * only need `chromiumChannel`.
+ */
+export function engineTargets(
+  launchers: {
+    chromium: (typeof import('@playwright/test'))['chromium']
+    firefox: (typeof import('@playwright/test'))['firefox']
+    webkit: (typeof import('@playwright/test'))['webkit']
+  },
+  specific?: string,
+): EngineTarget[] {
+  return requestedEngines(specific).map(name => ({
+    name,
+    launcher: launchers[name],
+    // Only Chromium-family launchers accept a channel; passing one to Firefox
+    // or WebKit is an error in Playwright.
+    options:
+      name === 'chromium'
+        ? { headless: true as const, channel: chromiumChannel() }
+        : { headless: true as const },
+  }))
+}
+
+/**
+ * One line naming the engine and the version that produced a result.
+ *
+ * A report that says "passed" without saying which browser is the claim this
+ * project kept making and having to walk back. `browser.version()` is the real
+ * engine version as Playwright reports it, not the channel name.
+ */
+export function describeEngine(engine: string, version: string): string {
+  return `${engine} ${version}`
+}
