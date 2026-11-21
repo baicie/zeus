@@ -25,7 +25,7 @@
  * The fixture increments counters on the page:
  *
  *   mounts    the module body ran
- *   cleanups  an `onCleanup` callback ran
+ *   cleanups  a root-level `onCleanup` ran (one per disposed render root)
  *   effects   a live effect body is running (incremented on create,
  *             decremented on cleanup)
  *
@@ -35,6 +35,11 @@
  *   effects  === 1              exactly one live effect, not N
  *
  * After the final dispose: `cleanups === mounts` and `effects === 0`.
+ *
+ * The effect registers its own `onCleanup` too, and an effect re-runs after
+ * every signal write, disposing its previous run first. That counter is kept
+ * separate (`effectsDisposed`) because it moves for a different reason — folding
+ * the two made a click look like an extra root disposal.
  *
  * ## The negative test
  *
@@ -74,7 +79,7 @@ declare global {
   interface Window {
     __hmr?: {
       mounts: number
-      cleanups: number
+      rootCleanups: number
       effectsCreated: number
       effectsDisposed: number
       clicks: number
@@ -108,7 +113,7 @@ import { render } from '@zeus-js/runtime-dom'
 // The live count is the difference between them.
 const state = (globalThis.__hmr ??= {
   mounts: 0,
-  cleanups: 0,
+  rootCleanups: 0,
   effectsCreated: 0,
   effectsDisposed: 0,
   clicks: 0,
@@ -118,13 +123,23 @@ state.mounts += 1
 const [count, setCount] = createSignal(0)
 
 const dispose = render(() => {
+  // Two cleanups, counted apart. The root one runs when the render root is
+  // disposed — once per hot update. The effect one runs both when the root is
+  // disposed *and* each time the effect re-runs after a signal write, so it
+  // cannot be compared against the mount count. Folding them into one counter
+  // made the click at update four look like an extra root disposal.
+  ${
+    options.skipCleanup
+      ? '// negative test: no cleanup at all, so the live count stays above zero'
+      : 'onCleanup(() => { state.rootCleanups += 1 })'
+  }
   createEffect(() => {
     state.effectsCreated += 1
     count()
     ${
       options.skipCleanup
-        ? '// negative test: no onCleanup, so the live count stays above zero'
-        : 'onCleanup(() => { state.cleanups += 1; state.effectsDisposed += 1 })'
+        ? '// no effect cleanup either'
+        : 'onCleanup(() => { state.effectsDisposed += 1 })'
     }
   })
   return (
@@ -200,7 +215,7 @@ const tsconfig = JSON.stringify(
 const counts = (tab: Page) =>
   tab.evaluate(() => ({
     mounts: window.__hmr?.mounts ?? -1,
-    cleanups: window.__hmr?.cleanups ?? -1,
+    cleanups: window.__hmr?.rootCleanups ?? -1,
     effects:
       (window.__hmr?.effectsCreated ?? -1) -
       (window.__hmr?.effectsDisposed ?? 0),
@@ -454,9 +469,14 @@ try {
           `expected eleven mounts after ten updates, got ${JSON.stringify(current)}`,
         )
       }
+      // `cleanups` is the root-level counter, so it must be exactly one per
+      // superseded root. The effect-level counter is separate: an effect
+      // re-runs after a signal write and disposes its own previous run each
+      // time, which is why the click at update four moved that one and not
+      // this one.
       if (current.cleanups !== 10) {
         throw new Error(
-          `each update must dispose the previous root, got ${JSON.stringify(current)}`,
+          `each update must dispose exactly one previous root, got ${JSON.stringify(current)}`,
         )
       }
       if (current.effects !== 1) {
