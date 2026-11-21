@@ -653,6 +653,12 @@ jobs:
         run: pnpm check:next-boundary
       - name: DevTools click-to-binding panel in Chromium, Firefox and WebKit
         run: pnpm check:devtools-panel
+      # Attribute/property reflection, Shadow and Light DOM, named and default
+      # slots, and connect/disconnect cycles with cleanup counts. The existing
+      # checks in this job cover form participation and cleanup separately;
+      # none covers the slot and projection surface.
+      - name: Custom element lifecycle and slots in Chromium
+        run: pnpm check:web-components-browser
       - name: Preserve Web Components browser reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -664,6 +670,7 @@ jobs:
             temp/a11y-browser
             temp/next-boundary
             temp/devtools-panel
+            temp/web-components-browser
 
   # Playground, WASM Worker and i18n gates. Same shape as the job above, and
   # for the same reason: the Playground editor build is a Vite bundle that the
@@ -747,6 +754,11 @@ jobs:
       # server-rendered nodes after hydration, which no HTML comparison can.
       - name: SSR hydration in Chromium
         run: pnpm check:ssr-hydration-browser
+      # Repeated hot updates and unmount. `check:hmr-browser` covers a single
+      # update; this covers five in a row and the teardown after them, which is
+      # where effect leaks show up.
+      - name: HMR lifecycle in Chromium
+        run: pnpm check:hmr-lifecycle-browser
       - name: Preserve Playground browser reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -759,6 +771,7 @@ jobs:
             temp/compiler-wasm
             temp/dom-update-browser
             temp/ssr-hydration-browser
+            temp/hmr-lifecycle-browser
 
   create-zeus-candidates:
     needs: impact
