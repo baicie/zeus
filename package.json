@@ -80,6 +80,8 @@
     "check:runtime-cleanup-browser": "tsx scripts/check/check-runtime-cleanup-browser.ts",
     "check:dom-update-browser": "tsx scripts/check/check-dom-update-browser.ts",
     "check:ssr-hydration-browser": "tsx scripts/check/check-ssr-hydration-browser.ts",
+    "check:hmr-lifecycle-browser": "tsx scripts/check/check-hmr-lifecycle-browser.ts",
+    "check:web-components-browser": "tsx scripts/check/check-web-components-browser.ts",
     "check:a11y-browser": "tsx scripts/check/check-a11y-browser.ts",
     "check:compiler-wasm-browser": "tsx scripts/check/check-compiler-wasm-browser.ts",
     "check:next-boundary": "tsx scripts/check/check-next-boundary.ts",
