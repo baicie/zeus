@@ -7,8 +7,15 @@ import fs from 'node:fs/promises'
 import http from 'node:http'
 import { createRequire } from 'node:module'
 import path from 'node:path'
+import process from 'node:process'
 
 import { chromium, firefox, webkit } from '@playwright/test'
+
+import {
+  chromiumChannel,
+  isMissingBrowser,
+  requestedEngines,
+} from './browser-channel'
 
 import type { TransformModuleOptions } from '../../packages/compiler/compiler-wasm/index'
 
@@ -162,12 +169,14 @@ declare global {
 
 const results: Array<{ browser: string; status: string; error?: string }> = []
 try {
-  for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
+  const engines = { chromium, firefox, webkit }
+  for (const name of requestedEngines()) {
+    const engine = engines[name]
     let browser
     try {
       browser = await engine.launch({
         headless: true,
-        ...(name === 'chromium' ? { channel: 'chromium' } : {}),
+        ...(name === 'chromium' ? { channel: chromiumChannel() } : {}),
       })
       const tab = await browser.newPage()
       const errors: string[] = []
@@ -202,7 +211,11 @@ try {
       assert.deepEqual(errors, [])
       results.push({ browser: name, status: 'passed' })
     } catch (error) {
-      results.push({ browser: name, status: 'failed', error: String(error) })
+      results.push({
+        browser: name,
+        status: isMissingBrowser(error) ? 'blocked' : 'failed',
+        error: String(error),
+      })
     } finally {
       await browser?.close()
     }
@@ -218,7 +231,26 @@ try {
 }
 
 console.log(JSON.stringify(results, null, 2))
-assert(
-  results.length === 3 && results.every(result => result.status === 'passed'),
-  'Every browser engine must match the native compiler.',
+
+const blocked = results.filter(result => result.status === 'blocked')
+if (blocked.length > 0) {
+  console.error(
+    `BLOCKED: ${blocked.length} browser(s) could not start; these comparisons ` +
+      `did not run and must not be reported as passing:\n` +
+      blocked
+        .map(result => `  - ${result.browser}: ${result.error}`)
+        .join('\n'),
+  )
+  process.exit(2)
+}
+
+const requestedCount = requestedEngines().length
+assert.equal(
+  results.length,
+  requestedCount,
+  'every requested browser engine must run',
+)
+assert.ok(
+  results.every(result => result.status === 'passed'),
+  'Every requested browser engine must match the native compiler.',
 )

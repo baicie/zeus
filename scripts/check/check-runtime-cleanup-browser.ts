@@ -10,6 +10,12 @@ import {
   type BrowserContext,
 } from '@playwright/test'
 
+import {
+  chromiumChannel,
+  isMissingBrowser,
+  requestedEngines,
+} from './browser-channel'
+
 declare global {
   interface Window {
     runCleanupFixture(): Promise<{
@@ -182,12 +188,14 @@ const results: Array<{
 }> = []
 
 try {
-  for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
+  const engines = { chromium, firefox, webkit }
+  for (const name of requestedEngines()) {
+    const engine = engines[name]
     let browser
     try {
       browser = await engine.launch({
         headless: true,
-        ...(name === 'chromium' ? { channel: 'chromium' } : {}),
+        ...(name === 'chromium' ? { channel: chromiumChannel() } : {}),
       })
       const context = await browser.newContext()
       const tab = await context.newPage()
@@ -216,9 +224,13 @@ try {
       results.push({ browser: name, status: 'passed', heap })
       await context.close()
     } catch (error) {
+      // A browser that cannot start is BLOCKED, not a failed assertion.
+      // Reporting it as `failed` sends someone looking for a bug that does
+      // not exist; reporting it as `passed` is worse. The status is carried
+      // through to the exit code below.
       results.push({
         browser: name,
-        status: 'failed',
+        status: isMissingBrowser(error) ? 'blocked' : 'failed',
         error: error instanceof Error ? error.message : String(error),
       })
     } finally {
@@ -233,6 +245,18 @@ try {
     path.join(output, 'report.json'),
     `${JSON.stringify(results, null, 2)}\n`,
   )
+}
+
+const blocked = results.filter(result => result.status === 'blocked')
+if (blocked.length > 0) {
+  console.error(
+    `BLOCKED: ${blocked.length} browser(s) could not start — these checks did ` +
+      `not run and must not be reported as passing:\n` +
+      blocked
+        .map(result => `  - ${result.browser}: ${result.error}`)
+        .join('\n'),
+  )
+  process.exitCode = 2
 }
 
 for (const result of results) {
