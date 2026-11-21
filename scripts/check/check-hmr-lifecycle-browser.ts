@@ -338,14 +338,38 @@ try {
     }
   }
 
-  /** Writes a new module and waits for the page to report a new mount. */
+  /**
+   * Writes a new module and waits for the page to report a new mount.
+   *
+   * The timeout is per update, not per suite, and it is generous on purpose.
+   * CI's Linux runners propagate a file change through Vite's watcher, rebuild
+   * the module and apply it noticeably slower than a local macOS checkout; five
+   * updates in a row at 15 s each was where this failed on CI while passing
+   * locally. Raising the deadline alone would hide a real hang, so the failure
+   * below reports the mount count actually reached — a module that never
+   * reloads looks different from one that reloads slowly.
+   */
   const update = async (source: string, expectedMounts: number) => {
     await fs.writeFile(fixturePath, source)
-    await tab.waitForFunction(
-      mounts => (window.__hmr?.mounts ?? 0) >= mounts,
-      expectedMounts,
-      { timeout: 15_000 },
-    )
+    try {
+      await tab.waitForFunction(
+        mounts => (window.__hmr?.mounts ?? 0) >= mounts,
+        expectedMounts,
+        { timeout: 60_000 },
+      )
+    } catch (error) {
+      const reached = await tab.evaluate(() => window.__hmr?.mounts ?? -1)
+      throw new Error(
+        `the module did not reach mount ${expectedMounts} within 60 s ` +
+          `(reached ${reached}). ` +
+          (reached === expectedMounts - 1
+            ? 'The previous update applied but this one did not: the watcher or ' +
+              'the transform is stalling, not the page.'
+            : 'The page is behind by more than one update: updates are ' +
+              'coalescing or the server is saturated.') +
+          ` Original: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
   }
 
   tab.on('console', message => {
@@ -382,6 +406,13 @@ try {
     async () => {
       for (let index = 1; index <= 5; index += 1) {
         await update(fixtureSource(`value${index}`, `note${index}`), index + 1)
+        // A moment of quiet between writes. Two `writeFile` calls close
+        // together are one change as far as the watcher is concerned, which
+        // would make the page mount fewer times than this loop expects — a
+        // coalescing artefact of the test, not a framework defect. The wait
+        // above already proves this update landed; this only keeps the next
+        // one from being merged into it.
+        await tab.waitForTimeout(250)
       }
       const current = await counts(tab)
       if (current.mounts !== 6) {
