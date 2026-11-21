@@ -69,6 +69,8 @@ declare global {
     __before: Record<string, Element | null>
     __byId: Record<string, Element>
     __beforeRemoval: Record<string, Element>
+    __beforeReplace: Element[]
+    __sameKey: Element | null
   }
 }
 
@@ -556,6 +558,125 @@ const checks: Array<{ name: string; run: (tab: Page) => Promise<void> }> = [
         'surviving items keep their nodes',
       )
       assert.ok(removed.removedDetached, 'the removed item must be detached')
+    },
+  },
+  {
+    name: 'appending to a keyed list reuses every existing node',
+    async run(tab) {
+      await load(tab, 'for')
+      await tab.evaluate(() => {
+        window.__byId = Object.fromEntries(
+          [...document.querySelectorAll('#list li')].map(item => [
+            (item as HTMLElement).dataset.id,
+            item,
+          ]),
+        )
+        window.__handle.setItems([
+          { id: 'a', label: 'A' },
+          { id: 'b', label: 'B' },
+          { id: 'c', label: 'C' },
+          { id: 'd', label: 'D' },
+        ])
+      })
+      await tab.waitForFunction(
+        () => document.querySelectorAll('#list li').length === 4,
+      )
+      const reused = await tab.evaluate(() =>
+        ['a', 'b', 'c'].map(
+          id =>
+            window.__byId[id] === document.querySelector(`[data-id="${id}"]`),
+        ),
+      )
+      assert.deepEqual(
+        reused,
+        [true, true, true],
+        'an append must not rebuild the items that were already there',
+      )
+    },
+  },
+  {
+    name: 'replacing the whole list rebuilds every node',
+    async run(tab) {
+      await load(tab, 'for')
+      const before = await tab.evaluate(() => {
+        const nodes = [...document.querySelectorAll('#list li')]
+        window.__beforeReplace = nodes
+        window.__handle.setItems([
+          { id: 'x', label: 'X' },
+          { id: 'y', label: 'Y' },
+        ])
+        return nodes.length
+      })
+      await tab.waitForFunction(
+        () => document.querySelectorAll('#list li').length === 2,
+      )
+      const reused = await tab.evaluate(
+        () =>
+          window.__beforeReplace.filter((node: Element) => node.isConnected)
+            .length,
+      )
+      assert.equal(
+        reused,
+        0,
+        `no old item may survive a full replacement, ${reused} did (of ${before})`,
+      )
+    },
+  },
+  {
+    name: 'a changed label on the same key keeps the node',
+    async run(tab) {
+      await load(tab, 'for')
+      await tab.evaluate(() => {
+        window.__sameKey = document.querySelector('[data-id="b"]')
+        window.__handle.setItems([
+          { id: 'a', label: 'A' },
+          { id: 'b', label: 'B changed' },
+          { id: 'c', label: 'C' },
+        ])
+      })
+      await tab.waitForFunction(
+        () =>
+          document.querySelector('[data-id="b"]')?.textContent === 'B changed',
+      )
+      const survived = await tab.evaluate(
+        () => window.__sameKey === document.querySelector('[data-id="b"]'),
+      )
+      assert.ok(survived, 'a keyed item whose data changed must keep its node')
+    },
+  },
+  {
+    name: 'rapid successive updates converge on the last list',
+    async run(tab) {
+      await load(tab, 'for')
+      // Five synchronous writes in one evaluate: no frame between them, which
+      // is the shape a user produces by holding a key down.
+      await tab.evaluate(() => {
+        for (let index = 1; index <= 5; index += 1) {
+          window.__handle.setItems(
+            Array.from({ length: index + 1 }, (_, position) => ({
+              id: `k${position}`,
+              label: `L${index}-${position}`,
+            })),
+          )
+        }
+      })
+      await tab.waitForFunction(
+        () => document.querySelectorAll('#list li').length === 6,
+      )
+      const state = await tab.evaluate(() => ({
+        ids: [...document.querySelectorAll('#list li')].map(
+          item => (item as HTMLElement).dataset.id,
+        ),
+        labels: [...document.querySelectorAll('#list li')].map(
+          item => item.textContent,
+        ),
+      }))
+      assert.deepEqual(state.ids, ['k0', 'k1', 'k2', 'k3', 'k4', 'k5'])
+      assert.deepEqual(
+        state.labels,
+        ['L5-0', 'L5-1', 'L5-2', 'L5-3', 'L5-4', 'L5-5'],
+        'the last write must win for every row',
+      )
     },
   },
 ]
