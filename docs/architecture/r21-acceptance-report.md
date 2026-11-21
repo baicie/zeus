@@ -12,7 +12,7 @@
 ```text
 R21-A HYDRATION_CORRECTNESS_CLOSED:   PARTIAL   — 01/03/04/05/06/07/08 完成；09 未执行
 R21-B RUNTIME_LIFECYCLE_VERIFIED:     PARTIAL   — 11/12/13/14 完成；15–18 未执行
-R21-C BROWSER_MATRIX_VERIFIED:        PARTIAL   — 19/20/21 完成；22–26 未执行
+R21-C BROWSER_MATRIX_VERIFIED:        PARTIAL   — 19/20/21/26 完成；22–25 未执行
 R21-D CONSUMER_CONTRACT_VERIFIED:     PARTIAL   — 10 完成；27–32 未执行
 R21-E RC_RECOVERY_READY:              PARTIAL   — 33/34 取证完成；35 未确认；37–39 未执行
 ```
@@ -280,10 +280,24 @@ chromium 157.0.8103.80: PASSED
 Firefox / WebKit 在本机是 `BLOCKED`（Playwright 缓存里没有对应构建，网络受限
 无法下载）。**没有把缺失的引擎算作通过。**
 
-### TASK 22–26：NOT_RUN
+### TASK 26 — CI impact 规则：VERIFIED
 
-HMR 多引擎、Web Components 三引擎、SSR/浏览器 HTML 解析差异、测试稳定性、
-CI impact 规则——未执行。
+新增的 `browser-runtime` job 在加进 `ci.yml` 与 `ci-gate` 之后**仍不会运行**：
+`planJobs` 里没有它的条目，impact 分析不产生决策，job 被静默跳过。
+
+**现有的护栏测试立即抓住了它**——`keeps every browser job on exactly the same
+trigger` 把四个 job 在八种代表性改动下逐一比较，加入第四个名字的那一刻就失败
+（`expected 2 to be 1`）。
+
+这条测试就是 TASK 26 要防的东西：「测试存在，但受 impact filter 影响从未执行」。
+一个被跳过的 job 满足门禁的方式与通过的 job 完全相同。
+
+修复后 30 项 impact 测试全过。
+
+### TASK 22–25：NOT_RUN
+
+HMR 多引擎、Web Components 三引擎、SSR/浏览器 HTML 解析差异、测试稳定性——
+未执行。
 
 ---
 
