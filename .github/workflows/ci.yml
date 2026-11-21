@@ -742,6 +742,11 @@ jobs:
       # name DOM updates rather than a playground view.
       - name: DOM precise updates in Chromium
         run: pnpm check:dom-update-browser
+      # SSR → hydration: the marker contract between the two compiler targets,
+      # and node adoption across the server/client boundary. Asserts identity of
+      # server-rendered nodes after hydration, which no HTML comparison can.
+      - name: SSR hydration in Chromium
+        run: pnpm check:ssr-hydration-browser
       - name: Preserve Playground browser reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -753,6 +758,7 @@ jobs:
             temp/playground-theme-i18n
             temp/compiler-wasm
             temp/dom-update-browser
+            temp/ssr-hydration-browser
 
   create-zeus-candidates:
     needs: impact
