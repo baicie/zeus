@@ -112,6 +112,32 @@ This run **is** reproducible: the harness exists in the tree at the commit
 named, and the command above is the whole recipe. That is what the `Before`
 column lacks.
 
+### After the R18.5–R18.7 module moves (`a8c1f1ab`)
+
+```
+$ cargo run -p zeus_compiler --example perf-baseline --release --features stage-timing
+small                                 0.039 ms
+medium                                0.076 ms
+many-bindings (200)                   1.691 ms
+many-components (100)                 0.494 ms
+deep-jsx (40 levels)                  0.060 ms
+medium-ssr                            0.025 ms
+
+stage timing (cumulative):
+  nesting-guard       2.174 ms    1.7%
+  lower              60.460 ms   47.2%
+  validate            0.000 ms    0.0%
+  analysis            5.038 ms    3.9%
+  emit               60.436 ms   47.2%
+```
+
+Same order as the run above. The three rounds of module moves — the checker
+fixes, the DOM emit family, the frontend collectors — did not change what the
+compiler does, and the numbers agree. `medium` reads 0.076 against 0.046 there,
+which is the sub-0.1 ms case where allocator warm-up dominates; the
+`many-bindings` and `many-components` figures, which are large enough to be
+stable, match within the recorded variance.
+
 ### What was not measured
 
 - **Per-stage timing — added in R18.4.** Behind a compile-time feature, so the

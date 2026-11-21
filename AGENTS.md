@@ -152,6 +152,21 @@ pipeline.rs    阶段顺序与早退形状（transform_module 委托给它）
 `lower/mod.rs` 里剩下的辅助函数（`contains_jsx`、`kebab_to_camel`、
 `decode_jsx_entities` 等）全部在 `Lowerer` 方法体内被调用，属于该单元的一部分。
 
+**为什么 `Lowerer` 拆不开（三次实测）：** 按语义分组后计算传递闭包——
+
+| 组        | 种子方法 | 闭包 | 逃逸到                                           |
+| --------- | -------- | ---- | ------------------------------------------------ |
+| attribute | 7        | 19   | `unsupported`、`allocate_id`、`lower_expression` |
+| once      | 10       | 11   | `unsupported`                                    |
+| component | 6        | 53   | 几乎全部                                         |
+
+`unsupported` 单是组外调用就有 58 次——它是整个降级过程的诊断入口。
+任何分组都逃逸到它，所以没有切点。`once` 组闭包最小（11），但移走后
+仍要留一个转发壳，而那正是"一两个转发函数的模块"，不允许。
+
+**结论：要拆 `Lowerer`，先改递归本身**（例如把子节点降级改成显式栈），
+不是再试一次按语义切分。
+
 ### 5.3 必须遵守
 
 1. **Rust IR 是编译语义的唯一事实来源**（`crates/zeus_compiler/src/ir.rs`）。
