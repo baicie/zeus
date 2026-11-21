@@ -727,6 +727,21 @@ jobs:
         run: pnpm check:playground-loop-budget
       - name: Playground theme and language switching in Chromium, Firefox and WebKit
         run: pnpm check:playground-theme-i18n
+      # Precise DOM updates: compiles real TSX with the real compiler, runs it
+      # against the real runtime, and asserts that a signal write leaves every
+      # untouched node the same object.
+      #
+      # This lives here rather than in its own job because the job is the
+      # expensive part: setup, install, native build and `pnpm build` are ~104 s
+      # before any browser starts, and this check needs the same artifacts the
+      # step above already produced. Its trigger (`BROWSER_GATE_AREAS`) covers
+      # the compiler and the runtime, which is exactly its scope.
+      #
+      # It is deliberately not folded into `check:playground-ux`: those assert
+      # page behaviour, this asserts node identity, and a failure here should
+      # name DOM updates rather than a playground view.
+      - name: DOM precise updates in Chromium
+        run: pnpm check:dom-update-browser
       - name: Preserve Playground browser reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -737,6 +752,7 @@ jobs:
             temp/playground-ux
             temp/playground-theme-i18n
             temp/compiler-wasm
+            temp/dom-update-browser
 
   create-zeus-candidates:
     needs: impact

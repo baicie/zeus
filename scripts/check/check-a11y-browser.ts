@@ -9,6 +9,12 @@ import path from 'node:path'
 
 import { chromium, firefox, webkit } from '@playwright/test'
 
+import {
+  chromiumChannel,
+  isMissingBrowser,
+  requestedEngines,
+} from './browser-channel'
+
 const root = path.resolve(import.meta.dirname, '../..')
 const output = path.join(root, 'temp/a11y-browser')
 const runtime = await fs.readFile(
@@ -88,12 +94,14 @@ interface Result {
 const results: Result[] = []
 
 try {
-  for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
+  const engines = { chromium, firefox, webkit }
+  for (const name of requestedEngines()) {
+    const engine = engines[name]
     let browser
     try {
       browser = await engine.launch({
         headless: true,
-        ...(name === 'chromium' ? { channel: 'chromium' } : {}),
+        ...(name === 'chromium' ? { channel: chromiumChannel() } : {}),
       })
       const boxes: Result['boxes'] = {}
       let tree = ''
@@ -151,9 +159,13 @@ try {
       assert.deepEqual(boxes['scale-1'].width, boxes['scale-2'].width)
       results.push({ browser: name, status: 'passed', tree, boxes })
     } catch (error) {
+      // A browser that cannot start is BLOCKED, not a failed assertion.
+      // Reporting it as `failed` sends someone looking for a bug that does
+      // not exist; reporting it as `passed` is worse. The status is carried
+      // through to the exit code below.
       results.push({
         browser: name,
-        status: 'failed',
+        status: isMissingBrowser(error) ? 'blocked' : 'failed',
         error: error instanceof Error ? error.message : String(error),
       })
     } finally {
@@ -168,6 +180,18 @@ try {
     path.join(output, 'report.json'),
     `${JSON.stringify(results, null, 2)}\n`,
   )
+}
+
+const blocked = results.filter(result => result.status === 'blocked')
+if (blocked.length > 0) {
+  console.error(
+    `BLOCKED: ${blocked.length} browser(s) could not start — these checks did ` +
+      `not run and must not be reported as passing:\n` +
+      blocked
+        .map(result => `  - ${result.browser}: ${result.error}`)
+        .join('\n'),
+  )
+  process.exitCode = 2
 }
 
 for (const result of results) {

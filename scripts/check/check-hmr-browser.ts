@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import path from 'node:path'
+import process from 'node:process'
 import { pathToFileURL } from 'node:url'
 
 import {
@@ -13,6 +14,11 @@ import {
 } from '@playwright/test'
 import { createServer } from 'vite'
 
+import {
+  chromiumChannel,
+  isMissingBrowser,
+  requestedEngines,
+} from './browser-channel'
 import { createZeus } from '../../packages/tooling/vite-plugin/src'
 
 const root = path.resolve(import.meta.dirname, '../..')
@@ -90,9 +96,9 @@ const commentSource = initialSource.replace(
 )
 const executableSource = initialSource.replace('count: ', 'updated: ')
 
-const browserNames = (
-  process.env.ZEUS_HMR_BROWSERS ?? 'chromium,firefox,webkit'
-).split(',')
+// `ZEUS_HMR_BROWSERS` is this check's own variable and predates
+// `ZEUS_BROWSERS`; it wins when set, so the CI job that sets it keeps working.
+const browserNames = requestedEngines(process.env.ZEUS_HMR_BROWSERS)
 const browsers = { chromium, firefox, webkit }
 interface BindingCheckEvidence {
   initial: Record<string, number>
@@ -103,7 +109,7 @@ interface BindingCheckEvidence {
 }
 const results: Array<{
   browser: string
-  status: 'passed' | 'failed'
+  status: 'passed' | 'failed' | 'blocked'
   error?: string
   evidence?: BindingCheckEvidence
 }> = []
@@ -224,7 +230,7 @@ try {
 
       browser = await browserType.launch({
         headless: true,
-        ...(name === 'chromium' ? { channel: 'chromium' } : {}),
+        ...(name === 'chromium' ? { channel: chromiumChannel() } : {}),
       })
       const context = await browser.newContext()
       const page = await context.newPage()
@@ -289,9 +295,10 @@ try {
       await page.screenshot({ path: path.join(output, `${name}.png`) })
       results.push({ browser: name, status: 'passed', evidence })
     } catch (error) {
+      // A browser that cannot start is BLOCKED, not a failed assertion.
       results.push({
         browser: name,
-        status: 'failed',
+        status: isMissingBrowser(error) ? 'blocked' : 'failed',
         error: `${error instanceof Error ? error.stack : String(error)}${
           pageErrors.length > 0 ? `; pageerror=${pageErrors.join(' | ')}` : ''
         }`,
@@ -625,4 +632,16 @@ async function assertRetainedState(page: Page): Promise<void> {
     open: true,
     scroll: 55,
   })
+}
+
+const blockedBrowsers = results.filter(result => result.status === 'blocked')
+if (blockedBrowsers.length > 0) {
+  console.error(
+    `BLOCKED: ${blockedBrowsers.length} browser(s) could not start; these HMR ` +
+      `checks did not run and must not be reported as passing:\n` +
+      blockedBrowsers
+        .map(result => `  - ${result.browser}: ${result.error}`)
+        .join('\n'),
+  )
+  process.exitCode = 2
 }
