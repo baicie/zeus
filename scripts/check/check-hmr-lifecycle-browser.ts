@@ -75,7 +75,8 @@ declare global {
     __hmr?: {
       mounts: number
       cleanups: number
-      effects: number
+      effectsCreated: number
+      effectsDisposed: number
       clicks: number
       dispose?: () => void
     }
@@ -100,20 +101,30 @@ function fixtureSource(
   return `import { createEffect, createSignal, onCleanup } from '@zeus-js/signal'
 import { render } from '@zeus-js/runtime-dom'
 
-const state = (globalThis.__hmr ??= { mounts: 0, cleanups: 0, effects: 0, clicks: 0 })
+// Counters survive HMR generations because they live on the global object,
+// which a reloaded module does not replace. effectsCreated and
+// effectsDisposed are cumulative: an effect leaked in generation 1 is still
+// visible in generation 5, which a per-generation reset to zero would hide.
+// The live count is the difference between them.
+const state = (globalThis.__hmr ??= {
+  mounts: 0,
+  cleanups: 0,
+  effectsCreated: 0,
+  effectsDisposed: 0,
+  clicks: 0,
+})
 state.mounts += 1
-state.effects = 0
 
 const [count, setCount] = createSignal(0)
 
 const dispose = render(() => {
   createEffect(() => {
-    state.effects += 1
+    state.effectsCreated += 1
     count()
     ${
       options.skipCleanup
-        ? '// negative test: no onCleanup, so the counters must go unbalanced'
-        : 'onCleanup(() => { state.cleanups += 1; state.effects -= 1 })'
+        ? '// negative test: no onCleanup, so the live count stays above zero'
+        : 'onCleanup(() => { state.cleanups += 1; state.effectsDisposed += 1 })'
     }
   })
   return (
@@ -179,11 +190,22 @@ const tsconfig = JSON.stringify(
   2,
 )
 
+/**
+ * The counters, with `effects` derived as created minus disposed.
+ *
+ * Deriving it rather than storing it is the point: a per-generation reset would
+ * make a leak from an earlier module instance invisible, and the whole check is
+ * about leaks that survive several updates.
+ */
 const counts = (tab: Page) =>
   tab.evaluate(() => ({
     mounts: window.__hmr?.mounts ?? -1,
     cleanups: window.__hmr?.cleanups ?? -1,
-    effects: window.__hmr?.effects ?? -1,
+    effects:
+      (window.__hmr?.effectsCreated ?? -1) -
+      (window.__hmr?.effectsDisposed ?? 0),
+    effectsCreated: window.__hmr?.effectsCreated ?? -1,
+    effectsDisposed: window.__hmr?.effectsDisposed ?? -1,
     clicks: window.__hmr?.clicks ?? -1,
   }))
 

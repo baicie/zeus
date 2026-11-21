@@ -657,7 +657,7 @@ jobs:
       # slots, and connect/disconnect cycles with cleanup counts. The existing
       # checks in this job cover form participation and cleanup separately;
       # none covers the slot and projection surface.
-      - name: Custom element lifecycle and slots in Chromium
+      - name: Custom element lifecycle and slots in Chromium, Firefox and WebKit
         run: pnpm check:web-components-browser
       - name: Preserve Web Components browser reports
         if: always()
@@ -747,13 +747,18 @@ jobs:
       # It is deliberately not folded into `check:playground-ux`: those assert
       # page behaviour, this asserts node identity, and a failure here should
       # name DOM updates rather than a playground view.
-      - name: DOM precise updates in Chromium
+      - name: DOM precise updates in Chromium, Firefox and WebKit
         run: pnpm check:dom-update-browser
       # SSR → hydration: the marker contract between the two compiler targets,
       # and node adoption across the server/client boundary. Asserts identity of
       # server-rendered nodes after hydration, which no HTML comparison can.
-      - name: SSR hydration in Chromium
+      - name: SSR hydration in Chromium, Firefox and WebKit
         run: pnpm check:ssr-hydration-browser
+      # Hydration must leave the adopted tree reactive: a signal write has to
+      # reach the node, and disposal has to stop it. The identity checks above
+      # cannot see a tree that was adopted and then frozen.
+      - name: Hydration reactive bindings in Chromium, Firefox and WebKit
+        run: pnpm check:hydration-reactivity-browser
       # Repeated hot updates and unmount. `check:hmr-browser` covers a single
       # update; this covers five in a row and the teardown after them, which is
       # where effect leaks show up.
@@ -771,6 +776,7 @@ jobs:
             temp/compiler-wasm
             temp/dom-update-browser
             temp/ssr-hydration-browser
+            temp/hydration-reactivity-browser
             temp/hmr-lifecycle-browser
 
   create-zeus-candidates:

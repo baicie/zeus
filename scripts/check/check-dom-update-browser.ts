@@ -51,15 +51,14 @@ import fs from 'node:fs/promises'
 import http from 'node:http'
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import process from 'node:process'
-
-import { chromium, type Page } from '@playwright/test'
 
 import {
-  chromiumLaunchOptions,
-  describeBrowser,
-  explainLaunchFailure,
-} from './browser-channel'
+  type EngineCheckResult,
+  reportAcrossEngines,
+  runAcrossEngines,
+} from './browser-engines'
+
+import type { Page } from '@playwright/test'
 
 declare global {
   interface Window {
@@ -563,90 +562,51 @@ const checks: Array<{ name: string; run: (tab: Page) => Promise<void> }> = [
 
 // ---- Run --------------------------------------------------------------------
 
-const results: Array<{ check: string; status: string; error?: string }> = []
-let browser
-/** Declared here so the `finally` block can stop its trace after a failure. */
-let context: import('@playwright/test').BrowserContext | undefined
+/**
+ * Runs every check once per engine.
+ *
+ * A fresh page per engine, so one engine's state cannot leak into the next.
+ * Each check is independent of the others by construction — every one of them
+ * navigates and mounts its own fixture — so a failure in Firefox does not stop
+ * WebKit from being measured.
+ */
+const outcomes = await runAcrossEngines({
+  outputDir: output,
+  async run(tab) {
+    const results: EngineCheckResult[] = []
+    const pageErrors: string[] = []
+    tab.on('pageerror', error => pageErrors.push(error.message))
 
-try {
-  const options = chromiumLaunchOptions()
-  try {
-    browser = await chromium.launch(options)
-  } catch (error) {
-    throw explainLaunchFailure(options.channel, error)
-  }
-
-  // A trace is the difference between "this assertion failed" and "here is
-  // what the DOM looked like when it did". Written to `temp/`, which the CI
-  // job uploads on failure.
-  context = await browser.newContext()
-  await context.tracing.start({
-    screenshots: true,
-    snapshots: true,
-    sources: true,
-  })
-  const tab = await context.newPage()
-  const pageErrors: string[] = []
-  tab.on('pageerror', error => pageErrors.push(error.message))
-
-  for (const check of checks) {
-    try {
-      await check.run(tab)
-      results.push({ check: check.name, status: 'passed' })
-    } catch (error) {
-      results.push({
-        check: check.name,
-        status: 'failed',
-        error: error instanceof Error ? error.message : String(error),
-      })
-      // A screenshot is what makes a browser failure actionable from a log.
-      await fs.mkdir(output, { recursive: true })
-      await tab.screenshot({
-        path: path.join(output, `${check.name.replace(/\W+/g, '-')}.png`),
-        fullPage: true,
-      })
-    }
-  }
-
-  results.push(
-    pageErrors.length === 0
-      ? { check: 'no uncaught page errors', status: 'passed' }
-      : {
-          check: 'no uncaught page errors',
+    for (const check of checks) {
+      try {
+        await check.run(tab)
+        results.push({ check: check.name, status: 'passed' })
+      } catch (error) {
+        results.push({
+          check: check.name,
           status: 'failed',
-          error: pageErrors.join('\n'),
-        },
-  )
-} catch (error) {
-  console.error(
-    `BLOCKED: the DOM update E2E could not start a browser.\n${
-      error instanceof Error ? error.message : String(error)
-    }`,
-  )
-  await new Promise<void>(resolve => server.close(() => resolve()))
-  process.exit(2)
-} finally {
-  // Only a failed run keeps its trace: a passing run's trace is several
-  // megabytes of nothing, and uploading it every time trains people to ignore
-  // the artifact.
-  const failing = results.some(result => result.status !== 'passed')
-  if (failing && context) {
-    await fs.mkdir(output, { recursive: true })
-    await context.tracing.stop({ path: path.join(output, 'trace.zip') })
-  }
-  await browser?.close()
-  await new Promise<void>(resolve => server.close(() => resolve()))
-}
+          error: error instanceof Error ? error.message : String(error),
+        })
+        // A screenshot is what makes a browser failure actionable from a log.
+        await fs.mkdir(output, { recursive: true })
+        await tab.screenshot({
+          path: path.join(output, `${check.name.replace(/\W+/g, '-')}.png`),
+          fullPage: true,
+        })
+      }
+    }
 
-console.log(`browser: ${describeBrowser()}`)
-console.log(JSON.stringify(results, null, 2))
+    results.push(
+      pageErrors.length === 0
+        ? { check: 'no uncaught page errors', status: 'passed' }
+        : {
+            check: 'no uncaught page errors',
+            status: 'failed',
+            error: pageErrors.join('\n'),
+          },
+    )
+    return results
+  },
+})
 
-const failures = results.filter(result => result.status === 'failed')
-if (failures.length > 0) {
-  throw new Error(
-    `${failures.length} DOM update check(s) failed:\n${failures
-      .map(failure => `  - ${failure.check}: ${failure.error}`)
-      .join('\n')}`,
-  )
-}
-console.log(`${results.length} DOM update check(s) passed.`)
+reportAcrossEngines(outcomes, 'DOM precise updates')
