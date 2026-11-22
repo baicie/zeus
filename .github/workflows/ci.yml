@@ -525,41 +525,29 @@ jobs:
         if: always()
         run: pnpm check:sbom:write
 
-      - name: RC readiness report
-        if: always()
-        env:
-          # `GET /repos/{owner}/{repo}/environments` needs Administration
-          # permission, and `GITHUB_TOKEN` has no scope that grants it — there
-          # is no `administration` key in a workflow's `permissions` block, and
-          # adding one makes the whole workflow file invalid (measured: the run
-          # fails in 0s with no jobs).
-          #
-          # So this job cannot read the protection rules with its own token.
-          # The probe reports `unauthorized` and the check stays `not_run`,
-          # which is the honest answer: the claim of protection was not
-          # confirmed. Reading it in CI would require a PAT with
-          # `administration: read`, and putting a PAT in ordinary CI is exactly
-          # what this task forbids.
-          #
-          # The token is still passed so a caller that *does* have a capable
-          # token (a local run, or a dedicated release-check job) works without
-          # a code change. It is never a PAT here, and `gh` takes it from the
-          # environment — the probe logs state names only.
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # Three commands used to share one `continue-on-error: true`, so a
-        # failure in `check:create-zeus` — a real gate, and one of the two
-        # things this step is named for — was swallowed exactly like a
-        # readiness report that could not read an environment's protection
-        # rules.
-        #
-        # Split: the two create-zeus gates fail the job, and only the readiness
-        # report is informational. It has to be, because its `environments`
-        # probe needs an Administration scope that `GITHUB_TOKEN` cannot carry
-        # (see the env block above); the check reports `not_run` for it, which
-        # is the honest answer and must not be read as a pass.
+      # Two create-zeus gates, and they fail the job.
+      #
+      # They used to share one step — and one `continue-on-error: true` — with
+      # `check:rc-readiness`, so a failure in either gate was swallowed exactly
+      # like a readiness report that could not read an environment's protection
+      # rules. The step's own name named them.
+      - name: Create Zeus candidates
         run: pnpm check:create-zeus && pnpm check:create-zeus-packed
+      # Informational, and it has to be: its `environments` probe needs an
+      # Administration scope that `GITHUB_TOKEN` cannot carry — there is no
+      # `administration` key in a workflow's `permissions` block, and adding one
+      # makes the whole file invalid (measured: the run fails in 0s with no
+      # jobs). The probe reports `unauthorized` and the check stays `not_run`,
+      # which is the honest answer and must not be read as a pass.
+      #
+      # `GH_TOKEN` is still passed so a caller with a capable token (a local run,
+      # or a dedicated release-check job) works without a code change. It is
+      # never a PAT here, and `gh` takes it from the environment — the probe logs
+      # state names only.
       - name: RC readiness report (informational)
         if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pnpm check:rc-readiness
         continue-on-error: true
       - name: Preserve RC readiness report
