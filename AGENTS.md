@@ -134,14 +134,14 @@ pipeline.rs    阶段顺序与早退形状（transform_module 委托给它）
 | ---------------------- | ----- | ------------------------------------------------ |
 | `lower/frontend.rs`    | ~970  | AST 事实收集。只读程序，返回数据，不碰 `Lowerer` |
 | `lower/mod.rs`         | ~2680 | `Lowerer` 及其递归降级核心                       |
-| `codegen/dom/emit.rs`  | ~1790 | DOM 发射族，42 个函数 + 4 个元素查找器           |
+| `codegen/dom/emit.rs`  | ~1790 | DOM 发射族，47 个函数 + 4 个元素查找器           |
 | `codegen/dom/model.rs` | ~600  | `GeneratedComponent`、`DynamicBinding` 及构造    |
 | `codegen/dom/names.rs` | ~525  | `RuntimeNames`、`HelperUsage`（DOM 专属）        |
 | `codegen/mod.rs`       | ~516  | 模块编排                                         |
 
 **两处是强连通分量，不要再尝试按行切分：**
 
-- `Lowerer` 的 21 个 `lower_*` 方法互相递归（child → component → 该组件的 children）。
+- `Lowerer` 的 35 个 `lower_*` 方法互相递归（child → component → 该组件的 children）。
   降级一棵树必然递归降级子节点，这不是可消除的耦合。
 - `dom/emit.rs` 的 43 个函数同理：`emit_children_value` → `emit_inline_root` →
   `emit_component` → 该组件的 children。
