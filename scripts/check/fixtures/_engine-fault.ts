@@ -8,7 +8,11 @@ import fs from 'node:fs/promises'
 import http from 'node:http'
 import path from 'node:path'
 
+import { chromium } from '@playwright/test'
+
 import { reportAcrossEngines, runAcrossEngines } from '../browser-engines'
+
+import type { BrowserType } from '@playwright/test'
 
 const root = path.resolve(import.meta.dirname, '../../..')
 const output = path.join(root, 'temp/engine-fault')
@@ -26,11 +30,66 @@ const origin = `http://127.0.0.1:${address.port}`
 
 const mode = process.argv[2] ?? 'throw'
 
+/**
+ * A launcher that fails the way a missing browser does.
+ *
+ * The message is Playwright's own wording for an absent build, which is what
+ * `isMissingBrowser` matches on. Reproducing the message rather than the cause
+ * is the point: the branch under test is `isMissingBrowser`, and whether this
+ * machine happens to have Firefox installed must not decide the result.
+ */
+function missingBrowser(name: string): BrowserType {
+  return {
+    ...chromium,
+    async launch() {
+      throw new Error(
+        `browserType.launch: Executable doesn't exist at /nonexistent/${name}/bin`,
+      )
+    },
+  } as unknown as BrowserType
+}
+
+/**
+ * A launcher that fails for a reason that is NOT a missing browser: a crash on
+ * startup. This must reach the caller as a failure, never as BLOCKED.
+ */
+function crashingBrowser(): BrowserType {
+  return {
+    ...chromium,
+    async launch() {
+      throw new Error('Target page, context or browser has been closed')
+    },
+  } as unknown as BrowserType
+}
+
+/**
+ * The launchers this run uses, when the mode asks for a substitute.
+ *
+ * `blocked` and `crash` replace every engine so the outcome does not depend on
+ * which browsers are installed — which is what made the original test pass on a
+ * laptop and fail in the Canary job.
+ */
+const substituted =
+  mode === 'blocked'
+    ? {
+        chromium: missingBrowser('chromium'),
+        firefox: missingBrowser('firefox'),
+        webkit: missingBrowser('webkit'),
+      }
+    : mode === 'crash'
+      ? {
+          chromium: crashingBrowser(),
+          firefox: crashingBrowser(),
+          webkit: crashingBrowser(),
+        }
+      : undefined
+
 const outcomes = await runAcrossEngines({
   outputDir: output,
   // No `engines` override: `ZEUS_BROWSERS` decides, which is what makes the
   // BLOCKED path reachable in this harness.
   engineTimeoutMs: mode === 'slow' ? 3_000 : 20_000,
+  launchers: substituted,
   async run(tab) {
     // Every real check collects page errors and fails on them; this harness
     // does the same, so the `pageerror` mode measures the framework rather than

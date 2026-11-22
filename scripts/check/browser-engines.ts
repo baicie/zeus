@@ -26,6 +26,8 @@ import { chromium, firefox, webkit } from '@playwright/test'
 
 import { engineTargets, isMissingBrowser } from './browser-channel'
 
+import type { BrowserType } from '@playwright/test'
+
 export interface EngineCheckResult {
   readonly check: string
   readonly status: 'passed' | 'failed'
@@ -62,6 +64,31 @@ export interface RunAcrossEnginesOptions {
   ) => Promise<EngineCheckResult[]>
   /** A per-check override, for a check with its own browser variable. */
   readonly engines?: string
+  /**
+   * Replaces the launchers this run uses. Tests inject a launcher that fails a
+   * specific way; production callers never pass it.
+   *
+   * Added because the BLOCKED path could not be tested honestly. The one test
+   * that covered it asked for `firefox` and relied on Playwright's Firefox not
+   * being installed — true on a developer machine, false in the Canary job,
+   * which installs all three engines. There it launched Firefox, the check
+   * passed, and the assertion `exit code === 2` failed with 0. A test whose
+   * subject is "what happens when the browser is missing" must be able to make
+   * the browser missing.
+   */
+  readonly launchers?: LaunchTargets
+}
+
+/**
+ * The three Playwright launchers, by engine.
+ *
+ * Same shape as the imported `chromium`/`firefox`/`webkit`, so the default is
+ * the real ones and a test substitute only has to implement `launch`.
+ */
+export interface LaunchTargets {
+  readonly chromium: BrowserType
+  readonly firefox: BrowserType
+  readonly webkit: BrowserType
 }
 
 /**
@@ -74,7 +101,10 @@ export interface RunAcrossEnginesOptions {
 export async function runAcrossEngines(
   options: RunAcrossEnginesOptions,
 ): Promise<EngineOutcome[]> {
-  const targets = engineTargets({ chromium, firefox, webkit }, options.engines)
+  const targets = engineTargets(
+    options.launchers ?? { chromium, firefox, webkit },
+    options.engines,
+  )
   const budget = options.engineTimeoutMs ?? 5 * 60_000
   const outcomes: EngineOutcome[] = []
 
@@ -268,6 +298,22 @@ async function releaseResources(
  * Exit codes: 2 when any engine could not start (BLOCKED), 1 when any check
  * failed, 0 only when every requested engine passed.
  */
+/**
+ * The exit code a set of outcomes implies.
+ *
+ * BLOCKED wins over failed: if an engine never started, the run cannot say
+ * whether the checks would have passed, and reporting 1 would claim it knows.
+ *
+ * Extracted from `reportAcrossEngines` so the rule can be asserted without
+ * setting `process.exitCode` in the test process — which vitest reads as its
+ * own exit code and would turn a passing suite red.
+ */
+export function exitCodeFor(outcomes: readonly EngineOutcome[]): 0 | 1 | 2 {
+  if (outcomes.some(outcome => outcome.status === 'blocked')) return 2
+  if (outcomes.some(outcome => outcome.status === 'failed')) return 1
+  return 0
+}
+
 export function reportAcrossEngines(
   outcomes: readonly EngineOutcome[],
   label: string,
@@ -308,9 +354,9 @@ export function reportAcrossEngines(
           .map(outcome => `  - ${outcome.engine}: ${outcome.error}`)
           .join('\n'),
     )
-    process.exitCode = 2
   }
-  if (failed.length > 0) {
-    process.exitCode = 1
-  }
+  // One assignment from the extracted rule, so the code and the printed
+  // summary cannot disagree.
+  const code = exitCodeFor(outcomes)
+  if (code !== 0) process.exitCode = code
 }

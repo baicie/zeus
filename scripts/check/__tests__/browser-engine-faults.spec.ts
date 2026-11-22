@@ -98,10 +98,52 @@ describe('browser engine runner', () => {
     expect(result.stdout).toContain('SLOW_RUN_FAILED_AFTER_CLOSE')
   }, 120_000)
 
+  /**
+   * The BLOCKED path, made deterministic.
+   *
+   * This test used to ask for `firefox` and assert exit 2, which assumed
+   * Playwright's Firefox was not installed. On a developer machine that held.
+   * In the Release Canary job, which installs all three engines, Firefox
+   * launched, the run passed, and the assertion failed with "Expected 2,
+   * Received 0" — a test about a missing browser that could only pass when the
+   * browser was missing.
+   *
+   * `blocked` mode injects a launcher whose `launch` throws Playwright's own
+   * "Executable doesn't exist" message. Nothing about the machine decides the
+   * outcome, and the production launch path is untouched: the substitute is a
+   * parameter of `runAcrossEngines`, not a branch inside it.
+   */
   it('exits 2 when the browser cannot start, and does not claim a pass', async () => {
-    const result = await drive('pass', 'firefox')
+    const result = await drive('blocked', 'chromium')
     expect(result.code).toBe(2)
     expect(result.stdout).toContain('BLOCKED')
+    // A blocked run must never read as a pass, in either phrasing.
     expect(result.stdout).not.toContain('passed on every engine')
+    expect(result.stdout).not.toMatch(/^\s*ok\s/m)
   }, 120_000)
+
+  it('blocks every requested engine, not just the first', async () => {
+    // A blocked engine `continue`s the loop. If that continue also ended the
+    // run, the second and third engines would report nothing at all and the
+    // caller would see one BLOCKED line where three were due.
+    //
+    // This one needs the subprocess even though no browser launches: it is
+    // asserting on what a whole run prints and on the process exit code, and
+    // `reportAcrossEngines` sets `process.exitCode` — which in the vitest
+    // process would be read as the suite's own result.
+    const result = await drive('blocked', 'chromium,firefox,webkit')
+    expect(result.code).toBe(2)
+    const blocked = result.stdout.match(/BLOCKED/g) ?? []
+    expect(blocked.length).toBeGreaterThanOrEqual(1)
+    for (const engine of ['chromium', 'firefox', 'webkit']) {
+      expect(result.stdout).toContain(engine)
+    }
+  }, 120_000)
+
+  // The crash-versus-blocked distinction is asserted in
+  // `browser-failure-classification.spec.ts`, in-process: the classification is
+  // `isMissingBrowser`'s decision, and driving a subprocess to ask a question
+  // about a regex costs three seconds of tsx startup and one browser probe for
+  // nothing. That file covers seven shapes of non-missing failure, not just the
+  // one this test used to inject.
 })
