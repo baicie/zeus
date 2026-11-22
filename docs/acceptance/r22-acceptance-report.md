@@ -90,8 +90,37 @@ npm 自带的 `@sigstore/sign` 能从 409 恢复（取回已存在条目），�
 | 50    | `latest` 不得指向预发布                             | `FAILED`（政策未执行）                     | `repair:latest-tags --check` 退出 1，15 个包 |
 | 51    | 首发 `latest` 绑定                                  | `VERIFIED`（机制）                         | 隔离演练受控实验                             |
 | 52    | 发布顺序回归                                        | `VERIFIED`                                 | PR #373，5 项 spec                           |
-| 53–58 | Golden 清单、EmitPlan 一致性、性能、API 文档        | `NOT_TESTED`                               | —                                            |
+| 53    | Golden 覆盖清单 + 多缺陷诊断                        | `VERIFIED`                                 | PR #376，`golden-coverage-manifest.md`       |
+| 54    | EmitPlan 一致性（发射顺序 + 可解析性）              | `VERIFIED`（原有 12 项，其中 1 项已修）    | PR #376，`emit_order.rs`                     |
+| 55–58 | 性能、API 文档                                      | `NOT_TESTED`                               | —                                            |
 | 59    | 本报告                                              | —                                          | 本文件                                       |
+
+---
+
+## 3.5 第三批新增的两个发现
+
+### 3.5.1 一个测试名不副实了至少几个月
+
+`every_golden_source_emits_a_parsable_module`：名字说覆盖 golden fixture，
+注释也这么说，**实际遍历的是 25 条硬编码字符串**，从不读 fixture 目录。
+磁盘上 45 个，列表里 25 个，缺的正是列表从未包含的 SSR 与诊断类。
+
+改成真的读目录后立刻失败，于是有了下一条。
+
+### 3.5.2 fixture 的 purpose 与编译器行为相反
+
+`types-tsx.json` 的 purpose 写「TypeScript types are erased from the
+output」。**不是。** `push_source_range` 按组件区间替换 JSX，区间外原样复制——
+`interface Props` 和 `props: Props` 都会进入输出，由下游 transform 擦除。
+
+这是正确设计，但没有任何测试看过「擦除前」的输出形状。已修正 purpose，
+并在遍历里对这条路径单独断言。
+
+### 3.5.3 我在这个过程中做错了两次并回滚
+
+用 `ZEUS_UPDATE_GOLDEN=1` 更新快照时，它重写了全部 40 个 fixture（多为纯格式
+差异），两次。AGENTS.md §5 明确禁止为让测试通过而刷新快照，两次都不是有意的
+输出变更，已全部回滚，最终只手工改了 1 个 fixture 的 1 行。
 
 ---
 
