@@ -180,7 +180,8 @@
     "check:vendored-dialog": "tsx scripts/check/verify-vendored-dialog.ts",
     "check:ui-provenance": "tsx scripts/release/verify-ui-provenance.ts",
     "drill:rc-recovery": "tsx scripts/release/drill-rc-recovery.ts",
-    "check:event-delegation-browser": "tsx scripts/check/check-event-delegation-browser.ts"
+    "check:event-delegation-browser": "tsx scripts/check/check-event-delegation-browser.ts",
+    "check:nested-hydration-browser": "tsx scripts/check/check-nested-hydration-browser.ts"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged && pnpm check",
