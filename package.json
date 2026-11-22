@@ -83,6 +83,7 @@
     "check:hydration-reactivity-browser": "tsx scripts/check/check-hydration-reactivity-browser.ts",
     "check:dom-minimal-work-browser": "tsx scripts/check/check-dom-minimal-work-browser.ts",
     "check:hydration-boundaries-browser": "tsx scripts/check/check-hydration-boundaries-browser.ts",
+    "check:nested-scopes-browser": "tsx scripts/check/check-nested-scopes-browser.ts",
     "check:hmr-lifecycle-browser": "tsx scripts/check/check-hmr-lifecycle-browser.ts",
     "check:web-components-browser": "tsx scripts/check/check-web-components-browser.ts",
     "check:a11y-browser": "tsx scripts/check/check-a11y-browser.ts",
