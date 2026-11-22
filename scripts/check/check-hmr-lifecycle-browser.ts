@@ -590,9 +590,26 @@ async function runForEngine(
         // root stops, but nothing decremented `effects`, so the live-effect count
         // stays above zero after everything is disposed.
         await fs.writeFile(fixturePath, INITIAL)
+        // Reload rather than navigating fresh, and wait for the module to report
+        // the state it was loaded from. Writing `INITIAL` above is itself an HMR
+        // event: a plain `goto` races that rebuild, so the *next* write can be
+        // coalesced into it and the update below never arrives — measured as
+        // "reached mount 1" on chromium and webkit while firefox passed.
         await tab.goto(url)
-        await tab.waitForFunction(() => (window.__hmr?.mounts ?? 0) === 1)
-        await update(fixtureSource('skipped', 'note', { skipCleanup: true }), 2)
+        await tab.reload()
+        await tab.waitForFunction(
+          () => (window.__hmr?.mounts ?? 0) >= 1,
+          undefined,
+          {
+            timeout: 30_000,
+          },
+        )
+        // Reset the counter so `update` counts this generation, not the reload.
+        await tab.evaluate(() => {
+          if (window.__hmr) window.__hmr.mounts = 0
+        })
+        // The reload above already loaded `INITIAL`, so the next mount is 1.
+        await update(fixtureSource('skipped', 'note', { skipCleanup: true }), 1)
         const beforeDispose = await counts(tab)
         await tab.evaluate(() => window.__hmr?.dispose?.())
         const after = await counts(tab)
