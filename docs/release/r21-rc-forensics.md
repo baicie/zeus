@@ -134,7 +134,89 @@ return packages.sort((a, b) => {
 
 ## 5. TLOG 409（TASK 35）
 
-### 结论：ROOT_CAUSE_UNCONFIRMED
+### 结论：根因已定位（R22 TASK 43 更新）
+
+**2026-11-22 更新。** 下面的原始记录保留，但根因现在有代码级证据了。
+
+#### 证据：sigstore 的 409 分支在本机 npm 里永远不会走
+
+`npm` 自带的 `@sigstore/sign`（Node 24.16 的 npm 11.13.0）：
+
+```js
+// @sigstore/sign/dist/witness/tlog/client.js
+constructor(options) {
+  this.fetchOnConflict = options.fetchOnConflict ?? false;   // ← 默认 false
+  ...
+}
+async createEntry(proposedEntry) {
+  try {
+    entry = await this.rekor.createEntry(proposedEntry);
+  } catch (err) {
+    if (entryExistsError(err) && this.fetchOnConflict) {   // ← 需要 true
+      const uuid = err.location.split('/').pop() || '';
+      entry = await this.rekor.getEntry(uuid);
+    } else {
+      internalError(err, 'TLOG_CREATE_ENTRY_ERROR', 'error creating tlog entry');
+    }
+  }
+}
+```
+
+`entryExistsError` 判定的正是 `statusCode === 409`。而 `fetchOnConflict`
+在**整棵 `@sigstore/sign` 里只有这一处读取**，且 npm 构造 witness 时没有传它：
+
+```js
+// @sigstore/sign/dist/config.js — witnessesFromConfig
+witnesses.push(new RekorWitness({
+  rekorBaseURL: tlog.url,
+  majorApiVersion: tlog.majorApiVersion,
+  retry: fetchOptions.retry,
+  timeout: ...,
+  // 没有 fetchOnConflict
+}))
+```
+
+于是 `options.fetchOnConflict ?? false` 恒为 `false`，409 分支是死代码。
+
+所以：
+
+1. Rekor 返回 409 表示「这个签名条目已经存在」；
+2. sigstore 本可以取回已有条目继续，但那条路径是死代码；
+3. 于是必然抛 `TLOG_CREATE_ENTRY_ERROR`。
+
+**这就是 rc.3 在第 8 个包失败的直接原因，而且是确定性的，不是偶发。**
+
+#### 这条证据能解释两个此前无法区分的假设
+
+之前列了两种可能：「同一 tarball 此前已签名但未落库」和「Sigstore 的透明度
+日志重试语义」。现在看，**两者是同一件事的前后半段**：
+
+- 第一次尝试：签名提交到 Rekor 成功（条目落库），随后上传 npm 失败或超时；
+- 每次重试：tarball 字节相同 → 签名相同 → Rekor 返回 409「已存在」；
+- sigstore 不取回，直接抛错。
+
+所以「重试会推进」这个假设是**错的**——只要 tarball 不变，重试必然在同一处
+失败。
+
+#### 这也解释了 `retry: 5` 为什么无效
+
+`release.config.ts` 里 `publish.retry: 5`、`skipExisting: true` 都在。但
+`skipExisting` 处理的是「npm 返回 EPUBLISHCONFLICT（包已发布）」，而这里是
+**tlog 阶段就失败了，还没走到 npm 的发布接口**，两个机制不交叉。
+
+#### 可执行的恢复方向（未验证，需授权）
+
+| 方案                                            | 代价                             | 状态                   |
+| ----------------------------------------------- | -------------------------------- | ---------------------- |
+| 换一个 npm 版本，其中 `fetchOnConflict` 为 true | 需确认哪个版本                   | **NOT_TESTED**         |
+| 让 tarball 字节变化（重新打包）                 | 会与已落库签名不匹配，可能又 409 | **NOT_TESTED**         |
+| 对失败包跳过 provenance（`--no-provenance`）    | 削弱供应链证据                   | 需决策，不建议         |
+| 联系 npm support 清理 Rekor 条目                | 外部依赖，不可控                 | 不可行（Rekor 不可删） |
+
+**本文档不给出推荐**：这需要发布授权与对供应链证据的判断，超出本轮的
+只读范围。
+
+### 原始记录（结论：ROOT_CAUSE_UNCONFIRMED）
 
 失败记录（来自 `docs/release/r18.3-rc3-gap-audit.md`，#335）：
 
