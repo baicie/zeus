@@ -54,6 +54,34 @@ export interface PackageState {
   /** Set when the package is published but its dist-tags could not be read. */
   readonly tagsError?: string
   readonly integrity?: string
+  /** The tarball the registry would hand a consumer. */
+  readonly tarball?: string
+  /** Unpacked size, when the registry reports it. */
+  readonly unpackedSize?: number
+  /**
+   * When this package's query finished, ISO-8601.
+   *
+   * Per package rather than per report: the loop is sequential and a
+   * 32-package audit against a slow registry takes minutes, so a single
+   * timestamp at the top would misdate most of the rows.
+   */
+  readonly queriedAt?: string
+  /**
+   * How the query ended when it did not produce an answer.
+   *
+   * `not-found` is the registry saying the version does not exist — a real
+   * finding. `failed` is the registry not answering — no finding at all, and
+   * the audit must not report it as unpublished. Keeping them apart is the
+   * whole point of this field.
+   */
+  readonly query?:
+    | { readonly outcome: 'ok' }
+    | { readonly outcome: 'not-found'; readonly message: string }
+    | {
+        readonly outcome: 'failed'
+        readonly message: string
+        readonly attempts?: number
+      }
   /** Set when the query itself failed — not the same as "not published". */
   readonly error?: string
 }
@@ -71,13 +99,35 @@ export async function inspectPackage(
   registry: string,
   options: QueryOptions = {},
 ): Promise<PackageState> {
+  const queriedAt = new Date().toISOString()
   const manifest = await queryNpmJson<{
     version?: string
-    dist?: { integrity?: string }
+    dist?: {
+      integrity?: string
+      tarball?: string
+      unpackedSize?: number
+    }
   }>(['view', `${name}@${version}`, '--json', '--registry', registry], options)
-  if (manifest.status === 'not-found') return { name, published: false }
+  if (manifest.status === 'not-found') {
+    return {
+      name,
+      published: false,
+      queriedAt,
+      query: { outcome: 'not-found', message: manifest.message },
+    }
+  }
   if (manifest.status === 'failed') {
-    return { name, published: false, error: manifest.message }
+    return {
+      name,
+      published: false,
+      queriedAt,
+      query: {
+        outcome: 'failed',
+        message: manifest.message,
+        attempts: manifest.attempts,
+      },
+      error: manifest.message,
+    }
   }
   // `npm view <name> dist-tags --json` is the form that returns JSON; see the
   // module comment. A failure here is recorded, not left blank.
@@ -88,7 +138,11 @@ export async function inspectPackage(
   const state: PackageState = {
     name,
     published: manifest.value.version === version,
+    queriedAt,
+    query: { outcome: 'ok' },
     integrity: manifest.value.dist?.integrity,
+    tarball: manifest.value.dist?.tarball,
+    unpackedSize: manifest.value.dist?.unpackedSize,
   }
   if (tags.status === 'ok') {
     return {
@@ -106,6 +160,62 @@ export async function inspectPackage(
   }
 }
 
+/**
+ * The packages without which the framework does not exist (R23 TASK 16).
+ *
+ * A release that publishes 27 of 32 packages and misses `runtime-dom` has
+ * published nothing a consumer can use. Counting is the wrong acceptance test,
+ * and rc.3 is the case that proves it: seven packages, none of them the runtime.
+ *
+ * Kept as a type rather than a comment so the audit can name what is missing
+ * from this set specifically, and so adding a package to the framework means
+ * editing one list.
+ */
+export const FRAMEWORK_PACKAGES = [
+  '@zeus-js/shared',
+  '@zeus-js/signal',
+  '@zeus-js/runtime-dom',
+  '@zeus-js/runtime-ssr',
+  '@zeus-js/zeus',
+] as const
+
+export interface FrameworkCheckpoint {
+  /** Every package a consumer needs before any app can be built. */
+  readonly required: readonly string[]
+  readonly present: readonly string[]
+  readonly missing: readonly string[]
+  /**
+   * True only when every required package is published.
+   *
+   * Deliberately not "most of them": a partial runtime is not a usable one,
+   * and a percentage would make 4 of 5 look like progress.
+   */
+  readonly complete: boolean
+  /** One line a release report can quote without interpretation. */
+  readonly verdict: string
+}
+
+/** Evaluates the framework checkpoint from an audit's results. */
+export function frameworkCheckpoint(
+  packages: readonly PackageState[],
+): FrameworkCheckpoint {
+  const published = new Set(
+    packages.filter(state => state.published).map(state => state.name),
+  )
+  const present = FRAMEWORK_PACKAGES.filter(name => published.has(name))
+  const missing = FRAMEWORK_PACKAGES.filter(name => !published.has(name))
+  return {
+    required: FRAMEWORK_PACKAGES,
+    present,
+    missing,
+    complete: missing.length === 0,
+    verdict:
+      missing.length === 0
+        ? 'the framework is complete: every required runtime package is published'
+        : `the framework is NOT usable: ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} unpublished`,
+  }
+}
+
 export interface GroupAudit {
   readonly measuredAt: string
   readonly version: string
@@ -117,6 +227,8 @@ export interface GroupAudit {
   /** Packages the query could not answer for. Non-zero makes the audit invalid. */
   readonly failed: number
   readonly latestBoundTo: string[]
+  /** R23 TASK 16: the packages a consumer needs before anything works. */
+  readonly framework: FrameworkCheckpoint
   readonly packages: PackageState[]
 }
 
@@ -151,6 +263,7 @@ export async function auditGroup(
     latestBoundTo: packages
       .filter(state => state.latest === version)
       .map(state => state.name),
+    framework: frameworkCheckpoint(packages),
     packages,
   }
 }
@@ -190,6 +303,9 @@ async function main(): Promise<void> {
         console.log(`    ${state.name}: ${state.error}`)
       }
     }
+    console.log(
+      `\n  framework ${report.framework.complete ? 'COMPLETE' : 'INCOMPLETE'}: ${report.framework.verdict}`,
+    )
     if (report.latestBoundTo.length > 0) {
       console.log(
         `  latest points at this version for: ${report.latestBoundTo.join(', ')}`,
