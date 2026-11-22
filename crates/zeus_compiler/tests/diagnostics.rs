@@ -221,3 +221,81 @@ fn an_unimported_builtin_is_treated_as_an_ordinary_component() {
     );
     assert_eq!(unimported.code, "");
 }
+
+/// Every error in a module is reported, not just the first.
+///
+/// The fixtures and the tests above each have one defect, so nothing checked
+/// what happens when a module has several. A compiler that stopped at the
+/// first would pass every one of them while forcing a user through one rebuild
+/// per mistake, which is the difference between a usable diagnostic and a
+/// correct one.
+///
+/// The three defects are the ones the tests above establish individually, so a
+/// failure here means the *combination* regressed rather than that one case was
+/// never covered.
+#[test]
+fn several_defects_in_one_module_are_all_reported() {
+    let result = dom(concat!(
+        "import { Show } from '@zeus-js/zeus'\n",
+        "export const A = () => (\n",
+        "  <div>\n",
+        "    <span title={() => 1} />\n",
+        "    <iframe>a</iframe>\n",
+        "    <Show {...{ when: true }}><p/></Show>\n",
+        "  </div>\n",
+        ")\n",
+    ));
+    let codes: Vec<&str> = result.diagnostics.iter().map(|d| d.code.as_str()).collect();
+
+    for expected in [
+        "ZEUS_FUNCTION_ATTRIBUTE",
+        "ZEUS_UNSUPPORTED_RAW_TEXT_ELEMENT",
+        "ZEUS_UNSUPPORTED_BUILTIN_SPREAD",
+    ] {
+        assert!(
+            codes.contains(&expected),
+            "expected `{expected}` among every defect in the module, got {codes:?}"
+        );
+    }
+    assert_eq!(
+        codes.len(),
+        3,
+        "three independent defects must produce three diagnostics, got {codes:?}"
+    );
+    assert_eq!(result.code, "", "a rejected module must emit no code");
+}
+
+/// The same module reports the same codes in the same order twice.
+///
+/// A diagnostic set that reorders between runs makes a golden fixture flaky
+/// and a user's diff noisy. This is cheap insurance against an iteration over
+/// a hash map creeping into the reporting path.
+#[test]
+fn diagnostics_are_reported_in_a_stable_order() {
+    let source = concat!(
+        "import { Show } from '@zeus-js/zeus'\n",
+        "export const A = () => (\n",
+        "  <div>\n",
+        "    <span title={() => 1} />\n",
+        "    <iframe>a</iframe>\n",
+        "    <Show {...{ when: true }}><p/></Show>\n",
+        "  </div>\n",
+        ")\n",
+    );
+    let first: Vec<String> = dom(source)
+        .diagnostics
+        .iter()
+        .map(|d| d.code.clone())
+        .collect();
+    let second: Vec<String> = dom(source)
+        .diagnostics
+        .iter()
+        .map(|d| d.code.clone())
+        .collect();
+    assert_eq!(first, second, "the same module must report the same order");
+    assert_eq!(
+        first.len(),
+        3,
+        "the fixture must actually have three defects"
+    );
+}
