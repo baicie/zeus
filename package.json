@@ -30,6 +30,7 @@
     "test:compiler-native": "pnpm --filter @zeus-js/compiler-native build:native && pnpm --filter @zeus-js/compiler-native test:native",
     "test:compiler-wasm": "pnpm --filter @zeus-js/compiler-wasm build:wasm && pnpm --filter @zeus-js/compiler-wasm test:wasm",
     "bench:compiler-native": "tsx scripts/bench/compiler-native.ts",
+    "bench:compiler-hosts": "tsx scripts/bench/compiler-hosts.ts",
     "native:build:platform": "tsx scripts/release/build-native-platform.ts",
     "native:restore:artifacts": "tsx scripts/release/restore-native-artifacts.ts",
     "check:native-packages": "tsx scripts/check/check-native-packages.ts",
