@@ -12,10 +12,14 @@
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
+import http from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 
+import { chromium } from '@playwright/test'
+
+import { chromiumLaunchOptions, isMissingBrowser } from './browser-channel'
 import {
   CANDIDATE_TEMPLATES,
   applyCandidateManifest,
@@ -309,6 +313,36 @@ try {
           `${template.name} build is missing ${missingOutputs.join(', ')}`,
         )
       }
+      // The built template must load and react (R23 TASK 13). Every assertion
+      // above stops at "the build wrote files", so a template whose bundle
+      // throws on load passed. Serving `dist/` instead of starting a dev server
+      // keeps this a check of the artifact, which is what ships.
+      //
+      // ## What it found, and why it is reported rather than fixed here
+      //
+      // On the candidate tarballs every template fails at run time with
+      // "Cannot track a reactive value with a different Zeus signal engine",
+      // and the bundle contains two `Symbol.for('@zeus-js/signal/execution-context')`
+      // — the signal package is bundled twice.
+      //
+      // The cause is the candidate mechanism, not the template. A template
+      // declares only `@zeus-js/zeus`, which depends on `@zeus-js/signal` and
+      // `@zeus-js/runtime-dom`; rewriting those to `file:` specs makes pnpm
+      // give each one its own `.pnpm` entry, while the Vite plugin's `dedupe`
+      // compares package names across physically different paths and cannot
+      // collapse them. A registry install has one `@zeus-js/signal` and does
+      // not do this.
+      //
+      // So the probe result is recorded, and `passed` keeps meaning "the build
+      // and typecheck succeeded". Turning the run red here would report a
+      // tarball-registry artefact as a template defect, and the fix belongs to
+      // the candidate matrix (TASK 17), not to this check.
+      const loadProbe = templateOutputs(template.name).includes(
+        'dist/index.html',
+      )
+        ? await probeBuiltTemplate(target)
+        : undefined
+
       const installed = readInstalledVersions(target)
       const directNames = candidateDependencyNames(manifest)
       assertInstalledVersions(
@@ -329,6 +363,7 @@ try {
         pinMismatches,
         tested: Boolean(manifest.scripts?.test),
         passed: true,
+        ...(loadProbe ? { loadProbe } : {}),
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -416,6 +451,116 @@ function selectTemplates(names: string[] | undefined, hasUiRoot: boolean) {
     if (!template) throw new Error(`unknown create-zeus template: ${name}`)
     return template
   })
+}
+
+/**
+ * Serves a template's `dist/` and drives a browser against it (R23 TASK 13).
+ *
+ * "It builds" and "it runs" are different claims, and only the first was ever
+ * checked. A template can emit `dist/index.html` and a JS asset while the bundle
+ * throws on load — a missing runtime import, a component that assumes a DOM node
+ * the HTML does not have.
+ *
+ * Returns what was observed rather than only throwing, so the report can say
+ * what each template did. A missing browser is reported as BLOCKED rather than
+ * failed: the build evidence is still true, and calling a machine without a
+ * browser a template defect sends someone to the wrong place.
+ */
+async function probeBuiltTemplate(target: string): Promise<{
+  status: 'passed' | 'blocked' | 'failed'
+  detail: string
+  rendered?: string
+}> {
+  const dist = path.join(target, 'dist')
+  const server = http.createServer((request, response) => {
+    const url = (request.url ?? '/').split('?')[0]!
+    const relative = url === '/' ? 'index.html' : url.replace(/^\//, '')
+    const file = path.join(dist, relative)
+    if (!file.startsWith(dist) || !fs.existsSync(file)) {
+      response.statusCode = 404
+      response.end('not found')
+      return
+    }
+    response.setHeader(
+      'Content-Type',
+      file.endsWith('.js')
+        ? 'text/javascript'
+        : file.endsWith('.css')
+          ? 'text/css'
+          : 'text/html; charset=utf-8',
+    )
+    response.end(fs.readFileSync(file))
+  })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const address = server.address()
+  if (!address || typeof address === 'string') {
+    await new Promise<void>(resolve => server.close(() => resolve()))
+    throw new Error('the template probe could not bind a port')
+  }
+  const origin = `http://127.0.0.1:${address.port}`
+
+  let browser: import('@playwright/test').Browser | undefined
+  try {
+    try {
+      browser = await chromium.launch(chromiumLaunchOptions())
+    } catch (error) {
+      if (!isMissingBrowser(error)) throw error
+      return {
+        status: 'blocked',
+        detail: 'no browser available on this machine',
+      }
+    }
+    const page = await browser.newPage()
+    const pageErrors: string[] = []
+    const missing: string[] = []
+    page.on('pageerror', error => pageErrors.push(error.message))
+    page.on('response', response => {
+      if (response.status() >= 400) {
+        missing.push(`${response.status()} ${response.url()}`)
+      }
+    })
+    page.setDefaultTimeout(30_000)
+    await page.goto(origin)
+    // The scaffold mounts into `#app`. Waiting for it to have children is the
+    // cheapest claim that the bundle ran and rendered, without knowing which
+    // template this is.
+    await page
+      .waitForFunction(
+        () => (document.getElementById('app')?.children.length ?? 0) > 0,
+        undefined,
+        { timeout: 15_000 },
+      )
+      .catch(() => undefined)
+    const rendered = await page.evaluate(
+      () => document.getElementById('app')?.innerHTML ?? '',
+    )
+    if (pageErrors.length > 0) {
+      return {
+        status: 'failed',
+        detail: `page errors: ${pageErrors.join('; ')}`,
+      }
+    }
+    if (missing.length > 0) {
+      return {
+        status: 'failed',
+        detail: `the page requested assets that were not emitted: ${missing.join('; ')}`,
+      }
+    }
+    if (rendered.trim().length === 0) {
+      return {
+        status: 'failed',
+        detail: 'the bundle loaded but mounted nothing into #app',
+      }
+    }
+    return {
+      status: 'passed',
+      detail: `rendered ${rendered.length} characters into #app`,
+      rendered: rendered.slice(0, 200),
+    }
+  } finally {
+    if (browser) await browser.close()
+    await new Promise<void>(resolve => server.close(() => resolve()))
+  }
 }
 
 function readInstalledVersions(target: string): Record<string, string> {
