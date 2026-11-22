@@ -36,6 +36,26 @@
  * arbitrary postinstall code from a registry inside a release gate is a separate
  * decision nobody has made.
  *
+ * ## Four statuses, not one failure (R23 TASK 09)
+ *
+ * "The native compiler is broken" is four different findings with four
+ * different fixes, and collapsing them sends people to the wrong place:
+ *
+ * | status             | meaning                                        | who fixes it |
+ * | ------------------ | ---------------------------------------------- | ------------ |
+ * | `REGISTRY_MISSING` | the platform package is not on the registry    | the publish  |
+ * | `NOT_INSTALLED`    | published, but npm did not put it on disk      | the consumer's npm version, or the wrapper's `optionalDependencies` |
+ * | `LOAD_FAILED`      | on disk, but `require` throws                  | the build: ABI, arch, libc |
+ * | `TRANSFORM_FAILED` | loads, but `transformModule` throws or degrades | the compiler |
+ *
+ * rc.3 is `REGISTRY_MISSING` for four platforms and fine on the two darwin
+ * ones; the npm-10 failure is `NOT_INSTALLED` with nothing wrong in the
+ * registry. Reporting both as "cannot find native binding" is what made the
+ * first diagnosis wrong.
+ *
+ * The report carries the status, and so does the exit message. Exit codes stay
+ * 0 for PASS and 1 for any non-pass, so CI reads it the same way as before.
+ *
  * ## Usage
  *
  * ```text
@@ -43,12 +63,24 @@
  * pnpm check:native-install --version 0.2.0-rc.3 --registry http://127.0.0.1:4873
  * ```
  */
-import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
+
+import { describeStatus, type NativeStatus } from './native-install-status'
+
+/** Thrown at the point a status is decided, so the message and code agree. */
+class NativeCheckFailure extends Error {
+  constructor(
+    readonly status: Exclude<NativeStatus, 'PASS'>,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'NativeCheckFailure'
+  }
+}
 
 const root = path.resolve(import.meta.dirname, '../..')
 const output = path.join(root, 'temp/native-install')
@@ -88,6 +120,7 @@ delete env.NODE_OPTIONS
 delete env.NODE_PATH
 
 let passed = false
+let status: NativeStatus = 'PASS'
 let failure: string | undefined
 const evidence: Record<string, unknown> = {
   measuredAt: new Date().toISOString(),
@@ -102,25 +135,48 @@ try {
   // 1. The platform package must exist at this version. A missing one is what
   //    makes npm drop the entire optional group, and it deserves its own error
   //    rather than surfacing later as "Cannot find native binding".
-  const platformVersion = execFileSync(
-    'npm',
-    [
-      'view',
-      `${platformName}@${version}`,
-      'version',
-      '--json',
-      '--registry',
-      registry,
-    ],
-    { cwd: project, env, encoding: 'utf8' },
-  ).trim()
+  let platformVersion: string
+  try {
+    platformVersion = execFileSync(
+      'npm',
+      [
+        'view',
+        `${platformName}@${version}`,
+        'version',
+        '--json',
+        '--registry',
+        registry,
+      ],
+      { cwd: project, env, encoding: 'utf8' },
+    ).trim()
+  } catch (error) {
+    // An explicit 404 is the registry saying "no such version"; anything else
+    // is the registry being unreachable, which is not a verdict about the
+    // package and must not be reported as REGISTRY_MISSING.
+    const text = error instanceof Error ? error.message : String(error)
+    if (/\bE404\b|404 Not Found/.test(text)) {
+      throw new NativeCheckFailure(
+        'REGISTRY_MISSING',
+        `${platformName}@${version} is not on ${registry}. This is a publishing ` +
+          'gap, not an installation problem: the package a consumer needs was ' +
+          'never uploaded.',
+      )
+    }
+    throw new NativeCheckFailure(
+      'REGISTRY_MISSING',
+      `could not ask ${registry} about ${platformName}@${version}; the answer ` +
+        `is unknown, so this is not a verdict about the package. ${text.split('\n')[0]}`,
+    )
+  }
   evidence.platformVersion = platformVersion
-  assert.equal(
-    platformVersion,
-    JSON.stringify(version),
-    `${platformName}@${version} is not on ${registry}; npm drops the whole ` +
-      `optional group when any entry is missing, so the wrapper cannot load`,
-  )
+  if (platformVersion !== JSON.stringify(version)) {
+    throw new NativeCheckFailure(
+      'REGISTRY_MISSING',
+      `${platformName}@${version} is not on ${registry}. This is a publishing ` +
+        'gap, not an installation problem: the package a consumer needs was ' +
+        'never uploaded.',
+    )
+  }
 
   // 2. Install the wrapper the way a consumer does.
   run(
@@ -150,25 +206,30 @@ try {
     env,
     encoding: 'utf8',
   }).trim()
-  assert(
-    installed.includes(`compiler-native-${platform}`),
-    `npm installed [${installed.join(', ')}] but not ${platformName}.\n` +
-      `  npm ${evidence.npm} on node ${process.version}\n` +
-      '  Measured: npm 10.9.0 drops the whole optional group even when every\n' +
-      '  platform package exists on the registry, while npm 11.13.0 installs\n' +
-      '  them correctly on the same machine, same registry, same version. The\n' +
-      '  wrapper then fails with "Cannot find native binding", which reads like\n' +
-      '  a packaging defect and is an npm version. A modern npm is the first\n' +
-      '  thing to rule out, not the last.',
-  )
+  if (!installed.includes(`compiler-native-${platform}`)) {
+    throw new NativeCheckFailure(
+      'NOT_INSTALLED',
+      `npm installed [${installed.join(', ')}] but not ${platformName}.\n` +
+        `  The package is on ${registry}; npm declined to install it.\n` +
+        `  npm ${evidence.npm} on node ${process.version}\n` +
+        '  Measured: npm 10.9.0 drops the whole optional group even when every\n' +
+        '  platform package exists on the registry, while npm 11.13.0 installs\n' +
+        '  them correctly on the same machine, same registry, same version. The\n' +
+        '  wrapper then fails with "Cannot find native binding", which reads like\n' +
+        '  a packaging defect and is an npm version. A modern npm is the first\n' +
+        '  thing to rule out, not the last.',
+    )
+  }
 
   // 4. Load it in a clean process, so the workspace cannot satisfy the import.
-  const probe = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        '-e',
-        `
+  let probe: { entry: string; hasTransform: boolean }
+  try {
+    probe = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [
+          '-e',
+          `
 const { createRequire } = require('node:module');
 const require_ = createRequire(process.argv[1] + '/package.json');
 const compiler = require_('@zeus-js/compiler-native');
@@ -178,31 +239,50 @@ process.stdout.write(JSON.stringify({
   hasTransform: typeof compiler.transformModule === 'function',
 }));
 `,
-        project,
-      ],
-      { cwd: project, env, encoding: 'utf8' },
-    ),
-  ) as { entry: string; hasTransform: boolean }
+          project,
+        ],
+        { cwd: project, env, encoding: 'utf8' },
+      ),
+    ) as { entry: string; hasTransform: boolean }
+  } catch (error) {
+    // The package is on disk and `require` still failed: the binary does not
+    // match this machine. ABI, architecture or libc — all build problems, all
+    // different from "not installed".
+    const text = error instanceof Error ? error.message : String(error)
+    throw new NativeCheckFailure(
+      'LOAD_FAILED',
+      `${platformName} is installed but the binding did not load. This is a ` +
+        `build problem (ABI, architecture or libc), not a publishing one.\n` +
+        `  ${text.split('\n').slice(0, 6).join('\n  ')}`,
+    )
+  }
   evidence.entry = probe.entry
-  assert(
-    path.resolve(probe.entry).startsWith(fs.realpathSync(project) + path.sep),
-    `the native compiler escaped the packed installation: ${probe.entry}`,
-  )
-  assert.equal(
-    probe.hasTransform,
-    true,
-    'the installed binding does not expose transformModule',
-  )
+  if (
+    !path.resolve(probe.entry).startsWith(fs.realpathSync(project) + path.sep)
+  ) {
+    throw new NativeCheckFailure(
+      'LOAD_FAILED',
+      `the native compiler escaped the packed installation: ${probe.entry}`,
+    )
+  }
+  if (!probe.hasTransform) {
+    throw new NativeCheckFailure(
+      'LOAD_FAILED',
+      'the installed binding loaded but does not expose transformModule',
+    )
+  }
 
   // 5. Compile a component with it. Loading a `.node` and compiling are
   //    different failures — a binding built against the wrong ABI loads and then
   //    throws on first call.
-  const compiled = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        '-e',
-        `
+  let compiled: { diagnostics: string[]; emitted: boolean }
+  try {
+    compiled = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [
+          '-e',
+          `
 const { createRequire } = require('node:module');
 const require_ = createRequire(process.argv[1] + '/package.json');
 const compiler = require_('@zeus-js/compiler-native');
@@ -220,28 +300,55 @@ process.stdout.write(JSON.stringify({
   emitted: typeof result.code === 'string' && result.code.length > 0,
 }));
 `,
-        project,
-      ],
-      { cwd: project, env, encoding: 'utf8' },
-    ),
-  ) as { diagnostics: string[]; emitted: boolean }
+          project,
+        ],
+        { cwd: project, env, encoding: 'utf8' },
+      ),
+    ) as { diagnostics: string[]; emitted: boolean }
+  } catch (error) {
+    const text = error instanceof Error ? error.message : String(error)
+    throw new NativeCheckFailure(
+      'TRANSFORM_FAILED',
+      `the binding loaded but transformModule did not complete. The compiler ` +
+        `is reachable, so this is neither a publishing nor an installation ` +
+        `problem.\n  ${text.split('\n').slice(0, 6).join('\n  ')}`,
+    )
+  }
   evidence.diagnostics = compiled.diagnostics
   evidence.emitted = compiled.emitted
-  assert.deepEqual(
-    compiled.diagnostics,
-    [],
-    `the packed compiler reported diagnostics: ${compiled.diagnostics.join(', ')}`,
-  )
-  assert(compiled.emitted, 'the packed compiler emitted no code')
+  if (compiled.diagnostics.length > 0) {
+    throw new NativeCheckFailure(
+      'TRANSFORM_FAILED',
+      `the binding loaded and compiled, but reported diagnostics: ` +
+        `${compiled.diagnostics.join(', ')}`,
+    )
+  }
+  if (!compiled.emitted) {
+    throw new NativeCheckFailure(
+      'TRANSFORM_FAILED',
+      'the binding loaded and compiled, but emitted no code',
+    )
+  }
 
+  status = 'PASS'
   passed = true
 } catch (error) {
   failure = error instanceof Error ? error.message : String(error)
+  status =
+    error instanceof NativeCheckFailure ? error.status : 'TRANSFORM_FAILED'
   throw error
 } finally {
   fs.writeFileSync(
     path.join(output, 'report.json'),
-    `${JSON.stringify({ ...evidence, passed, failure }, null, 2)}\n`,
+    `${JSON.stringify({ ...evidence, status, passed, failure }, null, 2)}\n`,
+  )
+  // Printed, not only written to the report: a CI log should say which of the
+  // five outcomes happened without anyone opening the artifact.
+  console.log(
+    `native install ${status}: ${describeStatus(status)}` +
+      (status === 'PASS'
+        ? ` (${platformName}@${version})`
+        : `\n  ${failure?.split('\n')[0] ?? ''}`),
   )
   if (passed && !values.keep) fs.rmSync(work, { recursive: true, force: true })
   else console.error(`Native install fixture retained at ${work}`)
