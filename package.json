@@ -192,7 +192,8 @@
     "drill:release-group": "tsx scripts/release/run-release-group-drill.ts",
     "check:event-delegation-browser": "tsx scripts/check/check-event-delegation-browser.ts",
     "check:nested-hydration-browser": "tsx scripts/check/check-nested-hydration-browser.ts",
-    "check:nested-binding-browser": "tsx scripts/check/check-nested-binding-browser.ts"
+    "check:nested-binding-browser": "tsx scripts/check/check-nested-binding-browser.ts",
+    "check:ssr-marker-matrix": "tsx scripts/check/check-ssr-marker-matrix.ts"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged && pnpm check",
