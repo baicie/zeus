@@ -54,7 +54,13 @@ rc.3 的审计（`r22-release-group-audit.md`）发现 `eslint-plugin` 与
 所以 TASK 50「`latest` 不得指向预发布版」在**首次发布**这一种情况下，
 靠发布命令本身无法满足，必须在发布后修复。
 
-### 2.2 重复发布返回 `EPUBLISHCONFLICT`
+### 2.2 可重复性
+
+同一命令跑两次，`dist-tags` 结果完全一致（`drill-stable` 的 `latest` 停在
+`0.1.0`，另外两个被 RC 占据）。每次运行都在新的临时目录里起一个全新的
+Verdaccio，存储不复用——所以这个结果不依赖上一次运行的残留状态。
+
+### 2.3 重复发布返回 `EPUBLISHCONFLICT`
 
 三个包都返回：
 
@@ -80,6 +86,66 @@ EPUBLISHCONFLICT
 
 第 4 行要说清楚：演练证明的是**错误码**，不是恢复流程本身。恢复流程仍属
 `release.yml` 的职责，需要在有发布授权时验证。
+
+---
+
+## 3.5 恢复演练（TASK 46–49）
+
+`pnpm drill:recovery` 在另一个隔离 registry 上演练「发到一半失败，再重跑」。
+
+### 场景
+
+5 个包，第一次只发前 2 个就停（模拟 rc.3 发到第 8 个停），然后**整组重跑**。
+
+`recover-c` 预先有一个稳定版 `0.1.0`，用来验证稳定 `latest` 会不会被重跑破坏。
+
+### 结果
+
+```
+first attempt  published  recover-a
+first attempt  published  recover-b
+rerun          skipped    recover-a     ← skipExisting 生效
+rerun          skipped    recover-b
+rerun          published  recover-c
+rerun          published  recover-d
+rerun          published  recover-e
+```
+
+| 断言                                    | 结果                 |
+| --------------------------------------- | -------------------- |
+| 重跑恰好跳过第一次已发的 2 个           | **VERIFIED**         |
+| 重跑补齐了整组 5 个                     | **VERIFIED**         |
+| `recover-c` 的稳定 `latest: 0.1.0` 存活 | **VERIFIED**         |
+| 首发包被 RC 夺走 `latest`               | **VERIFIED**（4 个） |
+
+### 3.5.1 `skipExisting` 的真实机制
+
+读 `@baicie/release` 的源码（`dist/index.js`，`publishOnePackage`）：
+
+```js
+const skipExisting = options.skipExisting ?? publishConfig.skipExisting ?? true
+if (skipExisting && (await npmVersionExists(config, pkg, options))) {
+  console.log(colors.yellow(`skip existing ${pkg.name}@${pkg.version}`))
+  return
+}
+```
+
+**它靠查询 registry 判断版本是否存在，不是靠捕获 `EPUBLISHCONFLICT`。**
+这个区别重要：如果是靠捕获冲突，重跑时每个已发包仍要付一次上传；实际是跳过。
+
+这也意味着 §2.3 记录的 `EPUBLISHCONFLICT` 在正常重跑里**不会出现**——它只在
+绕过 `skipExisting` 时才会遇到。两处证据并不矛盾，是两个不同路径。
+
+### 3.5.2 对 rc.3 恢复的直接含义
+
+重跑 rc.3 时：
+
+- 已发的 7 个包会被 `npmVersionExists` 跳过（不需要人工 exclude）；
+- 从第 8 个继续；
+- **`eslint-plugin` 与 `playground-engine` 的 `latest` 污染不会被重跑修复**——
+  它们的首个版本已经发过了，重跑跳过后仍然指着 rc.3。
+
+最后一条是 rc.3 特有的：重跑解决"没发完"，不解决"发错了标签"。
 
 ---
 
