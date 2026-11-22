@@ -616,7 +616,8 @@ bench:compiler-native
 check:package-versions
 examples:check:all
 check:create-zeus
-check:create-zeus-packed
+check:create-zeus-candidate
+check:create-zeus-versions
 bench:component-host:ci
 docs:build
 size:ci
@@ -626,6 +627,17 @@ check:packed-consumers
 check:rc-readiness
 check:release-worktree --verify
 ```
+
+`check:create-zeus-packed` **不在**上面的预检清单里，也不在 CI 的 PR 门禁里。
+它把脚手架产物装到一个空目录，依赖全部从 `registry.npmjs.org` 拉；而模板把
+`@zeus-js/zeus` 钉在当前树声明的版本上，那个版本在发布之前并不存在，于是安装
+必然以 `ETARGET No matching version found` 失败——与任何一次 PR 的改动无关
+（实测：run 44998861481，第一次不再吞掉这个门禁的那次运行）。
+
+它的真实位置是**发布之后**：`release.yml` 与 `release-canary.yml` 都在
+`npm publish` 之后跑它，那时 registry 上才有模板所写的版本。发布前要覆盖脚手架
+这条路径，用的是 `check:create-zeus`（工作区版）与 `check:create-zeus-candidate`
+（隔离 tarball 注册表版，Windows/Linux 双平台矩阵）。
 
 `check:rc-readiness` 消费 `temp/release/rc-evidence.json`（可用
 `ZEUS_RC_EVIDENCE_FILE` 指定其他路径）。证据文件使用 `zeus.rc-evidence/v2`，
@@ -659,7 +671,8 @@ lint
 test-unit
 check:package-versions
 check:create-zeus
-check:create-zeus-packed
+check:create-zeus-candidate
+check:create-zeus-versions
 check:packed-consumers
 check:exports
 check:repository
