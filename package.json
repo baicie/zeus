@@ -19,6 +19,7 @@
     "check:exports": "tsx scripts/check/check-package-exports.ts",
     "check:vite-plugin-package": "tsx scripts/check/check-packed-files.ts packages/tooling/vite-plugin dist/vite-plugin.d.ts",
     "check:vite-dev-consumer": "tsx scripts/check/check-vite-dev-consumer.ts",
+    "check:vite-prod-consumer": "tsx scripts/check/check-vite-prod-consumer.ts",
     "check:release-artifacts": "tsx scripts/check/check-release-artifacts.ts",
     "check:ssr-safe-import": "tsx scripts/check/check-ssr-safe-import.ts",
     "lint": "eslint --cache .",
