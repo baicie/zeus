@@ -70,13 +70,19 @@ describe('rc-readiness has its inputs in the same job', () => {
       text.includes('check:rc-readiness'),
     )!
     /*
-     * Match the step's `run:` line, not any occurrence of the string: the
-     * explanatory comment above the SBOM step mentions `check:rc-readiness`
-     * and would otherwise be found first.
+     * Anchor on the two steps' own `run:` lines, not on any occurrence of the
+     * command names: the explanatory comments above both steps mention
+     * `check:rc-readiness` and would otherwise be found first.
+     *
+     * The readiness anchor used to be `run: pnpm check:create-zeus &&`, the
+     * shared step that carried the gates. That step no longer exists — the
+     * gates are their own steps and the published-registry variant is not in CI
+     * at all — so the anchor is the readiness step's own command.
      */
     const sbomStep = body.indexOf('run: pnpm check:sbom:write')
-    const readinessStep = body.indexOf('run: pnpm check:create-zeus &&')
+    const readinessStep = body.indexOf('run: pnpm check:rc-readiness')
     expect(sbomStep).toBeGreaterThanOrEqual(0)
+    expect(readinessStep).toBeGreaterThanOrEqual(0)
     expect(sbomStep).toBeLessThan(readinessStep)
   })
 })

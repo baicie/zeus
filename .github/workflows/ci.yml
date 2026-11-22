@@ -525,14 +525,28 @@ jobs:
         if: always()
         run: pnpm check:sbom:write
 
-      # Two create-zeus gates, and they fail the job.
+      # One gate here, and it fails the job.
       #
-      # They used to share one step — and one `continue-on-error: true` — with
-      # `check:rc-readiness`, so a failure in either gate was swallowed exactly
-      # like a readiness report that could not read an environment's protection
-      # rules. The step's own name named them.
-      - name: Create Zeus candidates
-        run: pnpm check:create-zeus && pnpm check:create-zeus-packed
+      # It used to share one step — and one `continue-on-error: true` — with
+      # `check:rc-readiness`, so a failure was swallowed exactly like a
+      # readiness report that could not read an environment's protection rules.
+      - name: Create Zeus scaffold from the workspace
+        run: pnpm check:create-zeus
+
+      # `check:create-zeus-packed` is deliberately **not** a PR gate, and the
+      # reason is measured rather than assumed: it installs the scaffolded
+      # project from `registry.npmjs.org`, and every template pins
+      # `@zeus-js/zeus` at whatever version the tree declares. Until that
+      # version is actually published, the install fails with
+      # `ETARGET No matching version found for @zeus-js/zeus@<version>` — every
+      # time, for every PR, for a reason no pull request can fix. The first run
+      # that stopped swallowing it failed on exactly that (run 44998861481).
+      #
+      # Its real home is `release.yml` and `release-canary.yml`, after the
+      # publish, where the registry holds the version the templates name. CI
+      # has the workspace variant above plus `create-zeus-candidates` below,
+      # which installs every template from candidate tarballs in both an
+      # isolated registry and the real one.
       # Informational, and it has to be: its `environments` probe needs an
       # Administration scope that `GITHUB_TOKEN` cannot carry — there is no
       # `administration` key in a workflow's `permissions` block, and adding one
