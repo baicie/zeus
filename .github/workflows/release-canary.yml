@@ -149,7 +149,7 @@ jobs:
         run: pnpm native:restore:artifacts
 
       - name: Install Playwright browsers for packed consumers
-        run: pnpm exec playwright install --with-deps chromium firefox webkit
+        run: pnpm exec playwright install --with-deps --no-shell chromium firefox webkit
 
       - name: Verify main publish head
         run: pnpm release:verify:main-head
@@ -255,7 +255,7 @@ jobs:
         run: pnpm native:restore:artifacts
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium firefox webkit
+        run: pnpm exec playwright install --with-deps --no-shell chromium firefox webkit
 
       - name: Verify main source head
         if: github.ref == 'refs/heads/main'
