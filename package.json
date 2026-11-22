@@ -181,6 +181,7 @@
     "check:ui-provenance": "tsx scripts/release/verify-ui-provenance.ts",
     "drill:rc-recovery": "tsx scripts/release/drill-rc-recovery.ts",
     "drill:isolated-registry": "tsx scripts/release/run-isolated-registry-drill.ts",
+    "drill:recovery": "tsx scripts/release/run-recovery-drill.ts",
     "check:event-delegation-browser": "tsx scripts/check/check-event-delegation-browser.ts",
     "check:nested-hydration-browser": "tsx scripts/check/check-nested-hydration-browser.ts"
   },
