@@ -82,10 +82,25 @@ export function mount(html) {
  */
 export function mountTrackingIdentity(html) {
   const container = document.getElementById('server')
-  // Placed once and read back by `hydrate`, which used to re-assign
-  // `innerHTML` from the same string — that rebuilds every node before
-  // hydration starts, so every id looked replaced. The reference map is taken
-  // after the single assignment.
+  // Release the previous tree's hydration owner before replacing its markup.
+  //
+  // `beginHydrationSession` refuses a container that already has a live owner,
+  // and that guard is right: two live sessions on one container would each
+  // think they own the markers. This function skipped the dispose, so the
+  // hydrate below threw, the container kept the *previous* tree's nodes, and
+  // every id then looked replaced. Every check after this one ran against a
+  // tree the caller believed it had replaced.
+  if (dispose) {
+    try {
+      dispose()
+    } catch {
+      /* an already-disposed tree is what we want anyway */
+    }
+    dispose = null
+  }
+  // Placed once and read back by the caller. Re-assigning `innerHTML` from the
+  // same string would rebuild every node before hydration starts, so every id
+  // would look replaced; the reference map is taken after this one assignment.
   container.innerHTML = html
   const before = new Map()
   for (const node of container.querySelectorAll('[id]')) {
