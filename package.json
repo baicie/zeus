@@ -179,7 +179,8 @@
     "admin:link-dialog": "tsx scripts/check/link-local-dialog.ts",
     "check:vendored-dialog": "tsx scripts/check/verify-vendored-dialog.ts",
     "check:ui-provenance": "tsx scripts/release/verify-ui-provenance.ts",
-    "drill:rc-recovery": "tsx scripts/release/drill-rc-recovery.ts"
+    "drill:rc-recovery": "tsx scripts/release/drill-rc-recovery.ts",
+    "check:event-delegation-browser": "tsx scripts/check/check-event-delegation-browser.ts"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged && pnpm check",

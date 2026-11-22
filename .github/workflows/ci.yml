@@ -758,6 +758,12 @@ jobs:
       - name: Nested control-flow scopes in Chromium, Firefox and WebKit
         run: pnpm check:nested-scopes-browser
 
+      # Delegated and directly-bound events, and the boundary between them:
+      # non-bubbling and hyphenated names are bound directly, everything else is
+      # delegated.
+      - name: Event delegation in Chromium, Firefox and WebKit
+        run: pnpm check:event-delegation-browser
+
       - name: Preserve runtime browser reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -771,6 +777,7 @@ jobs:
             temp/dom-minimal-work-browser
             temp/hmr-lifecycle-browser
             temp/nested-scopes-browser
+            temp/event-delegation-browser
 
   browser-playground:
     needs: impact
