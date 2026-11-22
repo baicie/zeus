@@ -187,6 +187,8 @@
     "drill:rc-recovery": "tsx scripts/release/drill-rc-recovery.ts",
     "drill:isolated-registry": "tsx scripts/release/run-isolated-registry-drill.ts",
     "drill:recovery": "tsx scripts/release/run-recovery-drill.ts",
+    "drill:release-group": "tsx scripts/release/run-release-group-drill.ts",
+    "drill:latest-policy": "tsx scripts/release/run-latest-policy-drill.ts",
     "check:event-delegation-browser": "tsx scripts/check/check-event-delegation-browser.ts",
     "check:nested-hydration-browser": "tsx scripts/check/check-nested-hydration-browser.ts"
   },
