@@ -749,8 +749,20 @@ jobs:
         run: pnpm check:dom-minimal-work-browser
 
       # Repeated hot updates and unmount, where effect leaks show up.
-      - name: HMR lifecycle in Chromium
+      - name: HMR lifecycle in Chromium, Firefox and WebKit
         run: pnpm check:hmr-lifecycle-browser
+
+      # Nested control flow: each Show branch and For item is a reactive scope,
+      # and toggling must dispose exactly the scopes it created. The DOM looks
+      # the same either way.
+      - name: Nested control-flow scopes in Chromium, Firefox and WebKit
+        run: pnpm check:nested-scopes-browser
+
+      # Delegated and directly-bound events, and the boundary between them:
+      # non-bubbling and hyphenated names are bound directly, everything else is
+      # delegated.
+      - name: Event delegation in Chromium, Firefox and WebKit
+        run: pnpm check:event-delegation-browser
 
       - name: Preserve runtime browser reports
         if: always()
@@ -764,6 +776,8 @@ jobs:
             temp/hydration-boundaries-browser
             temp/dom-minimal-work-browser
             temp/hmr-lifecycle-browser
+            temp/nested-scopes-browser
+            temp/event-delegation-browser
 
   browser-playground:
     needs: impact

@@ -83,6 +83,7 @@
     "check:hydration-reactivity-browser": "tsx scripts/check/check-hydration-reactivity-browser.ts",
     "check:dom-minimal-work-browser": "tsx scripts/check/check-dom-minimal-work-browser.ts",
     "check:hydration-boundaries-browser": "tsx scripts/check/check-hydration-boundaries-browser.ts",
+    "check:nested-scopes-browser": "tsx scripts/check/check-nested-scopes-browser.ts",
     "check:hmr-lifecycle-browser": "tsx scripts/check/check-hmr-lifecycle-browser.ts",
     "check:web-components-browser": "tsx scripts/check/check-web-components-browser.ts",
     "check:a11y-browser": "tsx scripts/check/check-a11y-browser.ts",
@@ -178,7 +179,8 @@
     "admin:link-dialog": "tsx scripts/check/link-local-dialog.ts",
     "check:vendored-dialog": "tsx scripts/check/verify-vendored-dialog.ts",
     "check:ui-provenance": "tsx scripts/release/verify-ui-provenance.ts",
-    "drill:rc-recovery": "tsx scripts/release/drill-rc-recovery.ts"
+    "drill:rc-recovery": "tsx scripts/release/drill-rc-recovery.ts",
+    "check:event-delegation-browser": "tsx scripts/check/check-event-delegation-browser.ts"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged && pnpm check",
