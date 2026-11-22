@@ -31,9 +31,12 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 // The built bundles reference these, which the bundler normally substitutes.
-import { pathToFileURL } from 'node:url'
+// Defined after the imports rather than between them: an import group cannot
+// have a statement inside it, and the first version put this comment and these
+// assignments in the middle of one.
 ;(globalThis as Record<string, unknown>).__DEV__ = false
 ;(globalThis as Record<string, unknown>).__TEST__ = true
 ;(globalThis as Record<string, unknown>).__VERSION__ = 'test'
