@@ -57,6 +57,7 @@ declare global {
     __consumerState: { mounts: number; roots: number }
     __consumerSetLabel: (value: string) => void
     __consumerDispose: () => void
+    __consumerSetOpen: (value: boolean) => void
     /** Named for this file: `__before` collides with check-dom-update-browser. */
     __consumerBefore: { label: Element | null; title: Element | null }
   }
@@ -262,6 +263,7 @@ export default defineConfig({ plugins: [createZeus()] })
   fs.writeFileSync(
     path.join(project, 'src/main.tsx'),
     `import { createSignal } from '@zeus-js/signal'
+import { Show } from '@zeus-js/zeus'
 import { render } from '@zeus-js/runtime-dom'
 
 // Counters live on the global so a hot update can read them; the page reports
@@ -270,13 +272,26 @@ const state = (globalThis.__consumerState ??= { mounts: 0, roots: 0 })
 state.mounts += 1
 
 const [label, setLabel] = createSignal('first')
+const [open, setOpen] = createSignal(true)
 ;(globalThis as { __consumerSetLabel?: (value: string) => void }).__consumerSetLabel = setLabel
+;(globalThis as { __consumerSetOpen?: (value: boolean) => void }).__consumerSetOpen = setOpen
+
+// A component inside a Show branch (R24 TASK 36). The branch is rebuilt rather
+// than adopted, and the nested component's binding has to keep working after
+// that — the shape the nested-hydration investigation is about, checked here
+// through an installed package rather than this repository's links.
+function Leaf(props: { text: string }) {
+  return <em id="leaf">{props.text}</em>
+}
 
 const dispose = render(
   () => (
     <section id="root">
       <h1 id="title">consumer</h1>
       <p id="label">{label()}</p>
+      <Show when={open()}>
+        <Leaf text="branch" />
+      </Show>
     </section>
   ),
   document.getElementById('app')!,
@@ -433,6 +448,54 @@ process.stdout.write(JSON.stringify(
       'a signal write replaced a node instead of updating it',
     )
     steps.push({ step: 'signal updates the DOM in place', status: 'passed' })
+
+    // 6b. The Show branch renders a component, and toggling it works through the
+    //     installed compiler and runtime (R24 TASK 36).
+    assert.equal(
+      await page.evaluate(
+        () => document.getElementById('leaf')?.textContent ?? null,
+      ),
+      'branch',
+      'the installed compiler did not render the Show branch component',
+    )
+    await page.evaluate(() =>
+      (globalThis as unknown as Window).__consumerSetOpen?.(false),
+    )
+    await page
+      .waitForFunction(
+        () => document.getElementById('leaf') === null,
+        undefined,
+        {
+          timeout: 10_000,
+        },
+      )
+      .catch(() => undefined)
+    assert.equal(
+      await page.evaluate(() => document.getElementById('leaf') !== null),
+      false,
+      'closing the Show branch must remove the component it rendered',
+    )
+    await page.evaluate(() =>
+      (globalThis as unknown as Window).__consumerSetOpen?.(true),
+    )
+    await page
+      .waitForFunction(
+        () => document.getElementById('leaf')?.textContent === 'branch',
+        undefined,
+        { timeout: 10_000 },
+      )
+      .catch(() => undefined)
+    assert.equal(
+      await page.evaluate(
+        () => document.getElementById('leaf')?.textContent ?? null,
+      ),
+      'branch',
+      'reopening the Show branch must render the component again',
+    )
+    steps.push({
+      step: 'the Show branch renders, closes and reopens',
+      status: 'passed',
+    })
 
     // 7. Repeated hot updates. The module's own `dispose` stops each previous
     //    root, so the mount count rises and nothing is left running.
