@@ -415,16 +415,20 @@ async function runForEngine(
      * below reports the mount count actually reached — a module that never
      * reloads looks different from one that reloads slowly.
      */
-    const update = async (source: string, expectedMounts: number) => {
+    const updateOn = async (
+      target: Page,
+      source: string,
+      expectedMounts: number,
+    ) => {
       await fs.writeFile(fixturePath, source)
       try {
-        await tab.waitForFunction(
+        await target.waitForFunction(
           mounts => (window.__hmr?.mounts ?? 0) >= mounts,
           expectedMounts,
           { timeout: 60_000 },
         )
       } catch (error) {
-        const reached = await tab.evaluate(() => window.__hmr?.mounts ?? -1)
+        const reached = await target.evaluate(() => window.__hmr?.mounts ?? -1)
         throw new Error(
           `the module did not reach mount ${expectedMounts} within 60 s ` +
             `(reached ${reached}). ` +
@@ -437,6 +441,9 @@ async function runForEngine(
         )
       }
     }
+
+    const update = (source: string, expectedMounts: number) =>
+      updateOn(tab, source, expectedMounts)
 
     tab.on('console', message => {
       if (process.env.ZEUS_HMR_DEBUG) {
@@ -589,23 +596,51 @@ async function runForEngine(
         // What the omission actually costs is visible at the *final* dispose: the
         // root stops, but nothing decremented `effects`, so the live-effect count
         // stays above zero after everything is disposed.
+        // Start from a page that has never seen an HMR update.
+        //
+        // Writing `INITIAL` and then navigating fires an HMR event of its own,
+        // and its rebuild runs on the server's watcher asynchronously. Any
+        // update issued while that rebuild is queued coalesces with it, so the
+        // mount counter advances by one where two were expected — measured as
+        // "reached mount 1" on chromium and webkit while firefox passed, and it
+        // survived one attempt at a reload-based fix because the reload itself
+        // is another navigation racing the same watcher.
+        //
+        // A fresh page has no module graph to be coalesced into: it loads
+        // whatever is on disk now, and the single update below is then the only
+        // HMR event in flight.
         await fs.writeFile(fixturePath, INITIAL)
-        await tab.goto(url)
-        await tab.waitForFunction(() => (window.__hmr?.mounts ?? 0) === 1)
-        await update(fixtureSource('skipped', 'note', { skipCleanup: true }), 2)
-        const beforeDispose = await counts(tab)
-        await tab.evaluate(() => window.__hmr?.dispose?.())
-        const after = await counts(tab)
-        // The teardown does not leave the effect running: `dispose()` stops the
-        // root, and a stopped effect cannot re-run. What the missing `onCleanup`
-        // costs is the *counter*, not the effect — so the honest assertion is that
-        // the module's own cleanup never ran, which is visible as `cleanups` not
-        // having moved.
-        if (after.cleanups !== beforeDispose.cleanups) {
-          throw new Error(
-            `this module registers no onCleanup, so its cleanup counter must not ` +
-              `move; got ${JSON.stringify({ beforeDispose, after })}`,
+        // Let the watcher finish with that write before the page exists, so its
+        // rebuild cannot arrive after the page and count as an update.
+        await new Promise(resolve => setTimeout(resolve, 500))
+        if (!context) throw new Error('the browser context is not open')
+        const page = await context.newPage()
+        page.on('pageerror', error => pageErrors.push(error.message))
+        try {
+          await page.goto(url)
+          await page.waitForFunction(
+            () => (window.__hmr?.mounts ?? 0) >= 1,
+            undefined,
+            {
+              timeout: 30_000,
+            },
           )
+          await updateOn(
+            page,
+            fixtureSource('skipped', 'note', { skipCleanup: true }),
+            2,
+          )
+          const beforeDispose = await counts(page)
+          await page.evaluate(() => window.__hmr?.dispose?.())
+          const after = await counts(page)
+          if (after.cleanups !== beforeDispose.cleanups) {
+            throw new Error(
+              `this module registers no onCleanup, so its cleanup counter must not ` +
+                `move; got ${JSON.stringify({ beforeDispose, after })}`,
+            )
+          }
+        } finally {
+          await page.close()
         }
       },
     )
