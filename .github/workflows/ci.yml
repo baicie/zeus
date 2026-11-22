@@ -546,7 +546,21 @@ jobs:
           # a code change. It is never a PAT here, and `gh` takes it from the
           # environment — the probe logs state names only.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: pnpm check:create-zeus && pnpm check:create-zeus-packed && pnpm check:rc-readiness
+        # Three commands used to share one `continue-on-error: true`, so a
+        # failure in `check:create-zeus` — a real gate, and one of the two
+        # things this step is named for — was swallowed exactly like a
+        # readiness report that could not read an environment's protection
+        # rules.
+        #
+        # Split: the two create-zeus gates fail the job, and only the readiness
+        # report is informational. It has to be, because its `environments`
+        # probe needs an Administration scope that `GITHUB_TOKEN` cannot carry
+        # (see the env block above); the check reports `not_run` for it, which
+        # is the honest answer and must not be read as a pass.
+        run: pnpm check:create-zeus && pnpm check:create-zeus-packed
+      - name: RC readiness report (informational)
+        if: always()
+        run: pnpm check:rc-readiness
         continue-on-error: true
       - name: Preserve RC readiness report
         if: always()
