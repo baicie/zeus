@@ -1,6 +1,7 @@
 import { defineReleaseConfig } from '@baicie/release'
 
 import { syncCreateZeusVersions } from './release/create-zeus-versions'
+import { packageKind } from './release/publish-order'
 import { syncNativeLoader } from './release/sync-native-loader'
 
 export const zeusFixedPackages = [
@@ -58,37 +59,8 @@ export default defineReleaseConfig({
   workspace: {
     roots: ['packages'],
     include: zeusFixedPackages,
-    /**
-     * Names the release *order* group, not the architecture domain.
-     *
-     * `@baicie/release` sorts packages by kind and publishes in that order.
-     * Before the six-domain move every package under `packages/core/` — the
-     * runtime, `router`/`query`/`resource`/`i18n`, `testing` and the whole
-     * compiler — sorted as `core`. Only the two packages under
-     * `packages/devtools/` had no kind, which is why `eslint-plugin` and
-     * `playground-engine` published first.
-     *
-     * Reading the physical directory now would invert that: `features` and
-     * `tooling` would become ungrouped and publish *before* `zeus` and
-     * `runtime-dom`, which is the opposite of the verified order. The mapping
-     * therefore follows what each package was grouped as, not where it sits.
-     */
-    packageKind(relativeDir) {
-      if (relativeDir.startsWith('packages/web-c/')) return 'web-c'
-      // The two packages that were `packages/devtools/*` published before the
-      // compiler and still have no kind. Neither is in the fixed release group
-      // except `playground-engine`, but the mapping covers both so the answer
-      // does not depend on which group a package happens to be in.
-      if (
-        relativeDir === 'packages/tooling/eslint-plugin' ||
-        relativeDir === 'packages/tooling/playground-engine'
-      ) {
-        return undefined
-      }
-      // Everything that was under `packages/core/`: runtime, compiler,
-      // features and `testing`.
-      return 'core'
-    },
+    /** The release *order* group. See `release/publish-order.ts`. */
+    packageKind: packageKind,
   },
 
   fixedPackages: zeusFixedPackages,
