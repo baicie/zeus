@@ -79,7 +79,19 @@ export async function runAcrossEngines(
   const outcomes: EngineOutcome[] = []
 
   for (const target of targets) {
-    let browser
+    /** Resources this engine acquired, released in one place below. */
+    let browser: import('@playwright/test').Browser | undefined
+    let context: import('@playwright/test').BrowserContext | undefined
+    let checks: EngineCheckResult[] = []
+    /**
+     * Whether this engine's trace is worth keeping.
+     *
+     * Set here rather than read back from `outcomes`: a blocked engine pushes
+     * an outcome of its own and `continue`s, so "the last outcome" is not
+     * reliably this engine's.
+     */
+    let keepTrace = false
+
     try {
       try {
         browser = await target.launcher.launch(target.options)
@@ -98,13 +110,11 @@ export async function runAcrossEngines(
       }
 
       const version = browser.version()
-      // A fresh page per engine; the budget applies to the checks, not to the
-      // launch (a launch that hangs is caught by the job timeout, and is a
-      // different failure).
       if (typeof version !== 'string' || version.length === 0) {
         throw new Error('the browser reported no version')
       }
-      const context = await browser.newContext()
+
+      context = await browser.newContext()
       await context.tracing.start({
         screenshots: true,
         snapshots: true,
@@ -116,7 +126,19 @@ export async function runAcrossEngines(
       // than the whole engine.
       page.setDefaultTimeout(Math.min(budget, 60_000))
       page.setDefaultNavigationTimeout(Math.min(budget, 60_000))
-      const checks = await Promise.race([
+
+      // The race does not cancel `options.run`. What makes that safe is the
+      // `finally` below: it closes the context, so the orphaned run's next
+      // Playwright call fails with "Target page, context or browser has been
+      // closed" instead of touching the next engine's page. Verified by a
+      // fixture whose checks resolve after the budget — it reports that
+      // failure rather than succeeding late.
+      //
+      // Cancelling properly would need `options.run` to accept a signal and
+      // every check to honour it, which is a larger change than the risk
+      // warrants: the engines run one at a time, so the orphan cannot overlap
+      // the next one.
+      checks = await Promise.race([
         options.run(page),
         new Promise<never>((_, reject) => {
           const timer = setTimeout(
@@ -124,32 +146,17 @@ export async function runAcrossEngines(
               reject(
                 new Error(
                   `the checks did not finish within ${Math.round(budget / 1000)}s ` +
-                    `on ${target.name}; the last check to start is the one that hung`,
+                    `on ${target.name}`,
                 ),
               ),
             budget,
           )
-          // `unref` so a completed run does not keep the process alive.
           timer.unref?.()
         }),
       ])
 
       const failed = checks.some(check => check.status === 'failed')
-      // The trace is always stopped: `context.close()` with tracing still
-      // running discards it, and on a passing run that is the point. Only a
-      // failed run writes the file — a trace of a green run is megabytes of
-      // nothing, and uploading it every time teaches people to ignore the
-      // artifact.
-      if (failed) {
-        await fs.mkdir(options.outputDir, { recursive: true })
-        await context.tracing.stop({
-          path: path.join(options.outputDir, `trace-${target.name}.zip`),
-        })
-      } else {
-        await context.tracing.stop()
-      }
-      await context.close()
-
+      keepTrace = failed
       outcomes.push({
         engine: target.name,
         version,
@@ -157,19 +164,101 @@ export async function runAcrossEngines(
         checks,
       })
     } catch (error) {
+      // A thrown check or a blown budget: the trace is exactly what is needed
+      // to see where it stopped.
+      keepTrace = true
       outcomes.push({
         engine: target.name,
         version: browser?.version() ?? null,
         status: 'failed',
-        checks: [],
+        checks,
         error: error instanceof Error ? error.message : String(error),
       })
     } finally {
-      await browser?.close()
+      // One place, always reached. The earlier version stopped tracing and
+      // closed the context on the success path only, so a check that threw —
+      // or an engine that hit its budget — left both behind: no trace to read
+      // and a browser that only the process exit reclaimed.
+      //
+      // Each step is guarded separately, and a failure to release is attached
+      // to the outcome instead of thrown: cleanup must not replace the error
+      // that explains why cleanup was needed.
+      const released = await releaseResources(target.name, browser, context, {
+        outputDir: options.outputDir,
+        keepTrace,
+      })
+      if (released !== null) {
+        const outcome = outcomes[outcomes.length - 1]
+        if (outcome && outcome.engine === target.name) {
+          outcomes[outcomes.length - 1] = {
+            ...outcome,
+            error: [outcome.error, `cleanup: ${released}`]
+              .filter(Boolean)
+              .join('; '),
+          }
+        }
+      }
     }
   }
 
   return outcomes
+}
+
+/**
+ * Releases one engine's browser and context, collecting any failures.
+ *
+ * Each step is independent: a context that refuses to stop tracing must not
+ * stop the browser from closing, and neither may throw, because this runs in a
+ * `finally` and would replace the error that made it necessary.
+ *
+ * Returns a description of what failed, or `null` when everything released.
+ */
+async function releaseResources(
+  engine: string,
+  browser: import('@playwright/test').Browser | undefined,
+  context: import('@playwright/test').BrowserContext | undefined,
+  options: { outputDir: string; keepTrace: boolean },
+): Promise<string | null> {
+  const problems: string[] = []
+
+  if (context) {
+    // Tracing is stopped before the context closes: closing with tracing still
+    // running discards the trace, and a trace is the only artefact that says
+    // what the page looked like when a check failed.
+    try {
+      if (options.keepTrace) {
+        await fs.mkdir(options.outputDir, { recursive: true })
+        await context.tracing.stop({
+          path: path.join(options.outputDir, `trace-${engine}.zip`),
+        })
+      } else {
+        await context.tracing.stop()
+      }
+    } catch (error) {
+      problems.push(
+        `tracing.stop: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
+    try {
+      await context.close()
+    } catch (error) {
+      problems.push(
+        `context.close: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
+  }
+
+  if (browser) {
+    try {
+      await browser.close()
+    } catch (error) {
+      problems.push(
+        `browser.close: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
+  }
+
+  return problems.length > 0 ? problems.join(', ') : null
 }
 
 /**
