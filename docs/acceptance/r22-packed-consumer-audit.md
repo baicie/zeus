@@ -89,7 +89,7 @@ transformModule(...)  →  编译成功，0 诊断
 
 **这是 TASK 31 结论的核心**：隔离安装路径本身是对的（tarball 自包含、安装不逃逸），但 `optionalDependencies` 因缺 4 个平台包而整体失效。
 
-详见 [`docs/release/r22-tarball-verification.md`](../release/r22-tarball-verification.md) §2。
+详见 `docs/release/r22-tarball-verification.md` §2（在 tarball 取证 PR 中）。
 
 ---
 
