@@ -54,7 +54,13 @@ rc.3 的审计（`r22-release-group-audit.md`）发现 `eslint-plugin` 与
 所以 TASK 50「`latest` 不得指向预发布版」在**首次发布**这一种情况下，
 靠发布命令本身无法满足，必须在发布后修复。
 
-### 2.2 重复发布返回 `EPUBLISHCONFLICT`
+### 2.2 可重复性
+
+同一命令跑两次，`dist-tags` 结果完全一致（`drill-stable` 的 `latest` 停在
+`0.1.0`，另外两个被 RC 占据）。每次运行都在新的临时目录里起一个全新的
+Verdaccio，存储不复用——所以这个结果不依赖上一次运行的残留状态。
+
+### 2.3 重复发布返回 `EPUBLISHCONFLICT`
 
 三个包都返回：
 
