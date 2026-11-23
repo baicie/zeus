@@ -547,6 +547,14 @@ jobs:
       - name: Node SSR to browser hydration
         run: pnpm check:node-ssr-consumer
 
+      # The same handover through a real build. A Show whose branch holds a
+      # nested component is R24's shape, and until this ran, every assertion
+      # about it came from the compiler's output loaded directly — where
+      # `autoHydrate` was passed by the check itself. Going through the plugin
+      # is what showed that no Vite consumer could turn hydration on at all.
+      - name: Vite build with a Show branch, hydrated
+        run: pnpm check:vite-show-branch-consumer
+
       # Install and framework reported separately: a dropped optional dependency
       # is an npm behaviour and a failed render after a complete install is a
       # framework defect, and one number would let either hide behind the other.

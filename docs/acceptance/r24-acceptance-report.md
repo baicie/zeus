@@ -197,6 +197,41 @@ Chromium/Firefox/WebKit 各自 7 项与 4 项断言全过，这是一条 **CI_VE
 
 ---
 
+### 6.3 Vite 消费者无法开启 Hydration（本轮新发现，已修）
+
+把 R24 的形状（Show + 嵌套组件 + Hydration）第一次放进**真实 Vite 构建**后，
+发现一个产品缺陷：
+
+编译器的 `auto_hydrate` 默认是 `false`（`options.auto_hydrate.unwrap_or(false)`），
+而 **Vite 插件从不传这个参数**。因此任何经 Vite 编译的组件都没有 root 标记、
+也没有 adoption 调用，`render(..., { hydrate: true })` 必然报：
+
+```
+ZEUS_HYDRATION_NO_ADOPTION: no compiled component adopted the server markup
+```
+
+而这段 markup 正是同一份源码为 SSR 产出的 —— 看起来像运行时缺陷，
+实际是构建开关缺失。
+
+**之前为什么没发现**：所有直接编译的检查自己传了 `autoHydrate: true`；
+走插件的检查（`check:vite-dev-consumer` / `check:vite-prod-consumer`）都只做
+纯客户端渲染，从不 hydration。两条路径都没覆盖这个组合。
+
+修复：`ZeusNativeCompilerOptions.autoHydrate`，同时作用于客户端与 SSR 变换
+（标记必须两边一致，暴露成 per-target 开关就等于允许设错），并进入编译器缓存键。
+
+新检查 `check:vite-show-branch-consumer` 端到端覆盖：从候选 tarball 安装 →
+构建 → 独立 Node 进程渲染同一源码 → 用构建产物 hydrate 该 HTML → 写 signal →
+关闭并重开 Show。**5/5 步，9 秒。**
+
+两个断言值得点名：
+
+- Show 分支内的 `leaf` **不要求**保持节点同一性 —— 动态区域内部按设计禁用
+  adoption。初版断言正是写反了，断言了被文档化掉的行为。分支要求的是
+  **内容**来自服务端；分支外的节点才要求同一性。
+- 反事实是重点：去掉 `autoHydrate: true`，检查以
+  `ZEUS_HYDRATION_NO_ADOPTION` 失败。缺陷被钉住了。
+
 ## 7. 发布状态（与产品验收分开）
 
 | 项                  | 状态                                 | 说明                                                          |
