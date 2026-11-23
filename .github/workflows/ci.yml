@@ -342,13 +342,6 @@ jobs:
       - name: Native and WASM compiler output agree
         run: pnpm check:compiler-parity
 
-      # The marker structure around Show, text and nested components, asserted
-      # from the compiled output alone. No browser: a marker regression should
-      # not need Playwright to be noticed, and this job already has the
-      # compiler built.
-      - name: SSR hydration marker matrix
-        run: pnpm check:ssr-marker-matrix
-
       - name: Compiler optimization budget
         run: pnpm bench:compiler-optimization
 
@@ -834,6 +827,14 @@ jobs:
       # rather than to the fixture.
       - name: Nested binding control in Chromium, Firefox and WebKit
         run: pnpm check:nested-binding-browser
+
+      # The marker structure around Show, text and nested components, asserted
+      # from the compiled output alone — no browser. The first version of this
+      # step went in `rust-compiler`, which builds the native binary but never
+      # the JS bundle the check requires; it lives here because this job runs
+      # `pnpm build`.
+      - name: SSR hydration marker matrix
+        run: pnpm check:ssr-marker-matrix
 
       # Fifty hydrate, write, close, reopen cycles. Counts effects created and
       # disposed, which is the axis a leak shows on and the DOM looks identical
