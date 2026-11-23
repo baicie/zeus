@@ -197,7 +197,8 @@
     "check:hydration-cycles-browser": "tsx scripts/check/check-hydration-cycles-browser.ts",
     "check:compiler-parity": "tsx scripts/check/check-compiler-parity.ts",
     "check:node-ssr-consumer": "tsx scripts/check/check-node-ssr-consumer.ts",
-    "check:node-compat-matrix": "tsx scripts/check/check-node-compat-matrix.ts"
+    "check:node-compat-matrix": "tsx scripts/check/check-node-compat-matrix.ts",
+    "check:vite-show-branch-consumer": "tsx scripts/check/check-vite-show-branch-consumer.ts"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged && pnpm check",
