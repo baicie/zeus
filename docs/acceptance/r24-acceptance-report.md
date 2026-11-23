@@ -8,14 +8,14 @@
 ## 1. 仓库与 PR 状态
 
 ```
-MAIN_SHA:          7fae28ae   （#396 → #393 → #397 已合并；详见 §1.2）
+MAIN_SHA:          cf6cf73f   （#396 → #393 → #397 → #394 全部合并）
 PR_393:            MERGED 9d483c0e
 PR_397:            MERGED 7fae28ae   （native 四态判定，原 fix/r24-native-status）
-PR_394:            OPEN   待合并（rebase 到 7fae28ae，见 §9）
-本报告基于分支:      fix/r24-nested-binding-origin
+PR_394:            MERGED cf6cf73f
+本报告基于分支:      main（合并后）
 ```
 
-#393、#397 已合并，#394 待合并。
+**#393、#397、#394 全部已合并。**
 
 ### 1.2 合并记录
 
@@ -24,6 +24,7 @@ PR_394:            OPEN   待合并（rebase 到 7fae28ae，见 §9）
 | #396 | `c5d6785e` | squash | 根治理目录并入 `meta/`（他人提交，本轮前置） |
 | #393 | `9d483c0e` | squash | 隔离 registry 32 包演练 + 交付判定           |
 | #397 | `7fae28ae` | squash | native 安装检查四态判定                      |
+| #394 | `cf6cf73f` | squash | R24.1 hydration 根因 + 三个缺陷修复          |
 
 **合并前核对**（GitHub 的 `CLEAN` 只表示无文本冲突）：
 
@@ -376,3 +377,20 @@ Hydration 侧根因已定位并修复，三引擎 CI 已验证；但那是产品
 2. `latest` 修复（需授权）
 3. provenance 查询
 4. TASK 17：合并 #393 后去掉 #394 栈里的那条提交（需先合并）
+
+### 1.3 合并后 main 的复验
+
+| 项                                | 结果                                       |
+| --------------------------------- | ------------------------------------------ |
+| 本地 `main` 同步                  | `cf6cf73f`，工作区干净                     |
+| `pnpm check:structure`            | passed（6 领域 38 包）                     |
+| `pnpm api:check`                  | passed（快照最新）                         |
+| `check:vite-show-branch-consumer` | **7/7 步通过**                             |
+| `check:nested-binding-browser`    | chromium PASSED（firefox/webkit 本地未装） |
+| Compiler Native Matrix（CI）      | **7/7 平台 success**                       |
+| PR #394 的 CI                     | **26 通过 / 4 跳过 / 0 失败**              |
+
+本地 `main` 上曾有 1 条与远端分叉的提交（`290a0cb3`，"exercise the Show
+branch through an installed consumer"）。核对后确认它改的
+`check-vite-dev-consumer.ts` 在远端 main 上**逐字节相同** —— 该提交经 #396
+以 squash 合入，本地那条是残留，内容零丢失，因此 `reset --hard origin/main`。
