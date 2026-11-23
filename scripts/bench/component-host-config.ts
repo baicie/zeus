@@ -3,8 +3,8 @@
 import path from 'node:path'
 
 export const componentHostBenchConfig = {
-  root: path.resolve('benchmarks/component-host'),
-  dist: path.resolve('benchmarks/component-host/dist'),
+  root: path.resolve('scripts/bench/fixtures/component-host'),
+  dist: path.resolve('scripts/bench/fixtures/component-host/dist'),
   reportDir: path.resolve('temp/bench/component-host'),
   trendJson: path.resolve('temp/bench/component-host/trend.json'),
   trendCsv: path.resolve('temp/bench/component-host/trend.csv'),

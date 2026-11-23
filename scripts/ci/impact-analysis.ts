@@ -143,9 +143,9 @@ export const PATH_RULES: readonly PathRule[] = [
       'any example is a packed consumer and part of the compiler parity corpus',
   },
   {
-    pattern: /^benchmarks\//,
+    pattern: /^scripts\/bench\/fixtures\//,
     areas: ['parity-corpus'],
-    reason: 'benchmarks are part of the compiler parity corpus',
+    reason: 'benchmark fixtures are part of the compiler parity corpus',
   },
   {
     pattern: /^scripts\/playground\/fixtures\//,
@@ -384,11 +384,11 @@ export const JOB_NEEDS: readonly JobNeed[] = [
   {
     name: 'rust-compiler',
     // `parity-corpus` is not optional: `parity.test.mjs` compiles every `.tsx`
-    // under `examples/`, `benchmarks/` and `scripts/playground/fixtures/` with
-    // both compilers and requires identical output. Changing one of those
-    // files can break parity without touching any Rust source, which is
-    // exactly what happened in #250: the PR ran with `rust-compiler` skipped
-    // and main went red on the first full run.
+    // under `examples/`, `scripts/bench/fixtures/` and
+    // `scripts/playground/fixtures/` with both compilers and requires
+    // identical output. Changing one of those files can break parity without
+    // touching any Rust source, which is exactly what happened in #250: the PR
+    // ran with `rust-compiler` skipped and main went red on the first full run.
     areas: ['compiler', 'native', 'parity-corpus', 'shared-infrastructure'],
   },
   {

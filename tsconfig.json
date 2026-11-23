@@ -77,8 +77,8 @@
     "packages/create/registry/__tests__",
     "create/*/src",
     "create/*/__tests__",
-    "benchmarks/*/src",
-    "benchmarks/*/vite.config.ts",
+    "scripts/bench/fixtures/*/src",
+    "scripts/bench/fixtures/*/vite.config.ts",
     "scripts/**/*.ts"
   ],
   "exclude": ["create/zeus-ui/src"]

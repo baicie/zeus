@@ -6,7 +6,7 @@ packages:
   - 'packages/tooling/*'
   - 'packages/create/*'
   - 'examples/*'
-  - 'benchmarks/*'
+  - 'scripts/bench/fixtures/*'
   - 'docs'
 
 catalog:

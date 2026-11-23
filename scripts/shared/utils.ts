@@ -79,7 +79,7 @@ export function findWorkspacePackages(): WorkspacePackage[] {
   scanRoot('packages/tooling')
   scanRoot('packages/web-c')
   scanRoot('packages/create')
-  scanRoot('benchmarks')
+  scanRoot('scripts/bench/fixtures')
   scanRoot('examples')
   scanRoot('docs')
 

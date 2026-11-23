@@ -1,5 +1,5 @@
 {
-  "extends": "../../tsconfig.json",
+  "extends": "../../../../tsconfig.json",
   "compilerOptions": {
     "composite": false,
     "types": ["vite/client"],
@@ -9,8 +9,8 @@
   "include": [
     "src",
     "vite.config.ts",
-    "../../packages/global.d.ts",
-    "../../packages/web-c/bundler-plugin/src/picomatch.d.ts",
-    "../../packages/compiler/compiler/src/utils/global.d.ts"
+    "../../../../packages/global.d.ts",
+    "../../../../packages/web-c/bundler-plugin/src/picomatch.d.ts",
+    "../../../../packages/compiler/compiler/src/utils/global.d.ts"
   ]
 }

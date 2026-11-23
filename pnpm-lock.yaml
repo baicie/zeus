@@ -179,37 +179,6 @@ importers:
         specifier: ^1.0.16
         version: 1.0.16
 
-  benchmarks/component-host:
-    dependencies:
-      '@zeus-js/runtime-dom':
-        specifier: workspace:*
-        version: link:../../packages/core/runtime-dom
-      '@zeus-js/zeus':
-        specifier: workspace:*
-        version: link:../../packages/core/zeus
-    devDependencies:
-      '@zeus-js/bundler-plugin':
-        specifier: workspace:*
-        version: link:../../packages/web-c/bundler-plugin
-      '@zeus-js/output-css':
-        specifier: workspace:*
-        version: link:../../packages/web-c/output-css
-      '@zeus-js/output-react-wrapper':
-        specifier: workspace:*
-        version: link:../../packages/web-c/output-react-wrapper
-      '@zeus-js/output-vue-wrapper':
-        specifier: workspace:*
-        version: link:../../packages/web-c/output-vue-wrapper
-      '@zeus-js/output-wc':
-        specifier: workspace:*
-        version: link:../../packages/web-c/output-wc
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vite:
-        specifier: 'catalog:'
-        version: 8.3.4(@types/node@26.0.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(sass@1.105.2)(tsx@4.22.4)(yaml@2.9.0)
-
   docs:
     devDependencies:
       vitepress:
@@ -1347,6 +1316,37 @@ importers:
       '@zeus-js/runtime-dom':
         specifier: workspace:*
         version: link:../../core/runtime-dom
+
+  scripts/bench/fixtures/component-host:
+    dependencies:
+      '@zeus-js/runtime-dom':
+        specifier: workspace:*
+        version: link:../../../../packages/core/runtime-dom
+      '@zeus-js/zeus':
+        specifier: workspace:*
+        version: link:../../../../packages/core/zeus
+    devDependencies:
+      '@zeus-js/bundler-plugin':
+        specifier: workspace:*
+        version: link:../../../../packages/web-c/bundler-plugin
+      '@zeus-js/output-css':
+        specifier: workspace:*
+        version: link:../../../../packages/web-c/output-css
+      '@zeus-js/output-react-wrapper':
+        specifier: workspace:*
+        version: link:../../../../packages/web-c/output-react-wrapper
+      '@zeus-js/output-vue-wrapper':
+        specifier: workspace:*
+        version: link:../../../../packages/web-c/output-vue-wrapper
+      '@zeus-js/output-wc':
+        specifier: workspace:*
+        version: link:../../../../packages/web-c/output-wc
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.3.4(@types/node@26.0.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(sass@1.105.2)(tsx@4.22.4)(yaml@2.9.0)
 
 packages:
 

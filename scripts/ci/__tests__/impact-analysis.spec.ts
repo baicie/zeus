@@ -228,7 +228,7 @@ describe('planJobs', () => {
     for (const file of [
       'examples/admin/src/pages.tsx',
       'examples/playground-editor/src/App.tsx',
-      'benchmarks/rendering/list.tsx',
+      'scripts/bench/fixtures/component-host/src/entries/wc-single.ts',
       'scripts/playground/fixtures/counter.tsx',
     ]) {
       expect(running(planFor([file])), file).toContain('rust-compiler')
