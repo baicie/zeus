@@ -10,8 +10,51 @@
 import { render } from '@zeus-js/runtime-dom'
 import { renderToString } from '@zeus-js/runtime-ssr'
 import { createRuntimeDiagnosticsSession } from '@zeus-js/signal/diagnostics'
-import { App } from '/modules/dom.js'
-import { App as SsrApp } from '/modules/ssr.js'
+import { App, signals } from '/modules/dom.js'
+import { App as SsrApp, signals as ssrSignals } from '/modules/ssr.js'
+
+/**
+ * The controllers the checks drive, taken from the modules that own them
+ * (R24.1 TASK 03).
+ *
+ * The fixture used to assign its signals to `window.__signals`, and it is
+ * compiled twice — once for the server, once for the client — so both copies
+ * ran that assignment and whichever loaded last won. With the client module
+ * imported first, the global pointed at the *server* copy: every write went to
+ * a signal no rendered tree subscribed to, and the DOM never changed. Swapping
+ * the two imports made the same test pass, which is what confirmed it.
+ *
+ * These are exported by value from each module instead. `controls` is the
+ * client module's set — the one the hydrated tree is bound to — and
+ * `ssrControls` exists so a test can prove the two really are separate objects
+ * rather than trusting that they are.
+ */
+export const controls = signals
+export const ssrControls = ssrSignals
+
+/**
+ * Asserts the control signal is the one the rendered tree subscribes to.
+ *
+ * A test-only diagnostic, not a runtime API. It exists because the failure it
+ * catches is silent: if `controls` pointed at the server module's copy, every
+ * write would go to a signal nothing renders, the DOM would not change, and the
+ * only symptom would be a timeout in whichever assertion happened to run first.
+ * The code name says what is wrong rather than where it surfaced.
+ */
+export function assertControlsBound() {
+  if (controls === ssrControls) {
+    throw new Error(
+      'CONTROL_SIGNAL_NOT_BOUND_TO_DOM: the harness controls point at the SSR ' +
+        "module's signals, so writes cannot reach the hydrated tree",
+    )
+  }
+  if (controls.label === ssrControls.label) {
+    throw new Error(
+      'CONTROL_SIGNAL_NOT_BOUND_TO_DOM: the two modules share a signal object, ' +
+        'which means one of them is not creating its own',
+    )
+  }
+}
 
 let session = createRuntimeDiagnosticsSession()
 let dispose = null
@@ -82,10 +125,25 @@ export function mount(html) {
  */
 export function mountTrackingIdentity(html) {
   const container = document.getElementById('server')
-  // Placed once and read back by `hydrate`, which used to re-assign
-  // `innerHTML` from the same string — that rebuilds every node before
-  // hydration starts, so every id looked replaced. The reference map is taken
-  // after the single assignment.
+  // Release the previous tree's hydration owner before replacing its markup.
+  //
+  // `beginHydrationSession` refuses a container that already has a live owner,
+  // and that guard is right: two live sessions on one container would each
+  // think they own the markers. This function skipped the dispose, so the
+  // hydrate below threw, the container kept the *previous* tree's nodes, and
+  // every id then looked replaced. Every check after this one ran against a
+  // tree the caller believed it had replaced.
+  if (dispose) {
+    try {
+      dispose()
+    } catch {
+      /* an already-disposed tree is what we want anyway */
+    }
+    dispose = null
+  }
+  // Placed once and read back by the caller. Re-assigning `innerHTML` from the
+  // same string would rebuild every node before hydration starts, so every id
+  // would look replaced; the reference map is taken after this one assignment.
   container.innerHTML = html
   const before = new Map()
   for (const node of container.querySelectorAll('[id]')) {

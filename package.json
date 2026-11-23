@@ -189,9 +189,15 @@
     "drill:recovery": "tsx scripts/release/run-recovery-drill.ts",
     "drill:release-group": "tsx scripts/release/run-release-group-drill.ts",
     "drill:latest-policy": "tsx scripts/release/run-latest-policy-drill.ts",
-    "drill:release-group": "tsx scripts/release/run-release-group-drill.ts",
     "check:event-delegation-browser": "tsx scripts/check/check-event-delegation-browser.ts",
-    "check:nested-hydration-browser": "tsx scripts/check/check-nested-hydration-browser.ts"
+    "check:nested-hydration-browser": "tsx scripts/check/check-nested-hydration-browser.ts",
+    "check:nested-binding-browser": "tsx scripts/check/check-nested-binding-browser.ts",
+    "check:ssr-marker-matrix": "tsx scripts/check/check-ssr-marker-matrix.ts",
+    "check:hydration-cycles-browser": "tsx scripts/check/check-hydration-cycles-browser.ts",
+    "check:compiler-parity": "tsx scripts/check/check-compiler-parity.ts",
+    "check:node-ssr-consumer": "tsx scripts/check/check-node-ssr-consumer.ts",
+    "check:node-compat-matrix": "tsx scripts/check/check-node-compat-matrix.ts",
+    "check:vite-show-branch-consumer": "tsx scripts/check/check-vite-show-branch-consumer.ts"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged && pnpm check",

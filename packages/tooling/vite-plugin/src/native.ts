@@ -20,6 +20,7 @@ export const { transformModule } = require('@zeus-js/compiler-native') as {
     delegateEvents: boolean
     sourceMap: boolean
     hmr?: boolean
+    autoHydrate?: boolean
   }) => {
     code: string
     map: SourceMapInput | null

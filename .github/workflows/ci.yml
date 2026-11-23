@@ -334,6 +334,14 @@ jobs:
       - name: WASM compiler parity with the native compiler
         run: pnpm test:compiler-wasm
 
+      # The native and WASM hosts run the same Rust compiler, so a difference in
+      # what they emit is a defect in one host's plumbing rather than in the
+      # language. `test:compiler-wasm` above checks a fixture set the compiler
+      # package owns; this one compares code byte for byte, and the plans and
+      # source maps as values, across the fixtures this round cares about.
+      - name: Native and WASM compiler output agree
+        run: pnpm check:compiler-parity
+
       - name: Compiler optimization budget
         run: pnpm bench:compiler-optimization
 
@@ -532,6 +540,34 @@ jobs:
       # readiness report that could not read an environment's protection rules.
       - name: Create Zeus scaffold from the workspace
         run: pnpm check:create-zeus
+
+      # A server process renders, a browser hydrates what it produced. This is
+      # the consumer question the packed-consumers gates do not ask: they check
+      # that a packed install can *call* `renderToString`, not that its output
+      # can be adopted.
+      #
+      # The candidate archives are prepared here rather than in
+      # `create-zeus-candidates` because that job has no browser engines, and
+      # the whole point is the handover between the two.
+      - name: Prepare candidate archives
+        run: pnpm check:create-zeus-candidate:prepare
+
+      - name: Node SSR to browser hydration
+        run: pnpm check:node-ssr-consumer
+
+      # The same handover through a real build. A Show whose branch holds a
+      # nested component is R24's shape, and until this ran, every assertion
+      # about it came from the compiler's output loaded directly — where
+      # `autoHydrate` was passed by the check itself. Going through the plugin
+      # is what showed that no Vite consumer could turn hydration on at all.
+      - name: Vite build with a Show branch, hydrated
+        run: pnpm check:vite-show-branch-consumer
+
+      # Install and framework reported separately: a dropped optional dependency
+      # is an npm behaviour and a failed render after a complete install is a
+      # framework defect, and one number would let either hide behind the other.
+      - name: Node and npm compatibility matrix
+        run: pnpm check:node-compat-matrix
 
       # `check:create-zeus-packed` is deliberately **not** a PR gate, and the
       # reason is measured rather than assumed: it installs the scaffolded
@@ -773,6 +809,38 @@ jobs:
       # the same either way.
       - name: Nested control-flow scopes in Chromium, Firefox and WebKit
         run: pnpm check:nested-scopes-browser
+
+      # A component inside a Show branch, hydrated. The branch is rebuilt rather
+      # than adopted on purpose, so the check is that the component's own
+      # binding survives that and that closing the branch disposes its scope.
+      #
+      # This one was red from R22 to R24 and was not in CI, which is how it
+      # stayed red: the fixture assigned its signals to `window.__signals`, and
+      # because the fixture is compiled twice — once per target — the module
+      # that loaded last won. With the client module first, the global pointed
+      # at the server copy and every write went to a tree nobody rendered.
+      - name: Nested hydration in Chromium, Firefox and WebKit
+        run: pnpm check:nested-hydration-browser
+
+      # The control for the check above: the same tree driven without the
+      # harness's module structure, so a failure can be attributed to the tree
+      # rather than to the fixture.
+      - name: Nested binding control in Chromium, Firefox and WebKit
+        run: pnpm check:nested-binding-browser
+
+      # The marker structure around Show, text and nested components, asserted
+      # from the compiled output alone — no browser. The first version of this
+      # step went in `rust-compiler`, which builds the native binary but never
+      # the JS bundle the check requires; it lives here because this job runs
+      # `pnpm build`.
+      - name: SSR hydration marker matrix
+        run: pnpm check:ssr-marker-matrix
+
+      # Fifty hydrate, write, close, reopen cycles. Counts effects created and
+      # disposed, which is the axis a leak shows on and the DOM looks identical
+      # either way.
+      - name: Hydration cycles in Chromium, Firefox and WebKit
+        run: pnpm check:hydration-cycles-browser
 
       # Delegated and directly-bound events, and the boundary between them:
       # non-bubbling and hyphenated names are bound directly, everything else is

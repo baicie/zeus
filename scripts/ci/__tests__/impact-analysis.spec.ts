@@ -67,6 +67,53 @@ describe('classifyChanges — named scenarios', () => {
     expect(result.areas).toContain('framework-adapters')
   })
 
+  /**
+   * The hydration file specifically (R24 TASK 42).
+   *
+   * `runtime-dom/src/insert.ts` was already covered, but the file that decides
+   * how a server tree is adopted is `autoHydration.ts`, and a change there can
+   * break hydration without touching anything the other rules match on. It
+   * reached the browser gates only by accident of sharing a directory.
+   *
+   * Named explicitly so a future rule that narrows the runtime area has to keep
+   * this one working.
+   */
+  it('a change to autoHydration reaches every browser gate', () => {
+    // `classification.areas` is what the workflow reads through `planJobs`, so
+    // the assertion goes through the same function rather than trusting the
+    // intermediate set.
+    const plan = planJobs({
+      classification: classifyChanges({
+        changedFiles: ['packages/core/runtime-dom/src/autoHydration.ts'],
+      }),
+    })
+    const running = plan.jobs.filter(job => job.run).map(job => job.name)
+    for (const job of [
+      'browser-runtime',
+      'browser-web-components',
+      'packed-consumers',
+      'test',
+    ]) {
+      expect(
+        running,
+        `a change to autoHydration.ts must trigger ${job}; it triggered ${running.join(', ')}`,
+      ).toContain(job)
+    }
+  })
+
+  it('the compiler emitter reaches the same gates', () => {
+    // Hydration markers are emitted by Rust; a change there has to reach the
+    // browser gates for the same reason.
+    const plan = planJobs({
+      classification: classifyChanges({
+        changedFiles: ['crates/zeus_compiler/src/codegen/dom/emit.rs'],
+      }),
+    })
+    expect(plan.jobs.filter(job => job.run).map(job => job.name)).toContain(
+      'browser-runtime',
+    )
+  })
+
   it('compiler-only reaches wasm and consumers', () => {
     const result = classifyChanges({
       changedFiles: ['packages/compiler/compiler/src/index.ts'],

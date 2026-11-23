@@ -36,6 +36,7 @@ export interface CompilerCacheInput {
   readonly delegateEvents: boolean
   readonly sourceMap: boolean
   readonly hmr: boolean
+  readonly autoHydrate: boolean
 }
 
 interface CacheEntry<T> {
@@ -191,6 +192,7 @@ export function createCompilerCacheKey(input: CompilerCacheInput): string {
       delegateEvents: input.delegateEvents,
       sourceMap: input.sourceMap,
       hmr: input.hmr,
+      autoHydrate: input.autoHydrate,
     }),
   )
 }

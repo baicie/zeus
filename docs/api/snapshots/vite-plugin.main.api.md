@@ -30,6 +30,23 @@ export interface ZeusNativeCompilerOptions {
   moduleName?: string
   delegateEvents?: boolean
   /**
+   * Emit the hydration root markers and the adoption call for each component.
+   *
+   * Off in the compiler itself (`auto_hydrate.unwrap_or(false)`) because a
+   * purely client-rendered app pays for markers it never reads. A Vite app that
+   * wants to hydrate server markup has to turn it on, and until this option
+   * existed there was no way to: the plugin never passed the flag, so *every*
+   * Vite consumer compiled without markers and `render(..., { hydrate: true })`
+   * failed with `ZEUS_HYDRATION_NO_ADOPTION` on markup the same source had just
+   * produced for SSR.
+   *
+   * Both environments must agree — the server emits the markers the client
+   * looks for — so this one option drives both the client and the SSR
+   * transform rather than exposing a per-target switch that could be set
+   * inconsistently.
+   */
+  autoHydrate?: boolean
+  /**
    * Cache native compiler results per plugin instance. Pass an observer to
    * collect hit/miss/invalidation events, or false to disable the cache.
    */

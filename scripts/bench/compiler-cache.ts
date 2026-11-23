@@ -19,6 +19,7 @@ const input = (filename: string, source: string) => ({
   delegateEvents: true,
   sourceMap: true,
   hmr: false,
+  autoHydrate: false,
 })
 
 const source = `export const App = props => <button>{props.label}</button>\n`
