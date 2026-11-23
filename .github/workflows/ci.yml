@@ -334,6 +334,21 @@ jobs:
       - name: WASM compiler parity with the native compiler
         run: pnpm test:compiler-wasm
 
+      # The native and WASM hosts run the same Rust compiler, so a difference in
+      # what they emit is a defect in one host's plumbing rather than in the
+      # language. `test:compiler-wasm` above checks a fixture set the compiler
+      # package owns; this one compares code byte for byte, and the plans and
+      # source maps as values, across the fixtures this round cares about.
+      - name: Native and WASM compiler output agree
+        run: pnpm check:compiler-parity
+
+      # The marker structure around Show, text and nested components, asserted
+      # from the compiled output alone. No browser: a marker regression should
+      # not need Playwright to be noticed, and this job already has the
+      # compiler built.
+      - name: SSR hydration marker matrix
+        run: pnpm check:ssr-marker-matrix
+
       - name: Compiler optimization budget
         run: pnpm bench:compiler-optimization
 
@@ -819,6 +834,12 @@ jobs:
       # rather than to the fixture.
       - name: Nested binding control in Chromium, Firefox and WebKit
         run: pnpm check:nested-binding-browser
+
+      # Fifty hydrate, write, close, reopen cycles. Counts effects created and
+      # disposed, which is the axis a leak shows on and the DOM looks identical
+      # either way.
+      - name: Hydration cycles in Chromium, Firefox and WebKit
+        run: pnpm check:hydration-cycles-browser
 
       # Delegated and directly-bound events, and the boundary between them:
       # non-bubbling and hyphenated names are bound directly, everything else is
