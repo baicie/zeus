@@ -55,7 +55,47 @@ Native binding package version mismatch, expected 0.2.0-rc.3 but got 0.2.0-rc.4
 **教训**：`compiler-native/index.js` 与 `compiler-native/index.d.ts` 是「被追踪的生成物」，
 版本切换时必须跟着变，不能当构建噪声还原。
 
-## 3. 为什么不能直接打 rc.4 的 tag
+## 3. 【已撤回】曾判断「smoke 门禁无法通过」
+
+**这一节的原始结论是错的，保留在此以便对照。**
+
+原始判断：`--local-package` 模式下 `npm install` 只有 3 个 tarball，
+`optionalDependencies` 里其余 6 个平台包解析不到，所以 smoke 在首发场景必然失败。
+
+**实际原因**：CI 那次失败（run `45139757043`，commit `7bbe6fe3`）的真实错误是
+
+```
+Native binding package version mismatch, expected 0.2.0-rc.3 but got 0.2.0-rc.4
+```
+
+即 `compiler-native/index.js` 的版本常量没跟着改——因为我第一次跑完
+`release:version-packages` 后，用 `git checkout` 把这个**被追踪的生成物**还原了。
+那是操作失误，不是门禁缺陷。
+
+用 `native:build:platform --target aarch64-apple-darwin` 产出本机 `.node` 后，
+**未改任何 smoke 代码**，`pnpm release:smoke:compiler --local-package ...` 直接通过：
+
+```
+[release] compiler smoke passed (Node v24.16.0, darwin-arm64, ESM+CJS, DOM+SSR)
+Compiler install smoke passed (local compiler-native-darwin-arm64).
+```
+
+**教训**：诊断时把「本地缺二进制」与「门禁逻辑缺陷」混为一谈。
+本地跑 smoke 前必须先 `native:build:platform`，否则平台包 tarball 里没有 `.node`，
+失败的表象与门禁缺陷一模一样。
+
+## 3.1 真正需要修的是 latest 标签策略（已修）
+
+`check:latest-tags` 在 precheck 阶段拒绝 `@zeus-js/eslint-plugin` 与
+`@zeus-js/playground-engine`，因为它们的 `latest` 被 rc.3 绑成了 `0.2.0-rc.3`，
+而 baseline 里没有记录这两个包。
+
+处理方式是**加入 `meta/release/historical-latest.json`**，与既有 13 个记录同等对待，
+而不是执行 `repair:latest-tags` 删除标签。理由：
+`docs/release-process.md` §5.4 记录了 2026-10-24 的决定——放弃清理历史 native `latest`
+（npm 返回 E403），不再作为 0.2.0 发布的前置条件。删除这两个包的标签会**悄悄反转那条决定**。
+
+## 3.2 【原文保留】为什么不能直接打 rc.4 的 tag
 
 `release.yml` 由 `push tags: v*` 触发，然后：
 
