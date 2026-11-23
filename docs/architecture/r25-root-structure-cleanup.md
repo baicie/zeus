@@ -247,14 +247,22 @@ after:  e9244033b893836cd70c672cd8748da02f8bff90
 | `pnpm -F @zeus-js/example-admin build`     | **PASS**（exit 0）                           | vendor 消费链完好                                                                       |
 | `pnpm bench:component-host:size`           | **PASS**，产物 digest 与迁移前相同           |                                                                                         |
 | `pnpm exec tsc --noEmit`（fixture 内）     | **PASS**                                     |                                                                                         |
-| `pnpm test-unit`（全量，`--maxWorkers=1`） | 见下                                         |                                                                                         |
+| `pnpm test-unit`（全量，`--maxWorkers=1`） | **PASS**，276/277 文件、3395 项通过          | 1 个文件 skip；0 失败                                                                   |
 | `pnpm check:golden-components`             | **BLOCKED_ENV**                              | 需要真实 npm registry + 三浏览器 + Sigstore；CI 中仅在 `workflow_dispatch` 运行         |
 | Admin 镜像构建（docker）                   | **NOT_RUN**                                  | 未在本轮执行；`vendor/` 未移动，Dockerfile 未改，风险面为 0                             |
 
-全量单测：3380 passed / 20 skipped。并行运行时有 9 个**超时**（非断言失败），
-涉及 `output-wc/public-declarations.spec.ts`（30s 上限）等重型测试；单独重跑
-该文件 4/4 通过（12.3s）。这是本机既有的负载超时，已记录在项目记忆中，
-与路径迁移无关。`--maxWorkers=1` 下再跑一次以避免此噪声。
+全量单测最终结果：
+
+```text
+Test Files  276 passed | 1 skipped (277)
+     Tests  3395 passed | 20 skipped (3415)
+  Duration  530.59s
+```
+
+并行（默认 worker 数）运行时曾出现 9 个**超时**（非断言失败），涉及
+`output-wc/public-declarations.spec.ts`（30s 上限）等重型测试；单独重跑该文件
+4/4 通过（12.3s），`--maxWorkers=1` 全量运行 0 失败。这是本机既有的负载超时，
+已记录在项目记忆中，与路径迁移无关。
 
 定向测试（迁移直接相关，全部通过）：
 
