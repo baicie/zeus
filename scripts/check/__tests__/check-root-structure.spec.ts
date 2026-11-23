@@ -14,11 +14,14 @@ import {
   checkCurrentPipelineEntry,
   checkForbiddenRootFiles,
   checkIgnoreExceptionOrder,
+  checkMetaMigration,
   checkPipelineDocIsMarkedHistorical,
   checkPinnedDirectories,
   checkRelocatedPaths,
   checkRootDirectories,
+  MIGRATED_TO_META,
   PINNED_ROOT_DIRECTORIES,
+  REQUIRED_META_PATHS,
   runAllChecks,
 } from '../check-root-structure.ts'
 
@@ -84,7 +87,7 @@ describe('a pinned directory may not silently disappear', () => {
     ).toEqual([])
   })
 
-  it.each(['release-pairing', 'release-policy', 'vendor', 'deploy'])(
+  it.each(['meta', 'vendor', 'deploy', 'crates'])(
     'names %s and says what depends on it',
     directory => {
       const findings = checkPinnedDirectories(
@@ -209,4 +212,103 @@ describe('the current pipeline entry point must exist', () => {
     expect(findings[0]!.rule).toBe('pipeline-entry-missing')
     expect(findings[0]!.detail).toContain('pipeline.md')
   })
+})
+
+/*
+ * The three governance directories moved into `meta/`. Both directions are
+ * checked, and both are checked positively against the real tree first — a
+ * migration test that only ever sees the injected failure would not notice
+ * the real tree having drifted.
+ */
+describe('governance data lives under meta/ and only there', () => {
+  const everything = (paths: readonly string[]) => (relative: string) =>
+    paths.includes(relative)
+
+  it('accepts the real tree', () => {
+    expect(checkMetaMigration(p => p.startsWith('meta/'))).toEqual([])
+  })
+
+  it.each(['release-pairing', 'release-policy', 'tests', 'benchmarks'])(
+    'reports %s coming back at the root',
+    directory => {
+      const findings = checkMetaMigration(
+        p => p === directory || p.startsWith('meta/'),
+      )
+      expect(
+        findings.filter(f => f.rule === 'migrated-path-returned'),
+      ).toHaveLength(1)
+      expect(findings[0]!.detail).toContain(MIGRATED_TO_META[directory]!.to)
+    },
+  )
+
+  /*
+   * A file-level old path is reported on its own. `release-policy/` held one
+   * file; a directory-level check alone would be satisfied by `release-policy/`
+   * existing and would not say which file came back.
+   */
+  it('reports a single migrated file returning under its old path', () => {
+    const findings = checkMetaMigration(
+      everything([
+        'release-policy/historical-latest.json',
+        ...REQUIRED_META_PATHS,
+      ]),
+    )
+    expect(findings).toHaveLength(1)
+    expect(findings[0]!.rule).toBe('migrated-path-returned')
+    expect(findings[0]!.detail).toContain(
+      'release-policy/historical-latest.json',
+    )
+    expect(findings[0]!.detail).toContain('meta/release/historical-latest.json')
+  })
+
+  /*
+   * The direction that costs more. The release reads
+   * `meta/release/pairing/v<version>.json` by path through the GitHub contents
+   * API at tag time, when the tag can no longer move. A tree that has the
+   * directory but lost the record must fail here, not at the tag.
+   */
+  it('reports a missing pairing record inside meta/', () => {
+    const present = REQUIRED_META_PATHS.filter(
+      p => p !== 'meta/release/pairing/v0.2.0-rc.3.json',
+    )
+    const findings = checkMetaMigration(everything(present))
+    expect(findings).toHaveLength(1)
+    expect(findings[0]!.rule).toBe('meta-path-missing')
+    expect(findings[0]!.detail).toContain(
+      'meta/release/pairing/v0.2.0-rc.3.json',
+    )
+  })
+
+  it('reports a missing golden-components contract', () => {
+    const present = REQUIRED_META_PATHS.filter(
+      p => p !== 'meta/contracts/golden-components.json',
+    )
+    const findings = checkMetaMigration(everything(present))
+    expect(findings).toHaveLength(1)
+    expect(findings[0]!.rule).toBe('meta-path-missing')
+    expect(findings[0]!.detail).toContain(
+      'meta/contracts/golden-components.json',
+    )
+  })
+
+  it('reports every missing path, not just the first', () => {
+    const findings = checkMetaMigration(() => false)
+    expect(findings).toHaveLength(REQUIRED_META_PATHS.length)
+    expect(new Set(findings.map(f => f.rule))).toEqual(
+      new Set(['meta-path-missing']),
+    )
+  })
+
+  /*
+   * The old root directories are no longer "allowed", so a contributor who
+   * re-creates one is told to put it under an existing directory rather than
+   * being silently accepted by the allow-list.
+   */
+  it.each(['release-pairing', 'release-policy', 'tests', 'benchmarks'])(
+    'no longer allows %s as a root directory',
+    directory => {
+      expect(ALLOWED_ROOT_DIRECTORIES).not.toContain(directory)
+      expect(checkRootDirectories([directory])).toHaveLength(1)
+    },
+  )
 })

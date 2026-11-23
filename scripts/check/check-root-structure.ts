@@ -11,6 +11,10 @@
  *
  * - `artifacts/` collected 64 screenshots at the root with no consumer.
  * - `docs/` mixed ten CI history reports with live specifications.
+ * - `release-pairing/`, `release-policy/` and `tests/` were three root
+ *   directories, each holding one kind of governance data, none of them
+ *   discovered by anyone who did not already know they were there. They are
+ *   now `meta/release/pairing`, `meta/release` and `meta/contracts`.
  * - `vendor/` once reached CI with a manifest and no code, because an
  *   ignore-file exception was ordered above the rule it was excepting.
  * - a document described a module layout that two refactors had invalidated.
@@ -40,19 +44,16 @@ export const ALLOWED_ROOT_DIRECTORIES = [
   '.pnpm-store',
   '.vscode',
   'artifacts',
-  'benchmarks',
   'crates',
   'deploy',
   'docs',
   'examples',
+  'meta',
   'node_modules',
   'packages',
-  'release-pairing',
-  'release-policy',
   'scripts',
   'target',
   'temp',
-  'tests',
   'vendor',
 ] as const
 
@@ -63,13 +64,9 @@ export const ALLOWED_ROOT_DIRECTORIES = [
  * move one knows what else must change in the same commit.
  */
 export const PINNED_ROOT_DIRECTORIES: Readonly<Record<string, string>> = {
-  'release-pairing':
-    'write-pair-attestation.ts reads it through the GitHub contents API by path',
-  'release-policy':
-    'historical-latest.ts exports its path as a constant a test asserts',
+  meta: 'write-pair-attestation.ts reads the pairing record through the GitHub contents API by path, and check-golden-components.ts resolves meta/contracts by path',
   vendor: '.gitignore and .dockerignore order exceptions around it',
   deploy: 'deployment-layout.ts enforces it as a path-safety prefix',
-  tests: 'check-golden-components.ts resolves tests/contracts by path',
   crates: 'Cargo.toml workspace members and both Dockerfiles',
 }
 
@@ -110,6 +107,64 @@ export const RELOCATED_DOCS: Readonly<Record<string, string>> = {
     'docs/ci/wasm-parity-gallery-conflict.md',
   'artifacts/design-acceptance': 'docs/acceptance/design',
 }
+
+/**
+ * Root paths that moved, and where each one went.
+ *
+ * Three governance directories moved into `meta/`, and the benchmark fixture
+ * moved beside the code that builds it. Two separate failures are checked
+ * against this table, and they pull in opposite directions:
+ *
+ * - the *old* path returning at the root. `release-pairing/`, `release-policy/`
+ *   and `tests/` were each a single-purpose directory at the top level, and a
+ *   stray one re-created by habit would be read by nothing while looking
+ *   authoritative. `benchmarks/` is here for the same reason: the fixture is a
+ *   pnpm workspace package that only `scripts/bench` builds, and having it at
+ *   the root implied a second benchmark area that does not exist. Git does not
+ *   track empty directories, so the check is for the path existing at all.
+ * - the *new* path going missing. `meta/release/pairing` holds the record a
+ *   release reads by path through the GitHub contents API; if it disappears,
+ *   the failure surfaces at tag time, after the tag cannot move.
+ *
+ * The nested paths matter as much as the directories: `release-policy` held
+ * exactly one file, and `tests/` held exactly one, so a directory-level check
+ * would accept `tests/` without the contract in it.
+ */
+export const MIGRATED_TO_META: Readonly<
+  Record<string, { readonly to: string; readonly kind: 'directory' | 'file' }>
+> = {
+  'release-pairing': { to: 'meta/release/pairing', kind: 'directory' },
+  'release-policy': { to: 'meta/release', kind: 'directory' },
+  'release-policy/historical-latest.json': {
+    to: 'meta/release/historical-latest.json',
+    kind: 'file',
+  },
+  tests: { to: 'meta/contracts', kind: 'directory' },
+  'tests/contracts/golden-components.json': {
+    to: 'meta/contracts/golden-components.json',
+    kind: 'file',
+  },
+  benchmarks: { to: 'scripts/bench/fixtures', kind: 'directory' },
+}
+
+/**
+ * The paths that must exist once `meta/` is the home of the governance data.
+ *
+ * Kept separate from `PINNED_ROOT_DIRECTORIES` because these are files and
+ * nested directories rather than root-level directories, and because the
+ * negative case is different: a root directory that vanishes is caught by
+ * `checkPinnedDirectories`, whereas a missing contract file inside `meta/`
+ * would otherwise pass every check in this file.
+ */
+export const REQUIRED_META_PATHS = [
+  'meta/release/pairing/README.md',
+  'meta/release/pairing/v0.2.0-rc.0.json',
+  'meta/release/pairing/v0.2.0-rc.1.json',
+  'meta/release/pairing/v0.2.0-rc.2.json',
+  'meta/release/pairing/v0.2.0-rc.3.json',
+  'meta/release/historical-latest.json',
+  'meta/contracts/golden-components.json',
+] as const
 
 /**
  * A retired compiler-structure claim may appear only on a line that says it is
@@ -190,6 +245,42 @@ export function checkRelocatedPaths(
     findings.push({
       rule: 'relocated-path-returned',
       detail: `"${oldPath}" came back; it moved to "${newPath}" and both must not exist`,
+    })
+  }
+  return findings
+}
+
+/**
+ * The `meta/` migration, in both directions.
+ *
+ * The old path returning is one failure; the new path disappearing is the
+ * other, and it is the one that costs more — the release reads
+ * `meta/release/pairing/v<version>.json` by path at tag time, and by then the
+ * tag cannot move. Both are reported here so a directory moved "back" by a
+ * future refactor cannot pass by making the old path exist and the new one
+ * vanish.
+ */
+export function checkMetaMigration(
+  exists: (relative: string) => boolean,
+): Finding[] {
+  const findings: Finding[] = []
+  for (const [oldPath, { to, kind }] of Object.entries(MIGRATED_TO_META)) {
+    if (!exists(oldPath)) continue
+    findings.push({
+      rule: 'migrated-path-returned',
+      detail:
+        `"${oldPath}" (${kind}) came back at the root; it moved to "${to}". ` +
+        `Nothing reads it there, and its presence makes the old layout look current.`,
+    })
+  }
+  for (const required of REQUIRED_META_PATHS) {
+    if (exists(required)) continue
+    findings.push({
+      rule: 'meta-path-missing',
+      detail:
+        `"${required}" is missing. It was moved into meta/ because a release ` +
+        `or a contract check reads it by path, so its absence is discovered at ` +
+        `tag time rather than here unless this check reports it.`,
     })
   }
   return findings
@@ -318,6 +409,7 @@ export function runAllChecks(): Finding[] {
     ...checkRelocatedPaths(relative =>
       fs.existsSync(path.join(root, relative)),
     ),
+    ...checkMetaMigration(relative => fs.existsSync(path.join(root, relative))),
     ...checkIgnoreExceptionOrder(readIfExists),
     ...checkPipelineDocIsMarkedHistorical(readIfExists),
     ...checkCurrentPipelineEntry(relative =>

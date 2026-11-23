@@ -358,7 +358,7 @@ describe('release.yml pins the approved UI commit', () => {
    * release time is reviewable by nobody.
    */
   it('takes the UI commit from the committed pairing record', () => {
-    expect(workflow).toMatch(/release-pairing\/v\$\{\{/)
+    expect(workflow).toMatch(/meta\/release\/pairing\/v\$\{\{/)
     expect(workflow).toMatch(
       /UI_COMMIT=\$\(node -p "String\(require\('\.\/\$FILE'\)\.uiCommit \?\? ''\)"\)/,
     )
