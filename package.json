@@ -135,6 +135,7 @@
     "release": "tsx scripts/release/release.ts",
     "release:publishOnly": "tsx scripts/release/release.ts --publishOnly",
     "release:precheck": "tsx scripts/release/release-precheck.ts",
+    "release:prereq": "tsx scripts/release/check-release-prereq.ts",
     "release:version-packages": "tsx scripts/release/version-packages.ts",
     "release:retry-tag": "tsx scripts/release/retry-release-tag.ts",
     "release:plan": "tsx scripts/release/release-plan.ts",
