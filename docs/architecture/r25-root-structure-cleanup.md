@@ -326,5 +326,12 @@ scripts/bench/component-host-size.spec.ts
 | `c006929e` | `refactor(bench)`：fixture 迁入 `scripts/bench/fixtures/`，修复 parity 语料静默收缩 |
 | `3631ac56` | `feat(check)`：根目录契约双向检测，补负向测试                                       |
 | `205a8f35` | `fix(release)`：`--out` 根推导随目录深度变化                                        |
+| `28cd31b8` | `docs(architecture)`：本迁移记录                                                    |
+| `43f76701` | `ci(impact)`：`meta/` 归类为 release 数据，不再退化为全量套件                       |
+| `7c2c2bce` | `docs(architecture)`：补全量单测结果                                                |
 
-PR：待创建（本分支不直接合并 main）。
+PR：[#396](https://github.com/baicie/zeus/pull/396)
+（分支 `refactor/repo-root-structure-cleanup`；#395 因分支名不合规关闭）。
+
+该分支的起点 `290a0cb3`（`test(check)`，Vite 消费者 Show 分支）早于本次迁移，
+不属于本轮改动，随分支一并进入 PR。
