@@ -23,8 +23,10 @@ import {
   validatePairAttestation,
 } from '../pair-attestation'
 import {
+  classifyGhFailure,
   readTaggedRecord,
   rootOfAttestationFile,
+  rootOfAttestationFileWith,
 } from '../write-pair-attestation'
 
 const VERSION = '0.2.0-rc.0'
@@ -550,5 +552,327 @@ describe('an explicit --out still resolves to the repository root', () => {
     expect(() =>
       rootOfAttestationFile('/repo/meta/release/pairing/v9.json'),
     ).toThrow(/is not inside/)
+  })
+})
+
+/*
+ * The failure classification, which the first implementation got wrong.
+ *
+ * It caught every exception and moved on to the next layout. `gh` exits 1 for
+ * a 404, a 403 from a token that lost its scope, a 429, a 500 and a timeout
+ * alike, so "it threw" carried no information — a permissions problem or a
+ * GitHub outage silently changed which record the release paired against.
+ *
+ * Each case below asserts both outcomes: the refusal, and that the second
+ * path was never requested. A test that only checked the throw would pass on
+ * an implementation that asked the old path first and threw afterwards.
+ */
+describe('a failed read is classified, not treated as absence', () => {
+  /** A `gh` that fails the new layout with `failure`, and serves the old one. */
+  function ghFailingNewLayout(failure: () => Error) {
+    const asked: string[] = []
+    const run = (args: readonly string[]): string => {
+      const url = args[1]!
+      asked.push(url)
+      if (url.includes('/contents/meta/release/pairing/')) throw failure()
+      return JSON.stringify({ bootstrap: true, uiCommit: null })
+    }
+    return { run, asked }
+  }
+
+  /** What `execFileSync` throws for a real `gh` failure. */
+  function ghError(
+    stdout: string,
+    stderr: string,
+  ): Error & {
+    status: number
+    stdout: string
+    stderr: string
+  } {
+    return Object.assign(new Error('Command failed: gh api'), {
+      status: 1,
+      stdout,
+      stderr,
+    })
+  }
+
+  const notFound = () =>
+    ghError(
+      '{"message":"Not Found","status":"404"}',
+      'gh: Not Found (HTTP 404)\n',
+    )
+
+  it('reads the older layout when the newer one answers 404', () => {
+    const { run, asked } = ghFailingNewLayout(notFound)
+    expect(readTaggedRecord(VERSION, 'baicie/zeus', run)).toEqual({
+      bootstrap: true,
+      uiCommit: null,
+    })
+    // The negative control for every other case in this block.
+    expect(asked).toHaveLength(2)
+  })
+
+  it.each([
+    [
+      '403',
+      () =>
+        ghError(
+          '{"message":"Forbidden","status":"403"}',
+          'gh: Forbidden (HTTP 403)\n',
+        ),
+    ],
+    [
+      '429',
+      () =>
+        ghError(
+          '{"message":"rate limit","status":"429"}',
+          'gh: API rate limit exceeded (HTTP 429)\n',
+        ),
+    ],
+    [
+      '500',
+      () =>
+        ghError(
+          '{"message":"Server Error","status":"500"}',
+          'gh: Server Error (HTTP 500)\n',
+        ),
+    ],
+    [
+      '401',
+      () =>
+        ghError(
+          '{"message":"Bad credentials","status":"401"}',
+          'gh: Bad credentials (HTTP 401)\n',
+        ),
+    ],
+  ])(
+    'refuses on HTTP %s without reading the older layout',
+    (_code, failure) => {
+      const { run, asked } = ghFailingNewLayout(failure)
+      expect(() => readTaggedRecord(VERSION, 'baicie/zeus', run)).toThrow(
+        /refusing to fall back/,
+      )
+      expect(asked).toHaveLength(1)
+    },
+  )
+
+  /*
+   * A timeout is reported by the child being killed, which may leave no
+   * output at all — so the signal, not the text, has to carry the verdict.
+   */
+  it('refuses on a timeout that produced no output', () => {
+    const { run, asked } = ghFailingNewLayout(() =>
+      Object.assign(new Error('spawnSync gh ETIMEDOUT'), {
+        status: null,
+        signal: 'SIGTERM',
+        killed: true,
+        stdout: '',
+        stderr: '',
+      }),
+    )
+    expect(() => readTaggedRecord(VERSION, 'baicie/zeus', run)).toThrow(
+      /\(timeout\)/,
+    )
+    expect(asked).toHaveLength(1)
+  })
+
+  it('refuses on a network failure', () => {
+    const { run, asked } = ghFailingNewLayout(() =>
+      ghError('', 'dial tcp: lookup api.github.com: no such host\n'),
+    )
+    expect(() => readTaggedRecord(VERSION, 'baicie/zeus', run)).toThrow(
+      /\(network\)/,
+    )
+    expect(asked).toHaveLength(1)
+  })
+
+  it('refuses on an unclassified failure rather than guessing', () => {
+    const { run, asked } = ghFailingNewLayout(() =>
+      ghError('', 'something nobody has seen before\n'),
+    )
+    expect(() => readTaggedRecord(VERSION, 'baicie/zeus', run)).toThrow(
+      /\(unknown\)/,
+    )
+    expect(asked).toHaveLength(1)
+  })
+
+  it('refuses when the newer record is served but corrupt', () => {
+    const asked: string[] = []
+    const run = (args: readonly string[]): string => {
+      const url = args[1]!
+      asked.push(url)
+      if (url.includes('/contents/meta/release/pairing/')) return '{not json'
+      return JSON.stringify({ bootstrap: true, uiCommit: null })
+    }
+    expect(() => readTaggedRecord(VERSION, 'baicie/zeus', run)).toThrow(
+      /not valid JSON/,
+    )
+    expect(asked).toHaveLength(1)
+  })
+})
+
+/*
+ * `--out` is a path a person types, and the check that decides whether it is
+ * inside the attested directory is the one that broke.
+ *
+ * The original compared strings: `resolved.endsWith(PAIR_ATTESTATION_DIRECTORY
+ * + '/' + name)`. `path.resolve` returns backslashes on Windows while the
+ * repository path is written with `/`, so every valid `--out` was rejected
+ * there and no test noticed, because the tests ran on POSIX.
+ *
+ * `path.win32` is available on every platform, so the Windows branch is
+ * exercised wherever the suite runs.
+ */
+describe('an explicit --out is read with the platform path rules', () => {
+  const posix = path.posix
+  const win = path.win32
+
+  it('finds the root of a POSIX path', () => {
+    expect(
+      rootOfAttestationFileWith(
+        posix,
+        '/repo/meta/release/pairing/attestations/v9.json',
+      ),
+    ).toBe('/repo')
+  })
+
+  it('finds the root of a Windows path, backslashes intact', () => {
+    expect(
+      rootOfAttestationFileWith(
+        win,
+        'C:\\repo\\meta\\release\\pairing\\attestations\\v9.json',
+      ),
+    ).toBe('C:\\repo')
+  })
+
+  it('accepts a Windows path written with forward slashes', () => {
+    expect(
+      rootOfAttestationFileWith(
+        win,
+        'C:/repo/meta/release/pairing/attestations/v9.json',
+      ),
+    ).toBe('C:\\repo')
+  })
+
+  /*
+   * A UNC path has no drive letter; the root is the share, and the answer
+   * must keep the `\\server\share\` form rather than synthesising one.
+   */
+  it('finds the root of a UNC path', () => {
+    expect(
+      rootOfAttestationFileWith(
+        win,
+        '\\\\server\\share\\meta\\release\\pairing\\attestations\\v9.json',
+      ),
+    ).toBe('\\\\server\\share\\')
+  })
+
+  it.each([
+    [
+      'the pre-migration directory',
+      '/repo/release-pairing/attestations/v9.json',
+    ],
+    ['one level short', '/repo/meta/release/pairing/v9.json'],
+    [
+      'a different directory with the same tail',
+      '/repo/x/attestations/v9.json',
+    ],
+    [
+      'an escaped directory',
+      '/repo/meta/release/pairing/attestations/../../contracts/v9.json',
+    ],
+  ])('refuses %s on POSIX', (_label, out) => {
+    expect(() => rootOfAttestationFileWith(posix, out)).toThrow(/is not inside/)
+  })
+
+  it.each([
+    [
+      'the pre-migration directory',
+      'C:\\repo\\release-pairing\\attestations\\v9.json',
+    ],
+    ['one level short', 'C:\\repo\\meta\\release\\pairing\\v9.json'],
+    [
+      'an escaped directory',
+      'C:\\repo\\meta\\release\\pairing\\attestations\\..\\..\\contracts\\v9.json',
+    ],
+  ])('refuses %s on Windows', (_label, out) => {
+    expect(() => rootOfAttestationFileWith(win, out)).toThrow(/is not inside/)
+  })
+
+  /*
+   * The trailing-segment check must not be satisfiable by a sibling whose
+   * name merely contains the attested path.
+   */
+  it('refuses a directory that only ends with the same words', () => {
+    expect(() =>
+      rootOfAttestationFileWith(
+        posix,
+        '/repo/not-meta/release/pairing/attestations/v9.json',
+      ),
+    ).toThrow(/is not inside/)
+  })
+
+  it('keeps the public entry point on the platform rules', () => {
+    const here = rootOfAttestationFile(
+      'meta/release/pairing/attestations/v9.json',
+    )
+    expect(path.isAbsolute(here)).toBe(true)
+    expect(path.join(here, 'meta/release/pairing/attestations/v9.json')).toBe(
+      path.resolve('meta/release/pairing/attestations/v9.json'),
+    )
+  })
+})
+
+describe('the failure classifier reads what gh actually prints', () => {
+  function ghError(stdout: string, stderr: string) {
+    return Object.assign(new Error('Command failed: gh api'), {
+      status: 1,
+      stdout,
+      stderr,
+    })
+  }
+
+  it.each([
+    ['404 body', '{"message":"Not Found","status":"404"}', '', 'not-found'],
+    ['404 stderr', '', 'gh: Not Found (HTTP 404)\n', 'not-found'],
+    ['403 body', '{"status":"403"}', '', 'forbidden'],
+    [
+      '429 stderr',
+      '',
+      'gh: API rate limit exceeded (HTTP 429)\n',
+      'rate-limited',
+    ],
+    ['500 body', '{"status":"500"}', '', 'server-error'],
+    ['503 stderr', '', 'gh: Service Unavailable (HTTP 503)\n', 'server-error'],
+    ['401', '', 'gh: Bad credentials (HTTP 401)\n', 'auth-failed'],
+    [
+      'auth prompt',
+      '',
+      'To get started with GitHub CLI, please run: gh auth login\n',
+      'auth-failed',
+    ],
+    ['dns', '', 'dial tcp: lookup api.github.com: no such host\n', 'network'],
+    [
+      'reset',
+      '',
+      'read tcp: connection reset by peer (ECONNRESET)\n',
+      'network',
+    ],
+    ['unrecognised', '', 'something nobody has seen before\n', 'unknown'],
+  ])('classifies %s', (_label, stdout, stderr, expected) => {
+    expect(classifyGhFailure(ghError(stdout, stderr))).toBe(expected)
+  })
+
+  it('classifies a killed child as a timeout even with no output', () => {
+    expect(
+      classifyGhFailure(
+        Object.assign(new Error('spawnSync gh ETIMEDOUT'), {
+          signal: 'SIGTERM',
+          killed: true,
+          stdout: '',
+          stderr: '',
+        }),
+      ),
+    ).toBe('timeout')
   })
 })
