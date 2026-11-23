@@ -4,7 +4,7 @@
  * ## When this runs
  *
  * After the UI candidate exists and the Core packages are on the registry.
- * It writes `release-pairing/attestations/v<version>.json` and prints the
+ * It writes `meta/release/pairing/attestations/v<version>.json` and prints the
  * commit it expects to be tagged.
  *
  * ## What it will not do
@@ -30,7 +30,7 @@
  *   --version 0.2.0-rc.0 \
  *   --ui-commit <sha> \
  *   [--verify-ui-remote] \
- *   [--out release-pairing/attestations/v0.2.0-rc.0.json]
+ *   [--out meta/release/pairing/attestations/v0.2.0-rc.0.json]
  * ```
  */
 import { execFileSync } from 'node:child_process'
@@ -41,6 +41,7 @@ import { parseArgs } from 'node:util'
 
 import {
   PAIR_ATTESTATION_SCHEMA,
+  TAGGED_RECORD_PATHS,
   attestationFile,
   findConflictingAttestations,
   readAttestationDirectory,
@@ -147,35 +148,68 @@ export function readReleaseTagCommit(
   }
 }
 
-/** Reads the bootstrap record inside the release tag's tree. */
+/** Runs `gh api <args>` and returns stdout, or throws. */
+export type GhRunner = (args: readonly string[]) => string
+
+/**
+ * Reads the bootstrap record inside the release tag's tree.
+ *
+ * `run` is injected so the two-path lookup and its failure cases can be
+ * tested without the network. The rule it must keep: only "the API answered
+ * 404 for this path" moves on to the next candidate path. A body that came
+ * back and did not parse is an error about *this* record, not evidence that
+ * the record is somewhere else — falling through on it would report an older
+ * path's contents as though they were the tagged tree's.
+ */
 export function readTaggedRecord(
   version: string,
   repository = 'baicie/zeus',
+  run?: GhRunner,
 ): { bootstrap: boolean; uiCommit: string | null } | undefined {
-  const gh = (args: string[]): string =>
-    execFileSync('gh', args, {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 30_000,
-    }) as string
-  try {
-    const raw = gh([
-      'api',
-      `repos/${repository}/contents/release-pairing/v${version}.json?ref=v${version}`,
-      '-H',
-      'Accept: application/vnd.github.raw',
-    ])
-    const parsed = JSON.parse(raw) as {
-      bootstrap?: unknown
-      uiCommit?: unknown
+  const gh: GhRunner =
+    run ??
+    ((args: readonly string[]) =>
+      execFileSync('gh', args as string[], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 30_000,
+      }) as string)
+
+  for (const directory of TAGGED_RECORD_PATHS) {
+    let raw: string
+    try {
+      raw = gh([
+        'api',
+        `repos/${repository}/contents/${directory}/v${version}.json?ref=v${version}`,
+        '-H',
+        'Accept: application/vnd.github.raw',
+      ])
+    } catch {
+      // Not at this path. Try the next one; if none has it, the caller
+      // reports "nothing to pair", which is a refusal, not a default.
+      continue
     }
+
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      throw new Error(
+        `${directory}/v${version}.json exists at v${version} but is not valid JSON; refusing to look for another record`,
+      )
+    }
+    if (typeof parsed !== 'object' || parsed === null) {
+      throw new Error(
+        `${directory}/v${version}.json at v${version} is not a JSON object; refusing to look for another record`,
+      )
+    }
+    const record = parsed as { bootstrap?: unknown; uiCommit?: unknown }
     return {
-      bootstrap: parsed.bootstrap === true,
-      uiCommit: typeof parsed.uiCommit === 'string' ? parsed.uiCommit : null,
+      bootstrap: record.bootstrap === true,
+      uiCommit: typeof record.uiCommit === 'string' ? record.uiCommit : null,
     }
-  } catch {
-    return undefined
   }
+  return undefined
 }
 
 function main(): void {
@@ -227,7 +261,7 @@ function main(): void {
   const tagged = readTaggedRecord(version, values.repository)
   if (tagged === undefined) {
     console.error(
-      `  the tree at v${version} has no release-pairing/v${version}.json; there is nothing to pair`,
+      `  the tree at v${version} has no ${TAGGED_RECORD_PATHS[0]}/v${version}.json; there is nothing to pair`,
     )
     process.exitCode = 1
     return

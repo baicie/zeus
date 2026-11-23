@@ -23,7 +23,7 @@ packages:
   - 'packages/web-c/*' # web-c, web-c-runtime, bundler-plugin, ...
   - 'packages/create/*' # zeus-ui, registry
   - 'examples/*'
-  - 'benchmarks/*'
+  - 'scripts/bench/fixtures/*'
   - 'docs'
 ```
 
@@ -539,7 +539,7 @@ smoke；stable 发布会正常推进并核验 `latest`，因此历史 tag 不能
 
 #### 5.4.1 已批准的历史偏差基线
 
-上面那个决定由 `release-policy/historical-latest.json` 承载。它记录 13 条精确的
+上面那个决定由 `meta/release/historical-latest.json` 承载。它记录 13 条精确的
 `包名@latest 版本`（8 个 native + `runtime-ssr` / `router` / `resource` / `query` /
 `testing`），并引用本节的决策作为依据。加载器会拒绝重复项、固定发布组之外的包、
 stable 版本，以及缺少 `approvedBy` 或 `decisionReference` 的文件；路径是常量，

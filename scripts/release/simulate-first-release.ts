@@ -23,7 +23,7 @@
  *   tsx scripts/release/simulate-first-release.ts \
  *     --registry http://127.0.0.1:4874 \
  *     --version 0.2.0-rc.0 \
- *     --pairing-record release-pairing/v0.2.0-rc.0.json \
+ *     --pairing-record meta/release/pairing/v0.2.0-rc.0.json \
  *     --out temp/release/simulation.json
  */
 import { execFileSync } from 'node:child_process'

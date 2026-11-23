@@ -203,7 +203,7 @@ describe('release workflows', () => {
 
     expect(workflow).not.toContain('vars.ZEUS_UI_REF')
     expect(workflow).not.toContain('vars.ZEUS_UI_COMMIT')
-    expect(workflow).toContain('release-pairing/v${{')
+    expect(workflow).toContain('meta/release/pairing/v${{')
     expect(workflow).toContain('check:ui-pairing')
     expect(workflow).toContain('--require-commit')
     expect(workflow).toContain('ui-pairing.json')

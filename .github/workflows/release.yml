@@ -98,7 +98,7 @@ jobs:
       - name: Read the paired UI commit
         id: pairing
         run: |
-          FILE="release-pairing/v${{ steps.release-version.outputs.version }}.json"
+          FILE="meta/release/pairing/v${{ steps.release-version.outputs.version }}.json"
           if [ ! -f "$FILE" ]; then
             echo "::error::no pairing record at $FILE; a release needs the UI commit it was verified against"
             exit 1
@@ -215,7 +215,7 @@ jobs:
           ${{ steps.pairing.outputs.bootstrap == 'true' && '--bootstrap' || '' }}
           --require-sbom
           --bundle-report temp/release/tarballs.json
-          --pairing-record "release-pairing/v${{ steps.release-version.outputs.version }}.json"
+          --pairing-record "meta/release/pairing/v${{ steps.release-version.outputs.version }}.json"
           --out temp/release/release-authorization.json
 
       - name: Preserve the authorisation record
@@ -309,7 +309,7 @@ jobs:
           pnpm check:latest-tags
           --phase post-publish
           --version "${{ steps.release-version.outputs.version }}"
-          --pairing-record "release-pairing/v${{ steps.release-version.outputs.version }}.json"
+          --pairing-record "meta/release/pairing/v${{ steps.release-version.outputs.version }}.json"
           --sha "$GITHUB_SHA"
           --run-id "$GITHUB_RUN_ID"
           --snapshot temp/release/latest-precheck-snapshot.json

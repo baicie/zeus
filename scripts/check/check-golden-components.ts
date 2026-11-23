@@ -28,7 +28,7 @@ const reportDirectory = path.resolve(
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'zeus-golden-consumer-'))
 const goldenContract = JSON.parse(
   fs.readFileSync(
-    path.resolve('tests/contracts/golden-components.json'),
+    path.resolve('meta/contracts/golden-components.json'),
     'utf8',
   ),
 ) as {
