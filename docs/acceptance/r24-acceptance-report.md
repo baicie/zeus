@@ -10,11 +10,12 @@
 ```
 MAIN_SHA:          99996f4f46a774ec2856f2302f17bdffacdfbd47
 PR_393:            OPEN   4a26cc49
-PR_394:            OPEN   2940c434
+PR_397:            OPEN   fd014b08   （native 四态判定，原 fix/r24-native-status）
+PR_394:            OPEN   a55f25ba   （HEAD 随本轮推进，见 §9）
 本报告基于分支:      fix/r24-nested-binding-origin
 ```
 
-PR #393 与 #394 **都未合并**。此前任何「已交付」的说法都不成立。
+PR #393、#394、#397 **都未合并**。此前任何「已交付」的说法都不成立。
 
 ### 1.1 PR #393 复核（TASK 16）
 
