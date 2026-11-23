@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/output-vue-wrapper",
   "type": "module",
-  "version": "0.2.0-rc.3",
+  "version": "0.2.0-rc.4",
   "description": "Zeus Vue wrapper output plugin",
   "license": "MIT",
   "repository": {
@@ -60,6 +60,11 @@
       "optional": true
     }
   },
+  "dependencies": {
+    "@zeus-js/bundler-plugin": "workspace:*",
+    "@zeus-js/component-analyzer": "workspace:*",
+    "@zeus-js/component-dts": "workspace:*"
+  },
   "devDependencies": {
     "@zeus-js/web-c-runtime": "workspace:*"
   },
@@ -88,10 +93,5 @@
   ],
   "main": "index.cjs",
   "module": "dist/output-vue-wrapper.esm-bundler.js",
-  "types": "dist/output-vue-wrapper.d.ts",
-  "dependencies": {
-    "@zeus-js/bundler-plugin": "workspace:*",
-    "@zeus-js/component-analyzer": "workspace:*",
-    "@zeus-js/component-dts": "workspace:*"
-  }
+  "types": "dist/output-vue-wrapper.d.ts"
 }

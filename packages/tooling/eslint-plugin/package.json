@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/eslint-plugin",
   "type": "module",
-  "version": "0.2.0-rc.3",
+  "version": "0.2.0-rc.4",
   "description": "ESLint rules for Zeus application and component sources",
   "license": "MIT",
   "repository": {
@@ -30,9 +30,6 @@
     "index.cjs",
     "dist"
   ],
-  "engines": {
-    "node": "^22.18.0 || >=24.11.0"
-  },
   "peerDependencies": {
     "eslint": "^10.0.0"
   },
@@ -43,6 +40,9 @@
       "esm-bundler",
       "cjs"
     ]
+  },
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
   },
   "keywords": [
     "zeus",
