@@ -8,14 +8,37 @@
 ## 1. 仓库与 PR 状态
 
 ```
-MAIN_SHA:          99996f4f46a774ec2856f2302f17bdffacdfbd47
-PR_393:            OPEN   4a26cc49
-PR_397:            OPEN   fd014b08   （native 四态判定，原 fix/r24-native-status）
-PR_394:            OPEN   a55f25ba   （HEAD 随本轮推进，见 §9）
+MAIN_SHA:          7fae28ae   （#396 → #393 → #397 已合并；详见 §1.2）
+PR_393:            MERGED 9d483c0e
+PR_397:            MERGED 7fae28ae   （native 四态判定，原 fix/r24-native-status）
+PR_394:            OPEN   待合并（rebase 到 7fae28ae，见 §9）
 本报告基于分支:      fix/r24-nested-binding-origin
 ```
 
-PR #393、#394、#397 **都未合并**。此前任何「已交付」的说法都不成立。
+#393、#397 已合并，#394 待合并。
+
+### 1.2 合并记录
+
+| PR   | 合并提交   | 方式   | 说明                                         |
+| ---- | ---------- | ------ | -------------------------------------------- |
+| #396 | `c5d6785e` | squash | 根治理目录并入 `meta/`（他人提交，本轮前置） |
+| #393 | `9d483c0e` | squash | 隔离 registry 32 包演练 + 交付判定           |
+| #397 | `7fae28ae` | squash | native 安装检查四态判定                      |
+
+**合并前核对**（GitHub 的 `CLEAN` 只表示无文本冲突）：
+
+- 三个 PR 都基于 `99996f4f`，而 main 已前进到 `c5d6785e`；逐个做了
+  `git merge-tree` 冲突测试，均为 NO CONFLICT。
+- #396 把 `release-pairing/`、`release-policy/`、`tests/` 移到 `meta/`。
+  文本合并看不出来，所以单独核查了三个分支里有没有指向旧路径的新增行 ——
+  均无。
+- #397 只改自身三个文件，不引用被移动的路径。
+
+**TASK 17（#394 去重）已执行**：rebase 到新 main 后，git 自动
+`skipped previously applied commit 4a26cc49`，#393 那条提交从栈里消失；
+已确认 `run-release-group-drill.ts` / `delivery-readiness.ts` 不再出现在
+#394 的新增文件列表里（它们经 main 存在）。`--force-with-lease` 推送，
+22 个文件、4537 行（rebase 前 25 文件，差的 3 个正是 #393 的）。
 
 ### 1.1 PR #393 复核（TASK 16）
 
