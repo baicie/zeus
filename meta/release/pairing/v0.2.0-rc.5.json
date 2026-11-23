@@ -1,0 +1,21 @@
+{
+  "schema": "zeus.release-pairing/v1",
+  "coreVersion": "0.2.0-rc.5",
+  "uiCommit": null,
+  "uiVersion": "0.2.0-rc.5",
+  "verifiedAt": "2026-11-23T00:00:00.000Z",
+  "bootstrap": true,
+  "firstPublish": [
+    "@zeus-js/i18n",
+    "@zeus-js/eslint-plugin",
+    "@zeus-js/playground-engine"
+  ],
+  "recovery": {
+    "failedVersion": "0.2.0-rc.4",
+    "failedTagCommit": "0a2273005cfb86b6e2234591dac9e3de471dc9c1",
+    "failedRunId": "45144165337",
+    "failedRunReachedPublish": false,
+    "note": "rc.4 never reached publish. Its tag was cut on a branch commit and pushed, so `release:verify:tag-source` refused with 'Release tag v0.2.0-rc.4 is not reachable from origin/main' before any package was built. The tag is now locked to that commit by the `release tag immutability` ruleset (id 27438539), so it cannot be moved and this version line has to advance instead. Nothing was published under 0.2.0-rc.4; the registry still shows the last published packages at 0.1.1-beta.20 plus the three rc.3 stragglers named in firstPublish."
+  },
+  "note": "rc.5 also carries the component-analyzer fix (2d7bc699) that rc.4 introduced but never published: mergeEvents dropped events declared only under `meta.events`, which silently removed props from the generated React/Vue wrapper types. zeus-ui's headless examples cannot typecheck against any published version until this lands."
+}

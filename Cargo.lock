@@ -842,7 +842,7 @@ checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
 
 [[package]]
 name = "zeus_compiler"
-version = "0.2.0-rc.3"
+version = "0.2.0-rc.5"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -860,7 +860,7 @@ dependencies = [
 
 [[package]]
 name = "zeus_compiler_node"
-version = "0.2.0-rc.3"
+version = "0.2.0-rc.5"
 dependencies = [
  "napi",
  "napi-build",
@@ -870,7 +870,7 @@ dependencies = [
 
 [[package]]
 name = "zeus_compiler_wasm"
-version = "0.2.0-rc.3"
+version = "0.2.0-rc.5"
 dependencies = [
  "serde",
  "serde_json",
