@@ -943,6 +943,7 @@ describe('createCompilerCache', () => {
     delegateEvents: true,
     sourceMap: true,
     hmr: false,
+    autoHydrate: false,
   })
 
   it('keeps only the latest entry for each module and target', () => {
@@ -969,6 +970,7 @@ describe('createCompilerCache', () => {
       { delegateEvents: false },
       { sourceMap: false },
       { hmr: true },
+      { autoHydrate: true },
       { source: 'b' },
       { filename: '/src/Other.tsx' },
     ]) {
