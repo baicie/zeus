@@ -212,6 +212,27 @@ Chromium/Firefox/WebKit 各自 7 项与 4 项断言全过，这是一条 **CI_VE
 
 ---
 
+### 6.4 第二个检查也曾靠导入顺序通过（本轮新发现，已修）
+
+`check:nested-binding-browser` 是 `check:nested-hydration-browser` 的对照组，
+它自己的 fixture 却重新写回了刚被修掉的那个模式：
+
+```js
+const signals = (window.__probeSignals = (() => { … })())
+```
+
+同样编译两份、同样各自执行赋值。页面里 SSR 模块先加载、客户端模块后加载，
+所以全局**恰好**指向客户端副本 —— 检查通过靠的是两行 import 的相对位置。
+
+**反事实**：只交换那两行 import，`PASSED` → `FAILED`，被测代码一字未改。
+
+已改为导出 + 显式导入 + `CONTROL_SIGNAL_NOT_BOUND_TO_DOM` 守卫。
+三种验证：默认顺序通过、反向顺序通过、把控件指向 SSR 副本则带该错误码失败。
+
+**这解释了为什么它是最后一个才发现的位置**：它是「对照组」，
+在别的检查失败时被用来证明「运行时没问题」。一个靠运气通过的对照，
+会把真实的缺陷判成「只在某一种驱动方式下出现」。
+
 ### 6.3 Vite 消费者无法开启 Hydration（本轮新发现，已修）
 
 把 R24 的形状（Show + 嵌套组件 + Hydration）第一次放进**真实 Vite 构建**后，
@@ -275,6 +296,7 @@ npm 兼容性：`npm 10.9.0` 丢弃整个 optional 组（`NOT_INSTALLED`），
 | Firefox / WebKit 本地运行   | NOT_RUN      | 本机无 Playwright 引擎；CI 已覆盖，见 §4                                               |
 | `test/r24-vite-show-branch` | **已关闭**   | 与 main 无差异，分支已删除；覆盖面由 `check:vite-show-branch-consumer` 取代（见 §6.3） |
 | TASK 17 #394 去重           | BLOCKED      | 需先合并 #393，属发布决策                                                              |
+| TASK 19 去重审计            | **完成**     | 见 [`r24-dedup-audit.md`](r24-dedup-audit.md)；删 1 处重复键、修 1 处 fixture          |
 | TASK 23 发布证据            | 只读部分完成 | provenance / pairing 未查                                                              |
 
 TASK 14 兼容矩阵与 TASK 15 消费者 Gate 在 R24.1 中已完成，见 §6.1。
