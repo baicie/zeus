@@ -8,9 +8,7 @@
     "section": "5.4 Native `latest` 异常修复",
     "decidedOn": "2026-10-24",
     "quote": "历史 native `latest` 的精确删除此前由 npm 返回 E403；用户于 2026-10-24 决定放弃这项清理，不再将它作为后续 `0.2.0` 等版本发布的前置条件，也不自动重试删除。",
-    "supporting": [
-      "docs/internal/architecture-roadmap-2026-10.md:394"
-    ]
+    "supporting": ["docs/internal/architecture-roadmap-2026-10.md:394"]
   },
   "registry": "https://registry.npmjs.org",
   "observedAt": "2026-11-18T00:00:00.000Z",
