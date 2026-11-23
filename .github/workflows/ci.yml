@@ -533,6 +533,26 @@ jobs:
       - name: Create Zeus scaffold from the workspace
         run: pnpm check:create-zeus
 
+      # A server process renders, a browser hydrates what it produced. This is
+      # the consumer question the packed-consumers gates do not ask: they check
+      # that a packed install can *call* `renderToString`, not that its output
+      # can be adopted.
+      #
+      # The candidate archives are prepared here rather than in
+      # `create-zeus-candidates` because that job has no browser engines, and
+      # the whole point is the handover between the two.
+      - name: Prepare candidate archives
+        run: pnpm check:create-zeus-candidate:prepare
+
+      - name: Node SSR to browser hydration
+        run: pnpm check:node-ssr-consumer
+
+      # Install and framework reported separately: a dropped optional dependency
+      # is an npm behaviour and a failed render after a complete install is a
+      # framework defect, and one number would let either hide behind the other.
+      - name: Node and npm compatibility matrix
+        run: pnpm check:node-compat-matrix
+
       # `check:create-zeus-packed` is deliberately **not** a PR gate, and the
       # reason is measured rather than assumed: it installs the scaffolded
       # project from `registry.npmjs.org`, and every template pins
