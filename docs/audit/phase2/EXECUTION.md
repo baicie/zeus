@@ -2,7 +2,10 @@
 
 - 日期：2026-11-23
 - 分支：`zeus-ui` @ `claude/phase2-headless-migration`（基于 `main` @ `ff2941e3`）
-- 状态：**完成**（7/7 通过）。根因已定位并修复，见 §3.1 与 §8
+- 状态：**完成并已合并**。根因已定位并修复，见 §3.1 与 §8
+- 合并：zeus-ui #153 → squash `629bd69e`（2026-11-23）
+- 合并时 CI：**34 项成功、5 项跳过、0 项失败**（VERIFIED，读 check-runs API）
+- 前置发布：zeus `0.2.0-rc.5`（2026-11-23）——见 §8.4 的更新
 
 ## 1. 做了什么
 
@@ -191,9 +194,61 @@ for (const [key, value] of Object.entries(explicit ?? {})) {
 
 提交：`zeus@2d7bc699`（修复 + 测试）、`zeus-ui@e15f497`（迁移）。
 
-### 8.4 遗留
+### 8.4 遗留（已关闭）
 
-- 修复尚未发布。zeus-ui 的 CI 用的是 `@zeus-js/component-analyzer@0.1.1-beta.20`，
-  不含此修复，因此 **zeus-ui 的 CI 要等一次发布后才能真正通过**。
-  本地验证是把修复版 `dist` 临时替换进 zeus-ui 的 node_modules 完成的。
+- ~~修复尚未发布。zeus-ui 的 CI 用的是 `@zeus-js/component-analyzer@0.1.1-beta.20`，
+  不含此修复，因此 zeus-ui 的 CI 要等一次发布后才能真正通过。~~
+  **已解决（VERIFIED）**：`0.2.0-rc.5` 于 2026-11-23 发布，32 个包全部上 npm
+  （含 `@zeus-js/component-analyzer@0.2.0-rc.5`）。zeus-ui 随后把整个工作区升到
+  rc.5（`fbf7a7e`），CI 34 项全绿。
 - 这正是 Phase 1 门禁 G1 的实践意义：上游发布是下游可复现的前提。
+  rc.5 的发布本身要跨过五个不同的失败点，见 §9。
+
+### 8.5 rc.5 发布后才暴露的三个缺陷
+
+迁移完成不等于门禁覆盖完整。合并 #153 的过程中暴露了三处「存在但从未验证」：
+
+| #   | 缺陷                                                            | 后果                                                        | 证据            |
+| --- | --------------------------------------------------------------- | ----------------------------------------------------------- | --------------- |
+| 1   | CI 从不构建 `examples/headless`                                 | 首个消费示例报 `TS2882`；本地因磁盘有旧 `dist` 看不见       | 已修，`38a888c` |
+| 2   | `examples/headless` 自身 `check` 从不执行                       | 8 个 `TS2344` 长期隐藏（`type` 被 eslint 改成 `interface`） | 已修，`7b8eb01` |
+| 3   | `examples/headless/__tests__` 的 21 个测试不被任何 project 收集 | 从未运行过一次                                              | 已修，`38a888c` |
+
+修法沿用上游 `zeus` 的 `buildFirst` 约定，并补了 21 个测试的 vitest 收集。
+
+## 9. 发布记录：0.2.0-rc.5 是 RC 线第一次成功
+
+`0.2.0-rc.0` 到 `rc.4` 五次发布全部失败，且**没有一次败在同一个环节**（VERIFIED，
+读 release workflow 的 job/step 结论）：
+
+| 版本 | 失败步骤                  | 真因                                                         |
+| ---- | ------------------------- | ------------------------------------------------------------ |
+| rc.0 | Release precheck          | `audit:prod` 扫出 picomatch ReDoS（high）                    |
+| rc.1 | Release precheck          | `check:latest-tags` 拒绝：13 个包 latest 被 canary 污染      |
+| rc.2 | Authorise the release     | 授权校验未通过                                               |
+| rc.3 | Build and publish         | Rekor tlog 409（npm sigstore 的 `fetchOnConflict` 恒 false） |
+| rc.4 | Verify release tag source | **tag 打在分支提交上**，不满足「可达 origin/main」           |
+
+rc.4 的失败是操作失误，代价永久：`release tag immutability` ruleset 把 tag 锁死，
+无法重指也无法删除，只能重切 rc.5。**教训：打 tag 前必须验证
+`git merge-base --is-ancestor <commit> origin/main`。**
+
+### 9.1 rc.5 的改动
+
+除版本号外修了两处会让发版反复失败的结构问题：
+
+| 缺陷                                        | 表现                                                                    | 修复                                              |
+| ------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------- |
+| `release:version-packages` 完全不改 Cargo   | rc.4 时 32 个 npm 包到 rc.4，`Cargo.toml`/`Cargo.lock` 停在 rc.3        | 改用 `version-rehearsal --apply` + `cargo update` |
+| `align-zeus-beta` 给 `vite-plugin` 编造版本 | `pnpm install` 报 `ERR_PNPM_NO_MATCHING_VERSION`，指向 npm 而非 aligner | 加独立版本白名单（zeus-ui `8c533f6`）             |
+| `check:zeus-beta-alignment` 硬编码期望版本  | 升级后 147 处**正确**的 pin 被判错                                      | 改为读工作区实际版本（zeus-ui `e1649f4`）         |
+
+### 9.2 结果（VERIFIED）
+
+| 项                                        | 结果                       |
+| ----------------------------------------- | -------------------------- |
+| npm 上 32 个包                            | 全部有 `0.2.0-rc.5`        |
+| `@zeus-js/i18n`                           | 首次发布，从 404 变为可用  |
+| `compiler-registry-smoke`（Node 22 / 24） | 真实安装并执行已发布编译器 |
+| GitHub Release                            | 已创建，标记 prerelease    |
+| 下游 zeus-ui                              | 升到 rc.5，CI 34 项全绿    |

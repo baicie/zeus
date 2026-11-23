@@ -5,19 +5,25 @@
 设计包 `docs/05-migration-roadmap.md:66-72` 建议「先低风险复杂 Demo，Admin 最后」。
 本文件把它落成可执行的顺序，并标出每步的前置门禁。
 
+> **2026-11-23 状态同步。** 下图是 Phase 1 定案时的路线图。截至今日：
+> Phase 1 完成、Phase 2a/2b **已执行并合并**（zeus-ui #153），2c 未做（DEFERRED）、
+> Phase 3–8 均未开始。执行详情见 `../phase2/EXECUTION.md`。
+
 ```
-Phase 1  ← 当前
+Phase 1  ← 已完成
   └─ 产出冻结清单，等待确认
 
 门禁 G0：用户确认本清单 + 回答 D-01..D-05
   │
-Phase 2  zeus-ui 组件职责归位
-  ├─ 2a. @zeus-ui/headless 迁入（+ 补 headless-demo 的依赖声明）
-  ├─ 2b. 5 个 headless 消费示例迁入
-  └─ 2c. （可选）admin gallery 合并进 apps/docs
-  门禁 G2：site:check + showcase:ci + docs:build 全绿
+Phase 2  zeus-ui 组件职责归位  ← 2a/2b 已完成（zeus-ui #153，629bd69e）
+  ├─ 2a. @zeus-ui/headless 迁入（+ 补 headless-demo 的依赖声明）  ✅
+  ├─ 2b. 5 个 headless 消费示例迁入                              ✅（实际 6 个消费者）
+  └─ 2c. （可选）admin gallery 合并进 apps/docs                  DEFERRED（未执行）
+  门禁 G2：site:check + showcase:ci + docs:build 全绿            ✅ 34 success / 5 skipped / 0 failure
 
 门禁 G1：P1（0.2.0 发布）+ P2（beta.35 发布）
+  ├─ P1：0.2.0-rc.5 已发布（2026-11-23）→ 预发布达成，稳定版未发
+  └─ P2：@zeus-web beta.35 未发布 → 未达成
   │
 Phase 3  zeus-ecosystem 骨架
   ├─ 3a. 空仓库 + 基础 CI（install/lint/typecheck）

@@ -1,36 +1,36 @@
-id,source_repository,source_path,destination_repository,destination_path,decision,move_type,phase,gate,depends_on,assets_moved,assets_left_behind,rollback,risk
-M01,zeus,examples/headless,zeus-ui,examples/headless,move,whole_directory,Phase2,G2,D-05,"源码 + __tests__ + 包名 @zeus-ui/headless","0 个 @zeus-js workspace 依赖改为 registry",git revert,R-V4
-M02,zeus,examples/headless-demo,zeus-ui,examples/headless-demo,move,whole_directory,Phase2,G2,M01,"源码","无（先补 @zeus-ui/headless 声明）",git revert,low
-M03,zeus,examples/registry-react,zeus-ui,examples/registry-react,move,whole_directory,Phase2,G2,M01,源码,none,git revert,low
-M04,zeus,examples/registry-vue,zeus-ui,examples/registry-vue,move,whole_directory,Phase2,G2,M01,源码,none,git revert,low
-M05,zeus,examples/use-headless-cli,zeus-ui,examples/use-headless-cli,move,whole_directory,Phase2,G2,M01,源码,none,git revert,low
-M06,zeus,examples/use-headless-react,zeus-ui,examples/use-headless-react,move,whole_directory,Phase2,G2,M01,源码,none,git revert,low
-M07,zeus,examples/use-headless-vue,zeus-ui,examples/use-headless-vue,move,whole_directory,Phase2,G2,M01,源码,none,git revert,low
-M08,zeus,examples/admin/src/gallery.tsx,zeus-ui,apps/docs（合并评估）,split,file_level,Phase2,G2,D-01,"gallery.tsx + 22 个 wc/auto 注册 + Icon 依赖","admin 的 shell/session/basename 上下文",git revert,R-08
-M09,zeus,examples/admin,zeus-ecosystem,apps/admin,split,component_split,Phase6,G6,"P1;P2;D-04","src/pages + router + shell + server + Dockerfile + deploy","gallery.tsx 已先行迁出",旧 digest 回切 + SQLite 备份,R-03
-M10,zeus,Dockerfile（examples/admin）,zeus-ecosystem,apps/admin/Dockerfile,move,whole_file,Phase6,G6,M09,构建上下文 vendor 段删除,none,旧镜像保留,R-09
-M11,zeus,examples/admin/deploy/*,zeus-ecosystem,apps/admin/deploy/,move,whole_directory,Phase6,G6,M09,demo-index/demo-404/compose,none,旧 compose 保留,low
-M12,zeus,scripts/check/check-admin.ts,多目标,见 04-test-assertion-map.csv,split,assertion_level,Phase6,G6,M09,"42 组拆为 ecosystem 25 / zeus-ui 12（drop_duplicate）/ zeus 6（new_host）","无（原文件删除前需三处验收）",按组回滚,high
-M13,zeus,.github/workflows/admin-image.yml,zeus-ecosystem,.github/workflows/admin-image.yml,move,whole_file,Phase6,G6,M09,"三段结构 + 体积门禁","zeus 保留旧工作流直到观察期结束",双轨,R-15
-M14,zeus-ui,examples/ai-workbench,zeus-ecosystem,apps/ai-workbench,move,whole_directory,Phase4-1,G4-1,P1;P2,"src + deploy + Dockerfile + __tests__","4 个 @zeus-web 改 registry；3 个 @zeus-js 升 0.2.0",双镜像同时回滚,R-V2
-M15,zeus-ui,examples/ai-host,zeus-ecosystem,apps/ai-host,move,whole_directory,Phase4-1,G4-1,M14,src + Dockerfile + __tests__,none,随 workbench,R-V2
-M16,zeus-ui,scripts/checks/ai/*,zeus-ecosystem,scripts/checks/ai/,move,whole_directory,Phase4-1,G4-1,M14,7 个 gate 脚本,none,git revert,low
-M17,zeus-ui,.github/workflows/ai-workbench.yml,zeus-ecosystem,.github/workflows/ai-workbench.yml,move,whole_file,Phase4-1,G4-1,M14,工作流 + 5 个 artifact 定义,zeus-ui ci.yml 删除编排,git revert,low
-M18,zeus-ui,.github/workflows/ai-workbench-image.yml,zeus-ecosystem,.github/workflows/ai-workbench-image.yml,move,whole_file,Phase4-1,G4-1,M14,两镜像三段结构,zeus-ui 保留旧工作流,双轨,R-15
-M19,zeus,.github/workflows/demos-pages.yml,zeus-ecosystem,.github/workflows/demos-pages.yml,move,whole_file,Phase4-2,G4-2,M14;M09,"站点装配 + demo-pairing","跨仓 SHA 解析逻辑（简化）",zeus-demos git revert,medium
-M20,zeus,.github/workflows/product-acceptance.yml,zeus-ecosystem,.github/workflows/product-acceptance.yml,move,whole_file,Phase4-2,G4-2,M14,"3 个 job + 4 镜像构建","3 处 zeus-ui checkout",git revert,low
-M21,zeus,.github/workflows/host-deployment-prepare.yml,zeus-ecosystem,.github/workflows/host-deployment-prepare.yml,move,whole_file,Phase5,G5,M19,"stage1 产物","zeus-ui checkout 移除",git revert,low
-M22,zeus,.github/workflows/host-deployment-stage2.yml,zeus-ecosystem,.github/workflows/host-deployment-stage2.yml,move,whole_file,Phase5,G5,M19,"事务部署 + 证据","none",git revert,low
-M23,zeus,scripts/release/deployment-acceptance.ts,zeus-ecosystem,scripts/release/deployment-acceptance.ts,split,file_level,Phase5,G5,M09,"验收逻辑","第 39 行 import admin server auth 需解耦",git revert,high
-M24,zeus,scripts/check/check-sbom.ts,zeus-ecosystem,scripts/check/check-sbom.ts,split,file_level,Phase5,G5,none,"schema 校验逻辑","zeus 保留框架 SBOM 生成",git revert,medium
-M25,zeus,examples/playground-editor,zeus,examples/playground-editor,keep,none,n/a,n/a,D-02,"不动","n/a",n/a,medium
-M26,zeus,.github/workflows/playground-image.yml,zeus,.github/workflows/playground-image.yml,keep,none,n/a,n/a,D-02,"补 revision label（Phase5d）",n/a,n/a,R-16
-M27,zeus,.github/workflows/playground-pages.yml,zeus,.github/workflows/playground-pages.yml,keep,none,n/a,n/a,D-02,"修 --ui-commit（Phase5d）",n/a,n/a,R-12
-M28,zeus,examples/stencil-wrapper,none,none,retire,delete,n/a,n/a,D-03,删除,n/a,git revert,low
-M29,zeus-ui,examples/vanilla,none,none,retire,delete,n/a,n/a,D-03,删除,n/a,git revert,low
-M30,zeus-ui,examples/vite-react,none,none,retire,delete,n/a,n/a,D-03,删除,n/a,git revert,low
-M31,zeus-ui,examples/vite-vue,none,none,retire,delete,n/a,n/a,D-03,删除,n/a,git revert,low
-M32,zeus-ui,examples/vite-vue2,none,none,retire,delete,n/a,n/a,D-03,删除（名实不符，无条件）,n/a,git revert,low
-M33,zeus,packages/create/create-zeus/templates/webc-consumer-ts,zeus（保留）,packages/create/create-zeus/templates/webc-consumer-ts,keep,none,n/a,n/a,D-04,"登记跨仓例外","n/a",n/a,medium
-M34,zeus,packages/create/registry,zeus（保留，改名评估）,packages/create/registry,keep,none,n/a,n/a,D-05,"可能改名 @zeus-js/registry","n/a",n/a,medium
-M35,zeus,examples/playground-editor/src/playground/__tests__,zeus,examples/playground-editor/src/playground/__tests__,keep,none,n/a,n/a,D-02,"接入 CI（当前未跑）","n/a",n/a,low
+id,source_repository,source_path,destination_repository,destination_path,decision,move_type,phase,gate,depends_on,assets_moved,assets_left_behind,rollback,risk,execution_status,evidence_grade
+M01,zeus,examples/headless,zeus-ui,examples/headless,move,whole_directory,Phase2,G2,D-05,"源码 + __tests__ + 包名 @zeus-ui/headless","0 个 @zeus-js workspace 依赖改为 registry",git revert,R-V4,merged_zeus_ui_153,VERIFIED
+M02,zeus,examples/headless-demo,zeus-ui,examples/headless-demo,move,whole_directory,Phase2,G2,M01,"源码","无（先补 @zeus-ui/headless 声明）",git revert,low,merged_zeus_ui_153,VERIFIED
+M03,zeus,examples/registry-react,zeus-ui,examples/registry-react,move,whole_directory,Phase2,G2,M01,源码,none,git revert,low,merged_zeus_ui_153,VERIFIED
+M04,zeus,examples/registry-vue,zeus-ui,examples/registry-vue,move,whole_directory,Phase2,G2,M01,源码,none,git revert,low,merged_zeus_ui_153,VERIFIED
+M05,zeus,examples/use-headless-cli,zeus-ui,examples/use-headless-cli,move,whole_directory,Phase2,G2,M01,源码,none,git revert,low,merged_zeus_ui_153,VERIFIED
+M06,zeus,examples/use-headless-react,zeus-ui,examples/use-headless-react,move,whole_directory,Phase2,G2,M01,源码,none,git revert,low,merged_zeus_ui_153,VERIFIED
+M07,zeus,examples/use-headless-vue,zeus-ui,examples/use-headless-vue,move,whole_directory,Phase2,G2,M01,源码,none,git revert,low,merged_zeus_ui_153,VERIFIED
+M08,zeus,examples/admin/src/gallery.tsx,zeus-ui,apps/docs（合并评估）,split,file_level,Phase2,G2,D-01,"gallery.tsx + 22 个 wc/auto 注册 + Icon 依赖","admin 的 shell/session/basename 上下文",git revert,R-08,planned,PLANNED
+M09,zeus,examples/admin,zeus-ecosystem,apps/admin,split,component_split,Phase6,G6,"P1;P2;D-04","src/pages + router + shell + server + Dockerfile + deploy","gallery.tsx 已先行迁出",旧 digest 回切 + SQLite 备份,R-03,planned,PLANNED
+M10,zeus,Dockerfile（examples/admin）,zeus-ecosystem,apps/admin/Dockerfile,move,whole_file,Phase6,G6,M09,构建上下文 vendor 段删除,none,旧镜像保留,R-09,planned,PLANNED
+M11,zeus,examples/admin/deploy/*,zeus-ecosystem,apps/admin/deploy/,move,whole_directory,Phase6,G6,M09,demo-index/demo-404/compose,none,旧 compose 保留,low,planned,PLANNED
+M12,zeus,scripts/check/check-admin.ts,多目标,见 04-test-assertion-map.csv,split,assertion_level,Phase6,G6,M09,"42 组拆为 ecosystem 25 / zeus-ui 12（drop_duplicate）/ zeus 6（new_host）","无（原文件删除前需三处验收）",按组回滚,high,planned,PLANNED
+M13,zeus,.github/workflows/admin-image.yml,zeus-ecosystem,.github/workflows/admin-image.yml,move,whole_file,Phase6,G6,M09,"三段结构 + 体积门禁","zeus 保留旧工作流直到观察期结束",双轨,R-15,planned,PLANNED
+M14,zeus-ui,examples/ai-workbench,zeus-ecosystem,apps/ai-workbench,move,whole_directory,Phase4-1,G4-1,P1;P2,"src + deploy + Dockerfile + __tests__","4 个 @zeus-web 改 registry；3 个 @zeus-js 升 0.2.0",双镜像同时回滚,R-V2,planned,PLANNED
+M15,zeus-ui,examples/ai-host,zeus-ecosystem,apps/ai-host,move,whole_directory,Phase4-1,G4-1,M14,src + Dockerfile + __tests__,none,随 workbench,R-V2,planned,PLANNED
+M16,zeus-ui,scripts/checks/ai/*,zeus-ecosystem,scripts/checks/ai/,move,whole_directory,Phase4-1,G4-1,M14,7 个 gate 脚本,none,git revert,low,planned,PLANNED
+M17,zeus-ui,.github/workflows/ai-workbench.yml,zeus-ecosystem,.github/workflows/ai-workbench.yml,move,whole_file,Phase4-1,G4-1,M14,工作流 + 5 个 artifact 定义,zeus-ui ci.yml 删除编排,git revert,low,planned,PLANNED
+M18,zeus-ui,.github/workflows/ai-workbench-image.yml,zeus-ecosystem,.github/workflows/ai-workbench-image.yml,move,whole_file,Phase4-1,G4-1,M14,两镜像三段结构,zeus-ui 保留旧工作流,双轨,R-15,planned,PLANNED
+M19,zeus,.github/workflows/demos-pages.yml,zeus-ecosystem,.github/workflows/demos-pages.yml,move,whole_file,Phase4-2,G4-2,M14;M09,"站点装配 + demo-pairing","跨仓 SHA 解析逻辑（简化）",zeus-demos git revert,medium,planned,PLANNED
+M20,zeus,.github/workflows/product-acceptance.yml,zeus-ecosystem,.github/workflows/product-acceptance.yml,move,whole_file,Phase4-2,G4-2,M14,"3 个 job + 4 镜像构建","3 处 zeus-ui checkout",git revert,low,planned,PLANNED
+M21,zeus,.github/workflows/host-deployment-prepare.yml,zeus-ecosystem,.github/workflows/host-deployment-prepare.yml,move,whole_file,Phase5,G5,M19,"stage1 产物","zeus-ui checkout 移除",git revert,low,planned,PLANNED
+M22,zeus,.github/workflows/host-deployment-stage2.yml,zeus-ecosystem,.github/workflows/host-deployment-stage2.yml,move,whole_file,Phase5,G5,M19,"事务部署 + 证据","none",git revert,low,planned,PLANNED
+M23,zeus,scripts/release/deployment-acceptance.ts,zeus-ecosystem,scripts/release/deployment-acceptance.ts,split,file_level,Phase5,G5,M09,"验收逻辑","第 39 行 import admin server auth 需解耦",git revert,high,planned,PLANNED
+M24,zeus,scripts/check/check-sbom.ts,zeus-ecosystem,scripts/check/check-sbom.ts,split,file_level,Phase5,G5,none,"schema 校验逻辑","zeus 保留框架 SBOM 生成",git revert,medium,planned,PLANNED
+M25,zeus,examples/playground-editor,zeus,examples/playground-editor,keep,none,n/a,n/a,D-02,"不动","n/a",n/a,medium,planned,PLANNED
+M26,zeus,.github/workflows/playground-image.yml,zeus,.github/workflows/playground-image.yml,keep,none,n/a,n/a,D-02,"补 revision label（Phase5d）",n/a,n/a,R-16,planned,PLANNED
+M27,zeus,.github/workflows/playground-pages.yml,zeus,.github/workflows/playground-pages.yml,keep,none,n/a,n/a,D-02,"修 --ui-commit（Phase5d）",n/a,n/a,R-12,planned,PLANNED
+M28,zeus,examples/stencil-wrapper,none,none,retire,delete,n/a,n/a,D-03,删除,n/a,git revert,low,planned,PLANNED
+M29,zeus-ui,examples/vanilla,none,none,retire,delete,n/a,n/a,D-03,删除,n/a,git revert,low,planned,PLANNED
+M30,zeus-ui,examples/vite-react,none,none,retire,delete,n/a,n/a,D-03,删除,n/a,git revert,low,planned,PLANNED
+M31,zeus-ui,examples/vite-vue,none,none,retire,delete,n/a,n/a,D-03,删除,n/a,git revert,low,planned,PLANNED
+M32,zeus-ui,examples/vite-vue2,none,none,retire,delete,n/a,n/a,D-03,删除（名实不符，无条件）,n/a,git revert,low,planned,PLANNED
+M33,zeus,packages/create/create-zeus/templates/webc-consumer-ts,zeus（保留）,packages/create/create-zeus/templates/webc-consumer-ts,keep,none,n/a,n/a,D-04,"登记跨仓例外","n/a",n/a,medium,planned,PLANNED
+M34,zeus,packages/create/registry,zeus（保留，改名评估）,packages/create/registry,keep,none,n/a,n/a,D-05,"可能改名 @zeus-js/registry","n/a",n/a,medium,planned,PLANNED
+M35,zeus,examples/playground-editor/src/playground/__tests__,zeus,examples/playground-editor/src/playground/__tests__,keep,none,n/a,n/a,D-02,"接入 CI（当前未跑）","n/a",n/a,low,planned,PLANNED
