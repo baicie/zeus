@@ -69,11 +69,20 @@ const output = path.join(root, 'temp/nested-binding-browser')
 const SOURCE = [
   "import { Show, createSignal } from '@zeus-js/zeus'",
   '',
-  'const signals = (window.__probeSignals = (() => {',
+  // Exported, not assigned to `window`.
+  //
+  // This source is compiled twice — once for SSR, once for the client — and
+  // both copies run in the page. Assigning to a global at module scope means
+  // the last module to load wins, so the harness reads one copy while the tree
+  // is bound to the other. This check passed for exactly that reason until the
+  // import order was swapped: `ssr.js` first, `dom.js` second, so the global
+  // happened to point at the client copy. That is a property of the import
+  // order, not of the code under test.
+  'export const signals = (() => {',
   "  const [label, setLabel] = createSignal('child label')",
   '  const [open, setOpen] = createSignal(true)',
   '  return { label, setLabel, open, setOpen }',
-  '})())',
+  '})()',
   '',
   'function Grandchild(props) {',
   '  return <em id="grandchild">{props.text}</em>',
@@ -139,8 +148,26 @@ const ENTRY = `
 import { render } from '@zeus-js/runtime-dom'
 import { renderToString } from '@zeus-js/runtime-ssr'
 import { createRuntimeDiagnosticsSession } from '@zeus-js/signal/diagnostics'
-import { App as SsrApp } from '/modules/ssr.js'
-import { App } from '/modules/dom.js'
+import { App as SsrApp, signals as ssrSignals } from '/modules/ssr.js'
+import { App, signals } from '/modules/dom.js'
+
+/*
+ * The controls must be the client module's signals, and this has to be
+ * asserted rather than assumed.
+ *
+ * Both compiled modules export a signals object and both are evaluated in
+ * this page, so a mistake that points the controls at the SSR copy produces a
+ * tree that renders correctly and never updates — a failure that looks like a
+ * broken binding. The check that carried this shape until now read its controls
+ * from a global the modules raced to assign, and passed only because the client
+ * module happened to load second.
+ */
+if (signals === ssrSignals) {
+  throw new Error(
+    "CONTROL_SIGNAL_NOT_BOUND_TO_DOM: the harness controls point at the SSR " +
+      'module signals, so writes cannot reach the hydrated tree',
+  )
+}
 
 window.__ssrHtml = () => renderToString(() => SsrApp())
 // Harness-shaped hydrate: same body as the fixture's, inlined here so the only
@@ -212,8 +239,8 @@ window.__hydrate = (disposeFirst) => {
   }
 }
 window.__write = (which, value) => {
-  if (which === 'label') window.__probeSignals.setLabel(value)
-  else window.__probeSignals.setOpen(value)
+  if (which === 'label') signals.setLabel(value)
+  else signals.setOpen(value)
 }
 window.__textNodeId = () => {
   const n = document.getElementById('child-label')?.firstChild
@@ -223,8 +250,8 @@ window.__textNodeId = () => {
 }
 window.__read = () => ({
   signals: {
-    label: String(window.__probeSignals.label()),
-    open: String(window.__probeSignals.open()),
+    label: String(signals.label()),
+    open: String(signals.open()),
   },
   dom: {
     label: document.getElementById('child-label')?.textContent ?? null,
