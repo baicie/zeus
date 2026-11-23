@@ -255,12 +255,12 @@ npm 兼容性：`npm 10.9.0` 丢弃整个 optional 组（`NOT_INSTALLED`），
 
 ## 8. 未完成与阻塞
 
-| 项                          | 状态         | 原因                                     |
-| --------------------------- | ------------ | ---------------------------------------- |
-| Firefox / WebKit 本地运行   | NOT_RUN      | 本机无 Playwright 引擎；CI 已覆盖，见 §4 |
-| `test/r24-vite-show-branch` | **BLOCKED**  | 分支切换时改动丢失，需重做               |
-| TASK 17 #394 去重           | BLOCKED      | 需先合并 #393，属发布决策                |
-| TASK 23 发布证据            | 只读部分完成 | provenance / pairing 未查                |
+| 项                          | 状态         | 原因                                                                                   |
+| --------------------------- | ------------ | -------------------------------------------------------------------------------------- |
+| Firefox / WebKit 本地运行   | NOT_RUN      | 本机无 Playwright 引擎；CI 已覆盖，见 §4                                               |
+| `test/r24-vite-show-branch` | **已关闭**   | 与 main 无差异，分支已删除；覆盖面由 `check:vite-show-branch-consumer` 取代（见 §6.3） |
+| TASK 17 #394 去重           | BLOCKED      | 需先合并 #393，属发布决策                                                              |
+| TASK 23 发布证据            | 只读部分完成 | provenance / pairing 未查                                                              |
 
 TASK 14 兼容矩阵与 TASK 15 消费者 Gate 在 R24.1 中已完成，见 §6.1。
 
