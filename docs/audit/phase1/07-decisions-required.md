@@ -124,7 +124,7 @@
 这是门禁 G1 的一半，阻断 Phase 4 全部内容。
 
 发布方式：`gh workflow run release.yml --ref main -f ...`（走 Release environment）。
-需要你确认发布窗口。
+**不需要人工审批**：`Release` environment 没有 required reviewer（`docs/internal/architecture-roadmap-2026-10.md:360,368`）。
 
 ### X-02 — 发布 `@zeus-web/*@0.1.0-beta.35`
 
@@ -135,19 +135,21 @@
 **注意**：Phase 0 发现 beta 频道与强制 `online` 配对存在矛盾（R-13），
 **发布前必须先澄清**，否则第一次 beta 发布会失败。
 
+**同时更正**：`Release` environment 没有 required reviewer，发布不需要人工批准。
+
 ---
 
 ## 汇总
 
-| ID   | 问题              | 建议                     | 阻断                    |
-| ---- | ----------------- | ------------------------ | ----------------------- |
-| D-01 | 批准 Phase 1 清单 | 批准（可分批）           | Phase 2                 |
-| D-02 | Playground 归属   | 留 zeus                  | Phase 5d、Phase 7       |
-| D-03 | 废弃 5 个空壳     | 全部废弃                 | Phase 7                 |
-| D-04 | create-zeus 模板  | 保留 + 登记例外          | Phase 7 验收条件        |
-| D-05 | @zeus-ui scope    | 迁入保名 + 改名 registry | Phase 2a                |
-| X-01 | 发布 0.2.0-rc.3   | 需你发起                 | Phase 4 全部            |
-| X-02 | 发布 beta.35      | 需你发起（先澄清 R-13）  | vendor 删除、admin 迁移 |
+| ID   | 问题                             | 建议                                   | 阻断                    |
+| ---- | -------------------------------- | -------------------------------------- | ----------------------- |
+| D-01 | 批准 Phase 1 清单                | 批准（可分批）                         | Phase 2                 |
+| D-02 | Playground 归属                  | 留 zeus                                | Phase 5d、Phase 7       |
+| D-03 | 废弃 5 个空壳                    | 全部废弃                               | Phase 7                 |
+| D-04 | create-zeus 模板                 | 保留 + 登记例外                        | Phase 7 验收条件        |
+| D-05 | @zeus-ui scope                   | 迁入保名 + 改名 registry               | Phase 2a                |
+| X-01 | 恢复 0.2.0-rc.3 发布（半途失败） | rc.3 tag 已存在；i18n 缺失、核心包未发 | Phase 4 全部            |
+| X-02 | 发布 beta.35                     | 先澄清 R-13；无审批门                  | vendor 删除、admin 迁移 |
 
 **最小启动路径**：D-01 + D-05 → 可开始 Phase 2a/2b。
 其余决策可并行推进，不阻塞 Phase 2。

@@ -155,24 +155,24 @@ IMAGE_TAG=<旧 sha> HOST_IMAGE_TAG=<旧 sha> docker compose -f docker-compose.de
 
 ## 4. 全局风险（与 Phase 0 的 R 系列对应）
 
-| 风险                                 | Phase 1 处理                                   | 残留                          |
-| ------------------------------------ | ---------------------------------------------- | ----------------------------- |
-| R-01（0.2.0 未发布）                 | 设为门禁 G1                                    | 需用户启动发布                |
-| R-02（beta.35 未发布）               | 设为门禁 G1                                    | 需用户启动发布                |
-| R-03（framework 断言失去宿主）       | 标记 6 组 needs_new_host（G14/17/18/19/36/41） | **需在 Phase 6 前设计新宿主** |
-| R-04（create-zeus 模板）             | D-04                                           | 需用户决策                    |
-| R-05（3 个生产部署）                 | 已拆为 3 条独立决策                            | 已处理                        |
-| R-06（demos-pages 跨仓）             | 整体迁 ecosystem                               | 已处理                        |
-| R-07（deployment-acceptance import） | Phase 5c 解耦                                  | 已排期                        |
-| R-08（examples 被检查脚本锁定）      | 决定不搬 showcase                              | 已处理                        |
-| R-09（vendor 删除）                  | 排在 Phase 6b，双轨期保留                      | 已排期                        |
-| R-10（@zeus-ui scope）               | D-05                                           | 需用户决策                    |
-| R-11（zeus-ui 包名被占）             | 不在迁移范围，登记为技术债                     | 残留                          |
-| R-12（playground ui-commit 错误）    | Phase 5d 修补                                  | 已排期                        |
-| R-13（beta/online 配对矛盾）         | Phase 1 后立即澄清                             | **建议优先**                  |
-| R-14（无 SBOM）                      | Phase 5a 新建                                  | 已排期                        |
-| R-15（体积只写 summary）             | Phase 5b                                       | 已排期                        |
-| R-16（无 revision label）            | Phase 5d                                       | 已排期                        |
+| 风险                                 | Phase 1 处理                                            | 残留                          |
+| ------------------------------------ | ------------------------------------------------------- | ----------------------------- |
+| R-01（0.2.0 未成功发布）             | 设为门禁 G1；rc.3 tag 已存在但发布半途失败（i18n 缺失） | 需恢复发布（无审批门）        |
+| R-02（beta.35 未发布）               | 设为门禁 G1                                             | 需用户启动发布                |
+| R-03（framework 断言失去宿主）       | 标记 6 组 needs_new_host（G14/17/18/19/36/41）          | **需在 Phase 6 前设计新宿主** |
+| R-04（create-zeus 模板）             | D-04                                                    | 需用户决策                    |
+| R-05（3 个生产部署）                 | 已拆为 3 条独立决策                                     | 已处理                        |
+| R-06（demos-pages 跨仓）             | 整体迁 ecosystem                                        | 已处理                        |
+| R-07（deployment-acceptance import） | Phase 5c 解耦                                           | 已排期                        |
+| R-08（examples 被检查脚本锁定）      | 决定不搬 showcase                                       | 已处理                        |
+| R-09（vendor 删除）                  | 排在 Phase 6b，双轨期保留                               | 已排期                        |
+| R-10（@zeus-ui scope）               | D-05                                                    | 需用户决策                    |
+| R-11（zeus-ui 包名被占）             | 不在迁移范围，登记为技术债                              | 残留                          |
+| R-12（playground ui-commit 错误）    | Phase 5d 修补                                           | 已排期                        |
+| R-13（beta/online 配对矛盾）         | Phase 1 后立即澄清                                      | **建议优先**                  |
+| R-14（无 SBOM）                      | Phase 5a 新建                                           | 已排期                        |
+| R-15（体积只写 summary）             | Phase 5b                                                | 已排期                        |
+| R-16（无 revision label）            | Phase 5d                                                | 已排期                        |
 
 ---
 
