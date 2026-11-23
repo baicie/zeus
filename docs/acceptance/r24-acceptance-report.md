@@ -305,15 +305,32 @@ TASK 14 兼容矩阵与 TASK 15 消费者 Gate 在 R24.1 中已完成，见 §6.
 
 ## 9. CI
 
-| Run         | SHA        | 结果                                                                                                                      |
-| ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------------- |
-| 45110152226 | `2940c434` | `browser-runtime` SUCCESS（两检查 3/3 引擎）；`ci-gate` FAIL，因 `packed-consumers` 被 `check:node-ssr-consumer` 挂死超时 |
-| 45108452461 | `2940c434` | 见 PR 页面                                                                                                                |
-| 45108452291 | `2940c434` | 见 PR 页面                                                                                                                |
+| Run             | SHA            | 结果                                                                                                                      |
+| --------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **45122096564** | **`9356ac93`** | **SUCCESS — 26 通过 / 4 跳过 / 0 失败，`ci-gate` success。本轮首次让完整 CI 在含全部修复的 HEAD 上跑通**                  |
+| 45110152226     | `2940c434`     | `browser-runtime` SUCCESS（两检查 3/3 引擎）；`ci-gate` FAIL，因 `packed-consumers` 被 `check:node-ssr-consumer` 挂死超时 |
+| 45108452461     | `2940c434`     | 见 PR 页面                                                                                                                |
+| 45108452291     | `2940c434`     | 见 PR 页面                                                                                                                |
 
 `45110152226` 的失败**不是** Hydration 修复的失败：`browser-runtime` 里
-两个检查三引擎全过。失败的是我新加步骤的生命周期缺陷，已在 §6.2 修复，
-需在下一个 HEAD 上复验。
+两个检查三引擎全过。失败的是我新加步骤的生命周期缺陷，已在 §6.2 修复。
+
+**`9356ac93` 的绿色是本轮结论。** 该 HEAD 上实际跑过的、本轮新增的步骤：
+
+| job                | 步骤                                    | 结果    |
+| ------------------ | --------------------------------------- | ------- |
+| `packed-consumers` | Node SSR to browser hydration           | success |
+| `packed-consumers` | Vite build with a Show branch, hydrated | success |
+| `packed-consumers` | Node and npm compatibility matrix       | success |
+| `browser-runtime`  | Nested hydration（三引擎）              | success |
+| `browser-runtime`  | Nested binding control（三引擎）        | success |
+| `browser-runtime`  | SSR hydration marker matrix             | success |
+| `browser-runtime`  | Hydration cycles（三引擎）              | success |
+| `rust-compiler`    | Native and WASM compiler output agree   | success |
+
+中途 `27874af` 上 `build` 曾失败，原因是加公共选项未同步
+`docs/api/snapshots`（`pnpm api:check`）；已用 `pnpm api:snapshot` 重新生成，
+只有 `vite-plugin.main.api.md` 变化 17 行 —— 变更面与声称的一致。
 
 #394 之前的 run `45049098126` 为 SUCCESS，但**不含**本轮修复与新增检查。
 本报告不把它的绿色当作本轮结论。
@@ -332,7 +349,7 @@ Hydration 侧根因已定位并修复，三引擎 CI 已验证；但那是产品
 
 **REMAINING_P0**
 
-1. 在下一个 HEAD 上复验 `packed-consumers`（挂死缺陷已修，未复验）
-2. 真实 Registry 的 25 个未发布包（属发布决策，需授权）
-3. `latest` 修复（需授权）
-4. provenance 查询
+1. 真实 Registry 的 25 个未发布包（属发布决策，需授权）
+2. `latest` 修复（需授权）
+3. provenance 查询
+4. TASK 17：合并 #393 后去掉 #394 栈里的那条提交（需先合并）
