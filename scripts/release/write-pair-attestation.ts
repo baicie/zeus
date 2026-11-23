@@ -40,6 +40,7 @@ import process from 'node:process'
 import { parseArgs } from 'node:util'
 
 import {
+  PAIR_ATTESTATION_DIRECTORY,
   PAIR_ATTESTATION_SCHEMA,
   TAGGED_RECORD_PATHS,
   attestationFile,
@@ -150,6 +151,32 @@ export function readReleaseTagCommit(
 
 /** Runs `gh api <args>` and returns stdout, or throws. */
 export type GhRunner = (args: readonly string[]) => string
+
+/**
+ * The repository root an explicit `--out` attestation path sits under.
+ *
+ * `--out` names the attestation file; the writer needs the root so it can
+ * rebuild the path from `PAIR_ATTESTATION_DIRECTORY`. Deriving the root by
+ * stripping a fixed number of levels is what broke here: the directory was
+ * `release-pairing/attestations` (two levels) and became
+ * `meta/release/pairing/attestations` (three), so the old count wrote the
+ * attestation into `meta/release/` — a directory the release check then
+ * reported as a stray file rather than as the pair.
+ *
+ * The path is resolved against the attested directory, and the result is
+ * accepted only when it reproduces the same file. An `--out` that does not
+ * live under `PAIR_ATTESTATION_DIRECTORY` is a mistake worth failing on.
+ */
+export function rootOfAttestationFile(out: string): string {
+  const resolved = path.resolve(out)
+  const suffix = `${PAIR_ATTESTATION_DIRECTORY}/${path.basename(resolved)}`
+  if (!resolved.endsWith(`/${suffix}`) && resolved !== suffix) {
+    throw new Error(
+      `--out ${out} is not inside ${PAIR_ATTESTATION_DIRECTORY}; the attestation has to live where check:release-pairing reads it`,
+    )
+  }
+  return resolved.slice(0, resolved.length - suffix.length - 1)
+}
 
 /**
  * Reads the bootstrap record inside the release tag's tree.
@@ -292,9 +319,7 @@ function main(): void {
     }
   }
 
-  const writeRoot = values.out
-    ? path.dirname(path.dirname(path.resolve(values.out)))
-    : values.root
+  const writeRoot = values.out ? rootOfAttestationFile(values.out) : values.root
   const result = writePairAttestation({
     root: writeRoot,
     version,

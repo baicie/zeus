@@ -22,7 +22,10 @@ import {
   readAttestationDirectory,
   validatePairAttestation,
 } from '../pair-attestation'
-import { readTaggedRecord } from '../write-pair-attestation'
+import {
+  readTaggedRecord,
+  rootOfAttestationFile,
+} from '../write-pair-attestation'
 
 const VERSION = '0.2.0-rc.0'
 const CORE = 'a'.repeat(40)
@@ -498,5 +501,54 @@ describe('the tagged record is read from either layout, at the tag', () => {
     expect(() => readTaggedRecord(VERSION, 'baicie/zeus', run)).toThrow(
       /not a JSON object/,
     )
+  })
+})
+
+/*
+ * `--out` names the attestation file; the writer needs the repository root so
+ * it can rebuild the path from the directory constant.
+ *
+ * Deriving the root by stripping a fixed number of levels is what the move
+ * broke: `release-pairing/attestations` is two levels, `meta/release/pairing/
+ * attestations` is three, so the old count put the attestation in
+ * `meta/release/` — where `check:release-pairing` reports it as a stray file
+ * in the wrong place rather than as the pair.
+ */
+describe('an explicit --out still resolves to the repository root', () => {
+  it('accepts the post-migration layout', () => {
+    expect(
+      rootOfAttestationFile('/repo/meta/release/pairing/attestations/v9.json'),
+    ).toBe('/repo')
+  })
+
+  /*
+   * A relative `--out` is resolved against the working directory first, so the
+   * root it yields is absolute. Asserting the property rather than the string
+   * keeps the test independent of where it runs.
+   */
+  it('accepts a relative path', () => {
+    const root = rootOfAttestationFile(
+      'meta/release/pairing/attestations/v9.json',
+    )
+    expect(path.isAbsolute(root)).toBe(true)
+    expect(path.join(root, 'meta/release/pairing/attestations/v9.json')).toBe(
+      path.resolve('meta/release/pairing/attestations/v9.json'),
+    )
+  })
+
+  /*
+   * The old layout is not silently accepted: a record written there would not
+   * be read by the release, and the failure would arrive at tag time.
+   */
+  it('refuses a path outside the attested directory', () => {
+    expect(() =>
+      rootOfAttestationFile('/repo/release-pairing/attestations/v9.json'),
+    ).toThrow(/is not inside meta\/release\/pairing\/attestations/)
+  })
+
+  it('refuses a path that is one level short', () => {
+    expect(() =>
+      rootOfAttestationFile('/repo/meta/release/pairing/v9.json'),
+    ).toThrow(/is not inside/)
   })
 })
