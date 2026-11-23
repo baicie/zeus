@@ -2,28 +2,28 @@
 
 - 日期：2026-11-23
 - 分支：`zeus-ui` @ `claude/phase2-headless-migration`（基于 `main` @ `ff2941e3`）
-- 状态：**部分完成**。7 个目录已迁入，6/7 类型检查通过，1 个因上游版本差异失败
+- 状态：**完成**（7/7 通过）。根因已定位并修复，见 §3.1 与 §8
 
 ## 1. 做了什么
 
 把 7 个 `@zeus-ui/headless` 相关目录从 `zeus/examples` 迁到 `zeus-ui/examples`：
 
-| #   | 目录                 | 包名（迁移后）                         | 类型检查            |
-| --- | -------------------- | -------------------------------------- | ------------------- |
-| 1   | `headless`           | `@zeus-ui/headless`（保留原名）        | ✅                  |
-| 2   | `headless-demo`      | `@zeus-web/example-headless-demo`      | ✅                  |
-| 3   | `registry-react`     | `@zeus-web/example-registry-react`     | ✅                  |
-| 4   | `registry-vue`       | `@zeus-web/example-registry-vue`       | ✅                  |
-| 5   | `use-headless-cli`   | `@zeus-web/example-use-headless-cli`   | ✅                  |
-| 6   | `use-headless-react` | `@zeus-web/example-use-headless-react` | ❌ **2 个类型错误** |
-| 7   | `use-headless-vue`   | `@zeus-web/example-use-headless-vue`   | ✅                  |
+| #   | 目录                 | 包名（迁移后）                         | 类型检查     |
+| --- | -------------------- | -------------------------------------- | ------------ |
+| 1   | `headless`           | `@zeus-ui/headless`（保留原名）        | ✅           |
+| 2   | `headless-demo`      | `@zeus-web/example-headless-demo`      | ✅           |
+| 3   | `registry-react`     | `@zeus-web/example-registry-react`     | ✅           |
+| 4   | `registry-vue`       | `@zeus-web/example-registry-vue`       | ✅           |
+| 5   | `use-headless-cli`   | `@zeus-web/example-use-headless-cli`   | ✅           |
+| 6   | `use-headless-react` | `@zeus-web/example-use-headless-react` | ✅（修复后） |
+| 7   | `use-headless-vue`   | `@zeus-web/example-use-headless-vue`   | ✅           |
 
 **验证命令**（真实执行，非推断）：
 
 ```
 pnpm --filter "@zeus-web/example-*" --filter="!@zeus-web/example-next-app" \
   --workspace-concurrency=1 check
-→ exit=2，仅 use-headless-react 失败
+→ 修复前 exit=2（仅 use-headless-react 失败）；修复后 exit=0
 ```
 
 ## 2. 移植时做的四处修正
@@ -50,7 +50,7 @@ src/main.tsx(177,11): error TS2322: Property 'onOpenChange' does not exist on ty
   'IntrinsicAttributes & ZDialogProps & RefAttributes<ZDialogElement>'
 ```
 
-**根因**：`@zeus-js/output-react-wrapper` 在两个版本间的事件 prop 生成逻辑不同。
+**根因（已修复，见 §8）**：`component-analyzer` 的 `mergeEvents` 丢弃了只在 `meta.events` 声明的事件。
 
 | 仓库      | wrapper 来源                                                  | 版本            | 结果    |
 | --------- | ------------------------------------------------------------- | --------------- | ------- |
@@ -79,14 +79,14 @@ src/main.tsx(177,11): error TS2322: Property 'onOpenChange' does not exist on ty
 
 ## 4. 未完成的部分
 
-| 项                                  | 状态       | 原因                                                         |
-| ----------------------------------- | ---------- | ------------------------------------------------------------ |
-| `use-headless-react` 通过           | ❌         | 需上游发布含事件 prop 修复的 `@zeus-js/output-react-wrapper` |
-| 在 zeus 侧删除已迁出的 7 个目录     | 未做       | Phase 7 才清理；且需先确认 zeus-ui 侧稳定                    |
-| `zeus` 的 `examples:check:all` 更新 | 未做       | 迁移完成前 zeus 仍需这些示例                                 |
-| `@zeus-ui/registry` 改名            | 未做       | D-05 的附带项，需要单独 PR                                   |
-| AGENTS.md 登记双 scope              | 未做       | 应在 zeus-ui 侧提交时一并做                                  |
-| 提交到 zeus-ui                      | **未提交** | 见下                                                         |
+| 项                                  | 状态       | 原因                                      |
+| ----------------------------------- | ---------- | ----------------------------------------- |
+| `use-headless-react` 通过           | ✅         | 已由 analyzer 修复解决（§8）              |
+| 在 zeus 侧删除已迁出的 7 个目录     | 未做       | Phase 7 才清理；且需先确认 zeus-ui 侧稳定 |
+| `zeus` 的 `examples:check:all` 更新 | 未做       | 迁移完成前 zeus 仍需这些示例              |
+| `@zeus-ui/registry` 改名            | 未做       | D-05 的附带项，需要单独 PR                |
+| AGENTS.md 登记双 scope              | 未做       | 应在 zeus-ui 侧提交时一并做               |
+| 提交到 zeus-ui                      | **未提交** | 见下                                      |
 
 ## 5. 为什么不提交
 
@@ -144,3 +144,56 @@ src/main.tsx(177,11): error TS2322: Property 'onOpenChange' does not exist on ty
 4. 迁移的 7 个示例再验证一遍
 
 在这之前，`use-headless-react` 无法通过类型检查。
+
+## 8. 修复：`mergeEvents` 丢弃 meta-only 事件
+
+### 8.1 真正的根因
+
+不是 wrapper 版本差异，而是 `component-analyzer` 的一个缺陷：
+
+```ts
+// components/web-c/component-analyzer/src/merge.ts（修复前）
+for (const [key, value] of Object.entries(explicit ?? {})) {
+  if (result[key]) {
+    // ← 只在已存在时才处理
+    result[key] = normalizeExplicitEvent(key, value, result[key])
+  }
+}
+```
+
+`result` 由 `declared`（`emits` 映射）与 setup 推断的事件构成。
+组件若从普通 handler 派发事件、而不通过 `emits` 暴露，其 `meta.events`
+声明就会被丢弃 → manifest 里没有该事件 → 生成的 React `.d.ts` 没有对应 prop。
+
+`headless` 的 `z-tabs`（`value-change`）与 `z-dialog`（`open-change`）
+正是这种写法，所以 `ZTabsProps` 缺 `onValueChange`、`ZDialogProps` 缺
+`onOpenChange`。
+
+之前误判为「wrapper 版本差异」，是因为 zeus 的根 tsconfig 有
+`"@zeus-ui/headless": ["./examples/headless/src"]` 别名，直接读 TypeScript
+源码，绕过了 `dist` 的类型，所以没暴露。
+
+### 8.2 修复
+
+让 explicit 事件在 `result` 中不存在时也能加入，同时用**规范化后的 kebab 名**
+去重，避免 `emits: { checkedChange }` 与 `meta.events: { 'checked-change' }`
+被算成两个派发者（`validateComponentManifest` 会报 `ZEUS_WC_EVENT_NAME`）。
+
+### 8.3 验证
+
+| 检查                                                    | 结果                                 |
+| ------------------------------------------------------- | ------------------------------------ |
+| `component-analyzer` 单测                               | **58 passed**（含新增 2 条回归测试） |
+| `packages/web-c` 全量测试                               | **599 passed**，连跑 2 次稳定        |
+| zeus 全 examples `check`                                | **exit 0**                           |
+| zeus-ui 全 examples `check`                             | **exit 0**                           |
+| 生成的 `ZTabsProps` / `ZDialogProps` / `ZCheckboxProps` | 均含正确的事件 prop                  |
+
+提交：`zeus@2d7bc699`（修复 + 测试）、`zeus-ui@e15f497`（迁移）。
+
+### 8.4 遗留
+
+- 修复尚未发布。zeus-ui 的 CI 用的是 `@zeus-js/component-analyzer@0.1.1-beta.20`，
+  不含此修复，因此 **zeus-ui 的 CI 要等一次发布后才能真正通过**。
+  本地验证是把修复版 `dist` 临时替换进 zeus-ui 的 node_modules 完成的。
+- 这正是 Phase 1 门禁 G1 的实践意义：上游发布是下游可复现的前提。
