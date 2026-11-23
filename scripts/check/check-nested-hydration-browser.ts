@@ -58,11 +58,20 @@ const output = path.join(root, 'temp/nested-hydration-browser')
 const SOURCE = [
   "import { Show, createSignal } from '@zeus-js/zeus'",
   '',
-  'const signals = (window.__signals = (() => {',
+  // Exported, not assigned to `window`.
+  //
+  // The fixture is compiled twice — once for the server, once for the client —
+  // and both copies run this statement. Assigning to `window.__signals` made the
+  // *last* module to load win, so with the client module imported first the
+  // global pointed at the server copy and every write went to a tree nobody was
+  // rendering. The failure flipped with the import order, which is what proved
+  // it. Exporting keeps each module's signals its own and lets the harness
+  // subscribe to the one the rendered tree actually uses.
+  'export const signals = (() => {',
   "  const [label, setLabel] = createSignal('child label')",
   '  const [open, setOpen] = createSignal(true)',
   '  return { label, setLabel, open, setOpen }',
-  '})())',
+  '})()',
   '',
   'function Grandchild(props) {',
   '  return <em id="grandchild">{props.text}</em>',
@@ -202,6 +211,8 @@ async function open(tab: Page): Promise<void> {
     'typeof window.__harness + "|" + typeof window.__harness?.ssrHtml + "|" + typeof window.__harness?.mount',
   )
   console.log(`  [harness] ${probe}`)
+  // Fail here, with a name, rather than as a timeout three checks later.
+  await tab.evaluate('window.__harness.assertControlsBound()')
 }
 
 const checks: Array<{ name: string; run: (tab: Page) => Promise<void> }> = [
@@ -314,9 +325,9 @@ const checks: Array<{ name: string; run: (tab: Page) => Promise<void> }> = [
             label: document.getElementById('child-label')!,
           }
       })
-      await tab.evaluate('window.__signals.setLabel("updated")')
+      await tab.evaluate('window.__harness.controls.setLabel("updated")')
       const probe = await tab.evaluate(
-        'typeof window.__signals?.setLabel + "|" + document.getElementById("child-label")?.textContent',
+        'typeof window.__harness.controls?.setLabel + "|" + document.getElementById("child-label")?.textContent',
       )
       console.log(`  [update probe] ${probe}`)
       await tab.waitForFunction(
@@ -353,8 +364,10 @@ const checks: Array<{ name: string; run: (tab: Page) => Promise<void> }> = [
       )) as Record<string, number>
       await tab.evaluate(() => {
         ;(
-          window as unknown as { __signals: { setOpen: (v: boolean) => void } }
-        ).__signals.setOpen(false)
+          window as unknown as {
+            __harness: { controls: { setOpen: (v: boolean) => void } }
+          }
+        ).__harness.controls.setOpen(false)
       })
       await tab.waitForFunction(
         'document.getElementById("grandchild") === null',
@@ -362,9 +375,19 @@ const checks: Array<{ name: string; run: (tab: Page) => Promise<void> }> = [
       const after = (await tab.evaluate(
         'window.__harness.snapshot()',
       )) as Record<string, number>
+      /*
+       * What closing a branch must do is *dispose* something, which is a
+       * different assertion from "the live count goes down".
+       *
+       * Measured: the counters go from 3 created / 0 disposed to 4 created /
+       * 1 disposed. To rebuild the sibling content the renderer opens a scope
+       * of its own, so the live count is unchanged at 3 even though the
+       * branch's scope was released. Comparing live counts — the first version
+       * of this assertion — reports a leak that is not there, and would have
+       * hidden a real one behind the compensating creation.
+       */
       assert.ok(
-        after.scopesCreated - after.scopesDisposed <
-          before.scopesCreated - before.scopesDisposed,
+        after.scopesDisposed > before.scopesDisposed,
         `closing the branch must dispose a scope: ${JSON.stringify({ before, after })}`,
       )
       // The siblings are untouched: closing a branch three levels down must

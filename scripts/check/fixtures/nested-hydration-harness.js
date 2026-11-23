@@ -10,8 +10,51 @@
 import { render } from '@zeus-js/runtime-dom'
 import { renderToString } from '@zeus-js/runtime-ssr'
 import { createRuntimeDiagnosticsSession } from '@zeus-js/signal/diagnostics'
-import { App } from '/modules/dom.js'
-import { App as SsrApp } from '/modules/ssr.js'
+import { App, signals } from '/modules/dom.js'
+import { App as SsrApp, signals as ssrSignals } from '/modules/ssr.js'
+
+/**
+ * The controllers the checks drive, taken from the modules that own them
+ * (R24.1 TASK 03).
+ *
+ * The fixture used to assign its signals to `window.__signals`, and it is
+ * compiled twice — once for the server, once for the client — so both copies
+ * ran that assignment and whichever loaded last won. With the client module
+ * imported first, the global pointed at the *server* copy: every write went to
+ * a signal no rendered tree subscribed to, and the DOM never changed. Swapping
+ * the two imports made the same test pass, which is what confirmed it.
+ *
+ * These are exported by value from each module instead. `controls` is the
+ * client module's set — the one the hydrated tree is bound to — and
+ * `ssrControls` exists so a test can prove the two really are separate objects
+ * rather than trusting that they are.
+ */
+export const controls = signals
+export const ssrControls = ssrSignals
+
+/**
+ * Asserts the control signal is the one the rendered tree subscribes to.
+ *
+ * A test-only diagnostic, not a runtime API. It exists because the failure it
+ * catches is silent: if `controls` pointed at the server module's copy, every
+ * write would go to a signal nothing renders, the DOM would not change, and the
+ * only symptom would be a timeout in whichever assertion happened to run first.
+ * The code name says what is wrong rather than where it surfaced.
+ */
+export function assertControlsBound() {
+  if (controls === ssrControls) {
+    throw new Error(
+      'CONTROL_SIGNAL_NOT_BOUND_TO_DOM: the harness controls point at the SSR ' +
+        "module's signals, so writes cannot reach the hydrated tree",
+    )
+  }
+  if (controls.label === ssrControls.label) {
+    throw new Error(
+      'CONTROL_SIGNAL_NOT_BOUND_TO_DOM: the two modules share a signal object, ' +
+        'which means one of them is not creating its own',
+    )
+  }
+}
 
 let session = createRuntimeDiagnosticsSession()
 let dispose = null

@@ -120,46 +120,113 @@ S read : {"text":"child label","signal":"updatedS"}     ← 失败
 
 ---
 
-## 5. 追加的对照实验（全部通过）
+## 5. 根因（已确认，R24.1）
 
-把 harness 的机制逐项移植到最小检查里，每一项单独替换后仍然 4/4 通过：
+原文把结论写成「运行时没有复现缺陷」。**那个结论是错的**，原因见下。
 
-| 移植的变量                                              | 结果                                      |
-| ------------------------------------------------------- | ----------------------------------------- |
-| harness 的 `hydratePlaced` 逐字复制（含 `session.run`） | 通过                                      |
-| 全局名改成 `__probeSignals`（排除与 `__signals` 冲突）  | 通过                                      |
-| 入口脚本从内联改成 `/entry.js` 独立文件                 | 通过                                      |
-| 四轮 hydrate/dispose                                    | 通过                                      |
-| 重复 hydrate（不 dispose）                              | 被 `DUPLICATE_OWNER` 正确拒绝，之后仍通过 |
+### 5.1 根因：`window.__signals` 被后导入的模块覆盖
 
-**七种驱动方式全部通过，运行时本身没有复现出缺陷。**
+fixture 的顶层语句是：
+
+```js
+const signals = (window.__signals = (() => { ... })())
+```
+
+它被**编译了两次** —— 一次 SSR、一次 DOM —— 两份都会执行这条赋值。
+于是**后导入的模块赢**。
+
+实测（`temp/probe/signal-identity.ts`，chromium）：
+
+| 导入顺序 | `window.__signals` 指向 |
+| -------- | ----------------------- |
+| DOM 先   | **SSR 的 signal**       |
+| SSR 先   | **DOM 的 signal**       |
+
+原 harness 是 DOM 先导入，所以 `window.__signals` 是 **SSR 的副本**，
+而 hydration 的树绑定的是 DOM 的副本。每次 `setLabel` 都写到一个
+没人渲染的 signal 上。
+
+### 5.2 反事实：失败随导入顺序翻转
+
+同一份 HTML、同一套运行时，只交换两行 import：
+
+| 导入顺序 | `#child-label` 更新       | Show 关闭           |
+| -------- | ------------------------- | ------------------- |
+| DOM 先   | `child label`（**失败**） | `false`（**失败**） |
+| SSR 先   | `UPDATED`（成功）         | `true`（成功）      |
+
+**失败随顺序翻转**，这是因果关系的判据。
+
+### 5.3 为什么之前七种对照都通过
+
+因为它们用的 fixture 写的是 `window.__state` / `window.__probeSignals`，
+或者只导入一份模块 —— 没有两份模块争同一全局名。对照组避开了缺陷本身。
+
+**这是我在 R24 里判断错的地方**：我把"对照组通过"当成了"运行时正确"的证据，
+而没有先确认对照组和失败组是否真的在测同一件事。
 
 ---
 
-## 6. 结论与残留
+## 6. 修复（R24.1 TASK 03–05）
 
-### 6.1 已修复的两个真实缺陷
+### 6.1 fixture 改为导出具名对象
 
-1. **`mountTrackingIdentity` 不释放 hydration owner**（§2）—— 已修，`identity`
-   项随后通过。
-2. **`identity` 断言与设计冲突** —— 它要求 `replaced` 为空，但 Show 分支内
-   禁止采纳是 `withHydrationCreateFrame` 的文档化行为。已改为只对动态区域
-   之外的节点断言。
+```js
+export const signals = (() => { ... })()
+```
 
-### 6.2 未定位
+不再写 `window`。每个模块持有自己的 signal。
 
-`a child signal updates the child node` 与 `closing a grandchild branch`
-在 `check-nested-hydration-browser` 里仍超时，而同一 fixture 的七种其它驱动
-方式全部通过。
+### 6.2 harness 显式导入 DOM 模块的控制器
 
-**本轮没有把它写成产品缺陷**，因为证据不支持：如果运行时真有缺陷，最小复现
-应当同样失败。
+```js
+import { App, signals } from '/modules/dom.js'
+import { App as SsrApp, signals as ssrSignals } from '/modules/ssr.js'
 
-### 6.3 下一步
+export const controls = signals
+export const ssrControls = ssrSignals
+```
 
-1. 在 `check-nested-hydration-browser` 的**页面内**加 `bindEffect` 调用计数
-   （测试专用 instrumentation），确认 binding 是否被创建；
-2. 若未创建，说明 adopt 体在该路径下没执行到 `mountDynamic`；
-3. 若已创建，记录它绑定的 Text 节点引用，与文档里的节点比对。
+检查里的所有写入改为 `window.__harness.controls.*`。
 
-这两步能把范围再缩小一格，但仍不应在拿到证据前改运行时。
+### 6.3 诊断码
+
+`assertControlsBound()` 在任何检查开始前调用。若 `controls === ssrControls`，
+抛 `CONTROL_SIGNAL_NOT_BOUND_TO_DOM`，把失败从"三分钟后的超时"变成"第一行的命名错误"。
+
+仅用于测试诊断，**没有新增公共运行时 API**。
+
+### 6.4 一个断言错误
+
+`closing a grandchild branch` 原本断言「存活 scope 数下降」。实测：
+
+```
+before: 3 created / 0 disposed   (净 3)
+after : 4 created / 1 disposed   (净 3)
+```
+
+关闭分支确实释放了一个 scope，但重建兄弟内容时又开了一个，**净数不变**。
+断言改为 `scopesDisposed` 增长 —— 那才是"释放了"的直接证据。原断言会
+被补偿性创建抵消，**既能误报泄漏，也能掩盖真泄漏**。
+
+---
+
+## 7. 最终状态
+
+| 检查                             | 结果                                       |
+| -------------------------------- | ------------------------------------------ |
+| `check:nested-hydration-browser` | **7/7 通过**（chromium）                   |
+| `check:nested-binding-browser`   | **4/4 通过**                               |
+| 导入顺序 DOM 先                  | 通过                                       |
+| 导入顺序 SSR 先                  | 通过                                       |
+| 反事实（controls = ssrSignals）  | 失败，报 `CONTROL_SIGNAL_NOT_BOUND_TO_DOM` |
+
+两个检查已接入 `browser-runtime` job，三引擎运行。
+
+---
+
+## 8. 历史记录（已被推翻，保留过程）
+
+R24 早期版本的结论是「运行时在七种驱动方式下全部通过，因此不是产品缺陷」。
+那个推理的漏洞是：七种对照都没有复现「两份模块争同一全局名」这个条件。
+保留在这里是因为它说明了**对照组必须与失败组测同一件事**，否则"通过"没有意义。

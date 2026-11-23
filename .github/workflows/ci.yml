@@ -774,6 +774,24 @@ jobs:
       - name: Nested control-flow scopes in Chromium, Firefox and WebKit
         run: pnpm check:nested-scopes-browser
 
+      # A component inside a Show branch, hydrated. The branch is rebuilt rather
+      # than adopted on purpose, so the check is that the component's own
+      # binding survives that and that closing the branch disposes its scope.
+      #
+      # This one was red from R22 to R24 and was not in CI, which is how it
+      # stayed red: the fixture assigned its signals to `window.__signals`, and
+      # because the fixture is compiled twice — once per target — the module
+      # that loaded last won. With the client module first, the global pointed
+      # at the server copy and every write went to a tree nobody rendered.
+      - name: Nested hydration in Chromium, Firefox and WebKit
+        run: pnpm check:nested-hydration-browser
+
+      # The control for the check above: the same tree driven without the
+      # harness's module structure, so a failure can be attributed to the tree
+      # rather than to the fixture.
+      - name: Nested binding control in Chromium, Firefox and WebKit
+        run: pnpm check:nested-binding-browser
+
       # Delegated and directly-bound events, and the boundary between them:
       # non-bubbling and hyphenated names are bound directly, everything else is
       # delegated.

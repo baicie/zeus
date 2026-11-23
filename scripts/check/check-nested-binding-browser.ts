@@ -11,28 +11,32 @@
  * signal write:  the signal's value changes, the DOM does not
  * ```
  *
- * ## What is already ruled out
+ * ## Why this check exists
  *
- * The same fixture, compiled by the same compiler and driven in jsdom, works:
- * `child label` becomes `updated` after the write. So the defect is not in the
- * compiler's output nor in `mountDynamic` when driven directly.
+ * `check:nested-hydration-browser` failed on this shape from R22 to R24, and the
+ * first version of this file was written as a control for it: the same fixture
+ * driven without that check's harness. The control passed, which was read at the
+ * time as evidence the runtime was fine.
  *
- * Also ruled out: a missing reactive owner. `autoHydrateComponent` runs its
- * adopt body without one, and giving it one (`runWithOwner(createOwner(), …)`)
- * did not change the browser result — the patch was reverted rather than kept
- * on the strength of the reasoning that produced it.
+ * That reading was wrong. The control passed because it did not reproduce the
+ * defect's precondition — the fixture assigned its signals to `window.__signals`,
+ * and because it is compiled twice (once per target) both copies ran that
+ * assignment, so the last module to load won. With the client module imported
+ * first, the global pointed at the *server* copy and every write went to a tree
+ * nothing rendered. Writing the control's fixture with a differently-named
+ * global accidentally avoided the collision.
  *
- * What is left is the browser path specifically, which is why this check exists
- * as a browser check and not as a unit test: something about running inside a
- * real page changes the outcome, and the report needs to say so rather than
- * guess.
+ * The real fix is in that check: the fixture exports its signals, the harness
+ * imports the client module's copy explicitly, and `assertControlsBound` fails
+ * with `CONTROL_SIGNAL_NOT_BOUND_TO_DOM` rather than as a timeout. This file
+ * stays because it drives the same three behaviours through a different
+ * structure, so a regression in the tree shows up in two places that fail
+ * differently.
  *
- * ## Status
+ * ## What it asserts
  *
- * The check reports the observation and marks itself FAILED when the DOM does
- * not follow the signal. It does not carry a workaround: a nested hydration
- * that adopts nodes but drops their bindings is worse than one that rebuilds
- * them, because the page looks correct until something changes.
+ * A nested component's binding updates after hydration, the Show branch it sits
+ * in closes and reopens, and the static nodes are adopted rather than rebuilt.
  *
  * ```text
  * pnpm check:nested-binding-browser
