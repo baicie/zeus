@@ -233,7 +233,7 @@ describe('the real directory', () => {
   it('passes', () => {
     const root = path.resolve(import.meta.dirname, '../../..')
     expect(
-      validatePairingDirectory(path.join(root, 'release-pairing')),
+      validatePairingDirectory(path.join(root, 'meta/release/pairing')),
     ).toEqual([])
   })
 })

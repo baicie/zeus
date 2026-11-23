@@ -1,6 +1,6 @@
 # 四个 Golden Components：现有契约与消费者示例
 
-对应 B-003。冻结 API 位于 `tests/contracts/golden-components.json`，来源为 Zeus UI `a8826dd1f81560aaf6459d8d40a3e599f705f6e0` / `0.1.0-beta.34` 的发布源码与真实 registry Manifest，框架依赖为 `0.1.1-beta.20`。JSON 包含 source/manifest hash、真实 props/default/attribute、事件、方法、models 和 slots；Dialog 包的七个组件（包括 Overlay）一同记录。Data Grid 性能基线另记录在 UI 仓库的 `u005-data-grid-2026-10-23`。
+对应 B-003。冻结 API 位于 `meta/contracts/golden-components.json`，来源为 Zeus UI `a8826dd1f81560aaf6459d8d40a3e599f705f6e0` / `0.1.0-beta.34` 的发布源码与真实 registry Manifest，框架依赖为 `0.1.1-beta.20`。JSON 包含 source/manifest hash、真实 props/default/attribute、事件、方法、models 和 slots；Dialog 包的七个组件（包括 Overlay）一同记录。Data Grid 性能基线另记录在 UI 仓库的 `u005-data-grid-2026-10-23`。
 
 当前版本已按 Native、React18、React19、Vue3 × Chromium、Firefox、WebKit 的 12 组浏览器组合、SSR、严格公开类型、Manifest、tarball integrity 和 provenance 完成验收，持久报告为 [`golden-components-acceptance-2026-10-27/report.json`](./internal/golden-components-acceptance-2026-10-27/report.json)（UI `0.1.0-beta.34` / Zeus `0.1.1-beta.20`，12/12 通过）。此前 UI beta.33 / Zeus beta.18 的通过记录保留在 [`golden-components-acceptance-2026-10-23/report.json`](./internal/golden-components-acceptance-2026-10-23/report.json)，仅作历史对照；UI `0.1.0` stable 后置，届时需按稳定产物重新出具报告。
 

@@ -203,9 +203,13 @@ pipeline.rs    阶段顺序与早退形状（transform_module 委托给它）
 
 **强制边界（不可协商）：**
 
-- `release-pairing/` 与 `release-policy/` 是发布链路的运行时输入，
+- `meta/release/pairing/` 与 `meta/release/historical-latest.json` 是发布链路的运行时输入，
   **不得无审查迁移或删除**。`write-pair-attestation.ts` 通过 GitHub
-  contents API 按路径读取它们。
+  contents API 按路径读取它们。已打标签的 `v0.2.0-rc.0`…`rc.3` 树内仍只有旧路径
+  `release-pairing/`，读取端因此同时识别两处（见 `TAGGED_RECORD_PATHS`）——
+  这是对不可移动标签的读取兼容，不是旧目录的复活。
+- `meta/contracts/golden-components.json` 是 Golden Components 契约的唯一来源，
+  由 `check-golden-components.ts` 按路径读取。
 - `vendor/` 产物必须保持 provenance（`provenance.json` 校验其来源提交）。
 - 不得执行 `npm publish`、`npm dist-tag` 或创建 Release Tag，除非任务明确授权。
 - 不得借目录移动刷新 Golden。

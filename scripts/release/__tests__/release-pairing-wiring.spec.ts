@@ -61,7 +61,7 @@ function scaffold(pairing: unknown | 'missing'): Scaffold {
   const repo = path.join(directory, 'repo')
   const bin = path.join(directory, 'bin')
   fs.mkdirSync(path.join(repo, 'packages/core/zeus'), { recursive: true })
-  fs.mkdirSync(path.join(repo, 'release-pairing'), { recursive: true })
+  fs.mkdirSync(path.join(repo, 'meta/release/pairing'), { recursive: true })
   fs.mkdirSync(path.join(repo, 'temp/sbom'), { recursive: true })
   fs.mkdirSync(bin, { recursive: true })
 
@@ -81,7 +81,11 @@ function scaffold(pairing: unknown | 'missing'): Scaffold {
     )
   }
 
-  const pairingFile = path.join(repo, 'release-pairing', `v${VERSION}.json`)
+  const pairingFile = path.join(
+    repo,
+    'meta/release/pairing',
+    `v${VERSION}.json`,
+  )
   if (pairing !== 'missing') {
     fs.writeFileSync(pairingFile, `${JSON.stringify(pairing, null, 2)}\n`)
   }
@@ -282,7 +286,7 @@ describe('the workflow passes the pairing record', () => {
     )
     expect(workflow).toContain('--pairing-record')
     expect(workflow).toMatch(
-      /--pairing-record "release-pairing\/v\$\{\{ steps\.release-version\.outputs\.version \}\}\.json"/,
+      /--pairing-record "meta\/release\/pairing\/v\$\{\{ steps\.release-version\.outputs\.version \}\}\.json"/,
     )
   })
 

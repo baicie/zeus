@@ -18,7 +18,22 @@ const wasmBytes = readFileSync(
   new URL('../zeus-compiler.wasm', import.meta.url),
 )
 
-const corpusRoots = ['examples', 'benchmarks', 'scripts/playground/fixtures']
+/*
+ * The parity corpus: every `.tsx` in these trees is compiled by both compilers
+ * and the outputs compared.
+ *
+ * The benchmark fixture used to live at `benchmarks/`, and when it moved to
+ * `scripts/bench/fixtures/component-host` this list still said `benchmarks`.
+ * The corpus quietly lost its nine modules and the `> 60` guard below still
+ * passed, because `examples/` alone supplies more than sixty. A moved
+ * directory that shrinks the corpus without failing it is the failure this
+ * list exists to prevent, so the roots are asserted by count below.
+ */
+const corpusRoots = [
+  'examples',
+  'scripts/bench/fixtures',
+  'scripts/playground/fixtures',
+]
 
 function collectSources(directory, sources = []) {
   for (const entry of readdirSync(directory)) {
@@ -93,6 +108,23 @@ const corpus = [
   ),
   ...inlineSources,
 ]
+
+/*
+ * Each root must contribute at least one module.
+ *
+ * The total is asserted below, but a single count cannot tell "one tree grew"
+ * from "one tree vanished": `examples/` supplies enough on its own to keep the
+ * total above the floor after `benchmarks/` was renamed out from under this
+ * list. Checking each root by name makes a moved or empty tree fail here, and
+ * the failure names which one.
+ */
+for (const directory of corpusRoots) {
+  const contributed = collectSources(path.join(root, directory)).length
+  assert.ok(
+    contributed > 0,
+    `corpus root "${directory}" contributed no .tsx modules; the parity corpus would silently shrink`,
+  )
+}
 
 const variants = [
   {

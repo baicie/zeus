@@ -29,7 +29,7 @@
  *   tsx scripts/release/drill-rc-recovery.ts \
  *     --registry http://127.0.0.1:4874 \
  *     --version 0.2.0-rc.1 \
- *     --pairing-record release-pairing/v0.2.0-rc.1.json \
+ *     --pairing-record meta/release/pairing/v0.2.0-rc.1.json \
  *     [--skip-publish] \
  *     --out temp/release/rc-recovery-drill.json
  */

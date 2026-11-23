@@ -1084,7 +1084,7 @@ describe('adversarial attempts to widen the exemption', () => {
   it('reads the baseline from the fixed path by default', () => {
     const root = tempRoot()
     writeBaseline(root, REAL_ENTRIES)
-    expect(HISTORICAL_LATEST_PATH).toBe('release-policy/historical-latest.json')
+    expect(HISTORICAL_LATEST_PATH).toBe('meta/release/historical-latest.json')
     expect(loadHistoricalBaseline(root).baseline).toBeDefined()
   })
 })

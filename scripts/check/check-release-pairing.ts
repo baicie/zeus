@@ -12,7 +12,7 @@
  * Adds the question static checking cannot answer: does the UI commit this
  * record names actually exist on the remote a release will check out?
  *
- * The distinction exists because of a real failure. `release-pairing/
+ * The distinction exists because of a real failure. `meta/release/pairing/
  * v0.2.0-rc.0.json` named `f3b7dce3`, a commit created in a throwaway clone.
  * It passed every static check — forty hex characters, matching versions,
  * valid schema — and the GitHub API answered 422 for it. A record can be
@@ -44,7 +44,7 @@ const { values } = parseArgs({
   },
 })
 
-const directory = path.join(root, 'release-pairing')
+const directory = path.join(root, 'meta/release/pairing')
 const problems = [...validatePairingDirectory(directory)]
 
 /*
@@ -53,7 +53,7 @@ const problems = [...validatePairingDirectory(directory)]
  * in the online half.
  */
 const attestations = readAttestationDirectory(
-  path.join(root, 'release-pairing/attestations'),
+  path.join(root, 'meta/release/pairing/attestations'),
 )
 const attestedVersions = new Set<string>()
 for (const stored of attestations) {

@@ -14,7 +14,7 @@
  * to the *same* Core commit:
  *
  * ```text
- * pair/v0.2.0-rc.0  ->  commit whose release-pairing/v0.2.0-rc.0.json reads
+ * pair/v0.2.0-rc.0  ->  commit whose meta/release/pairing/v0.2.0-rc.0.json reads
  *                       { coreCommit: <the bootstrap tag's target>,
  *                         uiCommit:   <the UI candidate>,
  *                         bootstrapTag: "v0.2.0-rc.0" }
@@ -40,7 +40,25 @@ import path from 'node:path'
 export const PAIR_ATTESTATION_SCHEMA = 'zeus.pair-attestation/v1'
 
 /** Where a pair attestation lives inside the Core repository. */
-export const PAIR_ATTESTATION_DIRECTORY = 'release-pairing/attestations'
+export const PAIR_ATTESTATION_DIRECTORY = 'meta/release/pairing/attestations'
+
+/**
+ * Where a pairing record may sit inside a release tag's tree, newest first.
+ *
+ * The record moved from `release-pairing/` to `meta/release/pairing/`. Tags
+ * are immutable, and the releases already tagged under the old layout
+ * (`v0.2.0-rc.0` … `v0.2.0-rc.3`) still carry it at the old path. Pairing one
+ * of those is an expected operation, so a reader asking the *tagged tree* for
+ * the record has to ask for both paths.
+ *
+ * This is not a fallback to a branch, a default version, or an empty SHA: both
+ * paths are read at `ref=v<version>`, so the record still has to be inside the
+ * commit the tag names. A version whose tag carries neither path is refused.
+ */
+export const TAGGED_RECORD_PATHS = [
+  'meta/release/pairing',
+  'release-pairing',
+] as const
 
 /**
  * The tag namespace that carries attestations.

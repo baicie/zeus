@@ -14,7 +14,7 @@ import {
 
 const contract = JSON.parse(
   fs.readFileSync(
-    path.resolve('tests/contracts/golden-components.json'),
+    path.resolve('meta/contracts/golden-components.json'),
     'utf8',
   ),
 ) as { groups: GoldenGroupSnapshot[] }

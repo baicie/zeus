@@ -6,6 +6,13 @@ A Core tag names a Core commit. The UI half of the pair is a separate
 repository with its own commit, so the release needs to be told which one it
 was verified against. This directory is that record.
 
+It lives under `meta/` because it is governance data rather than code or
+documentation: nothing imports it, and its only consumer reads it by path.
+Records written before the move are still at `release-pairing/` inside the
+tags that carry them — tags do not move, so `write-pair-attestation.ts` reads
+both locations _at the tag's own ref_ when pairing an already-released
+version. New records go here only.
+
 ```json
 {
   "schema": "zeus.release-pairing/v1",

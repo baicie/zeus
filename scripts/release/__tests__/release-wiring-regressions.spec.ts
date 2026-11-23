@@ -298,7 +298,7 @@ describe('the pairing record carries the acknowledgement', () => {
 
   it('accepts a record without the field', () => {
     expect(
-      validatePairingRecord(record(), 'release-pairing/v0.2.0-rc.0.json'),
+      validatePairingRecord(record(), 'meta/release/pairing/v0.2.0-rc.0.json'),
     ).toEqual([])
   })
 
@@ -306,7 +306,7 @@ describe('the pairing record carries the acknowledgement', () => {
     expect(
       validatePairingRecord(
         record({ firstPublish: ['@zeus-js/i18n'] }),
-        'release-pairing/v0.2.0-rc.0.json',
+        'meta/release/pairing/v0.2.0-rc.0.json',
       ),
     ).toEqual([])
   })
@@ -315,7 +315,7 @@ describe('the pairing record carries the acknowledgement', () => {
     expect(
       validatePairingRecord(
         record({ firstPublish: '@zeus-js/i18n' }),
-        'release-pairing/v0.2.0-rc.0.json',
+        'meta/release/pairing/v0.2.0-rc.0.json',
       ).map(p => p.message),
     ).toContain('firstPublish must be an array of package names')
   })

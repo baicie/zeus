@@ -10,22 +10,22 @@ describe('component-host size bench tree-shaking file lookup', () => {
   const files: TreeShakingFile[] = [
     {
       absolute:
-        'D:\\workspace\\git-code\\zeus\\benchmarks\\component-host\\dist\\assets\\bench-button--DcrAJUv.js',
+        'D:\\workspace\\git-code\\zeus\\scripts\\bench\\fixtures\\component-host\\dist\\assets\\bench-button--DcrAJUv.js',
       relative: 'assets/bench-button--DcrAJUv.js',
     },
     {
       absolute:
-        'D:\\workspace\\git-code\\zeus\\benchmarks\\component-host\\dist\\assets\\bench-button-shadow-Dqmo7yYl.js',
+        'D:\\workspace\\git-code\\zeus\\scripts\\bench\\fixtures\\component-host\\dist\\assets\\bench-button-shadow-Dqmo7yYl.js',
       relative: 'assets/bench-button-shadow-Dqmo7yYl.js',
     },
     {
       absolute:
-        'D:\\workspace\\git-code\\zeus\\benchmarks\\component-host\\dist\\react\\z-bench-button.js',
+        'D:\\workspace\\git-code\\zeus\\scripts\\bench\\fixtures\\component-host\\dist\\react\\z-bench-button.js',
       relative: 'react/z-bench-button.js',
     },
     {
       absolute:
-        'D:\\workspace\\git-code\\zeus\\benchmarks\\component-host\\dist\\vue\\z-bench-button.js',
+        'D:\\workspace\\git-code\\zeus\\scripts\\bench\\fixtures\\component-host\\dist\\vue\\z-bench-button.js',
       relative: 'vue/z-bench-button.js',
     },
   ]

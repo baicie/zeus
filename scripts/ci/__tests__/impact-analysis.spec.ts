@@ -106,6 +106,37 @@ describe('classifyChanges — named scenarios', () => {
     expect(result.areas).toContain('shared-infrastructure')
     expect(result.fullSuite).toBe(true)
   })
+
+  /*
+   * `meta/` holds the data a release reads by path. Without its own rule these
+   * paths match nothing, and the fail-safe runs every area — correct, but a PR
+   * that adds one pairing record would run the whole suite.
+   */
+  it('a governance path under meta/ selects release without the full suite', () => {
+    for (const file of [
+      'meta/release/pairing/v0.2.0-rc.4.json',
+      'meta/release/historical-latest.json',
+      'meta/contracts/golden-components.json',
+    ]) {
+      const result = classifyChanges({ changedFiles: [file] })
+      expect(result.areas, file).toContain('release')
+      expect(result.fullSuite, file).toBe(false)
+    }
+  })
+
+  it('a renamed pairing record is classified by both endpoints', () => {
+    const result = classifyChanges({
+      changedFiles: ['meta/release/pairing/v0.2.0-rc.4.json'],
+      renamedFiles: [
+        'release-pairing/v0.2.0-rc.4.json',
+        'meta/release/pairing/v0.2.0-rc.4.json',
+      ],
+    })
+    // The old path is unknown to the rules and escalates, which is the safe
+    // direction: a rename out of a governed location is not a no-op.
+    expect(result.areas).toContain('release')
+    expect(result.fullSuite).toBe(true)
+  })
 })
 
 describe('classifyChanges — failure modes', () => {
@@ -228,7 +259,7 @@ describe('planJobs', () => {
     for (const file of [
       'examples/admin/src/pages.tsx',
       'examples/playground-editor/src/App.tsx',
-      'benchmarks/rendering/list.tsx',
+      'scripts/bench/fixtures/component-host/src/entries/wc-single.ts',
       'scripts/playground/fixtures/counter.tsx',
     ]) {
       expect(running(planFor([file])), file).toContain('rust-compiler')

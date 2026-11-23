@@ -1,7 +1,7 @@
 /**
  * Pairing records, validated before a tag exists rather than after.
  *
- * A release reads `release-pairing/v<version>.json` and refuses to continue
+ * A release reads `meta/release/pairing/v<version>.json` and refuses to continue
  * without it. Finding that out at tag time means the tag has been pushed and
  * the release run fails on a missing file — recoverable, but noisy, and the
  * failure looks like a release problem rather than a missing commit.

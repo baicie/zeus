@@ -46,7 +46,7 @@ import { zeusFixedPackages } from '../release.config'
 export const HISTORICAL_LATEST_SCHEMA = 'zeus.historical-latest/v1'
 
 /** The only path this module will read. Not overridable by a flag. */
-export const HISTORICAL_LATEST_PATH = 'release-policy/historical-latest.json'
+export const HISTORICAL_LATEST_PATH = 'meta/release/historical-latest.json'
 
 export interface HistoricalEntry {
   readonly name: string
