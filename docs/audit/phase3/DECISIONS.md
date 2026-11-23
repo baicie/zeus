@@ -4,7 +4,7 @@
 - 配套：`READINESS.md`
 - 性质：**只读预检的产出**。以下每一项都需要你决定，我不做假设。
 
-按阻塞程度排序。**前两项是 Phase 3 的硬前置。**
+按阻塞程度排序。**发布兼容 UI 的问题阻塞的是完整 Phase 3c 和后续应用迁移，不阻塞 Phase 3a/3b。**
 
 ---
 
@@ -13,7 +13,7 @@
 **现状**（VERIFIED）：`@zeus-web/*` 共 46 个可发布包，本地声明 `0.1.0-beta.35`，
 registry 上 **46/46 全部不存在**，最新为 beta.34。
 
-**为什么阻塞 Phase 3**：Phase 3c 要求「一个只读消费者验证能装已发布包」。
+**为什么阻塞完整 Phase 3c**：该阶段要求一个消费者同时安装并验证已发布的 Core + UI。
 当前只有两个选项，都不成立：
 
 - 装 rc.5 的 `@zeus-js/*` + beta.34 的 `@zeus-web/*` → peer 冲突（见 D-P3-03）。
@@ -27,19 +27,16 @@ registry 上 **46/46 全部不存在**，最新为 beta.34。
 | B. 先做 Phase 3a/3b，不碰 3c | 仓库骨架与兼容矩阵可以先建                 | 3c 的验收推迟                      |
 | C. 降低 3c 的定义            | 只验证「能 install」，不验证「无重复版本」 | 会掩盖 R-V1，不建议                |
 
-**我的建议**：A。beta.35 是 Phase 4-1 迁移 AI Workbench 的前置
-（迁移矩阵 M14 的 `assets_left_behind` 已写明「4 个 @zeus-web 改 registry」），
-越晚发，Phase 4 越被动。
+**修订建议**：先修复 UI Release Protocol（现有校验强制 UI/Core 版本号相同，但当前为两条独立版本线），做不可变配对的预演，然后发布**任一已验证、可与 Core rc.5 联合消费**的 UI 版本。最终可以是 beta.35，也可以在明确版本策略后使用 UI 0.2.0 RC；不要先打 tag 再修发布协议。
 
 ---
 
 ## D-P3-03（阻塞·高）R-V1 的根治方式
 
 **现状**（VERIFIED）：同时安装 rc.5 与 beta.34 时，实际依赖树里有
-**3 份 `runtime-dom`、3 份 `signal`**。三套独立的响应式引擎。
+**3 份 `runtime-dom`、3 份 `signal` 的物理安装副本**。最终应用中是否形成三套活跃引擎仍须检查模块 realpath、bundler 去重以及浏览器行为。
 
-`--legacy-peer-deps` 能让安装"成功"，但 `signal` 的三份实例之间依赖不互通，
-`createSignal` 与 `createEffect` 跨实例静默失效。
+`--legacy-peer-deps` 能强行安装，却不会修复不匹配的 peer 契约。多版本并存具有运行时风险，具体是跨引擎报错、依赖跟踪异常还是无症状，必须以真实消费者和浏览器证据判定。
 
 **可选项**：
 
@@ -50,25 +47,15 @@ registry 上 **46/46 全部不存在**，最新为 beta.34。
 | C. 让 `@zeus-web/*` 的 peer 放宽为 `>=0.1.1-beta.20` | 允许跨大版本共存     | 等于宣称 0.1 与 0.2 兼容，事实不是               |
 | D. 接受双版本                                        | 不做                 | 运行时静默失效，不建议                           |
 
-**我的建议**：A。B 会制造「装得上但行为错」的假象，C 是虚假的兼容声明。
-
-**另需你确认**：`@zeus-web/*` 的下一个版本是否应该直接对齐到 `0.2.0-rc.x`
-线，而不是继续 beta 递增。两条版本线并存是 R-V1 的结构性来源。
+**修订建议**：优先发布依赖与 peer 都准确指向 Core rc.5 的兼容 UI 版本，并实测跨宿主运行时唯一性。可保留 Core 与 UI 各自的版本线；独立版本本身不是 R-V1 的根因，真正问题是旧 UI 对 Core beta.20 的依赖锁定。
 
 ---
 
-## D-P3-01（低）ecosystem 仓库的可见性
+## D-P3-01（已关闭）ecosystem 仓库可见性
 
-**现状**（VERIFIED）：`baicie/zeus-ecosystem` 不存在（`Repository not found`，
-`baicie/zeus` 作对照正常应答）。
+后续通过 GitHub 仓库元数据确认 `zeus` 与 `zeus-ui` 均为 Public。
 
-**未确认**：`zeus` 与 `zeus-ui` 当前是 public 还是 private——本次预检未读取
-仓库可见性。
-
-**可选项**：private（推荐，含 Admin 后台与部署配置）／public。
-
-**需要你的输入**：两个上游仓库的可见性。若它们 public，则 ecosystem 保持
-public 才符合一致性预期。
+`baicie/zeus-ecosystem` 已创建为 Public，默认分支 main。Phase 3b 已合入 `a53f1589`，政策与 Core-only smoke 均在 Node 22/24 上通过。不会迁移凭据、客户数据或私有环境配置。
 
 ---
 
@@ -97,8 +84,7 @@ public 才符合一致性预期。
 | B（跳过 3c）    | 无                                                      |
 | C（降级定义）   | 只验证 install 成功——**我不建议，会掩盖 R-V1**          |
 
-**建议**：把 3c 的验收标准定为「`@zeus-js/signal` 在树中只有 1 份」，
-而不是「install 成功」。前者是不可伪造的，后者不是。
+**建议**：把 3c 验收定为「依赖树版本正确、模块实路径/活跃 runtime 经构建确认、真实组件在 Chromium/Firefox/WebKit 通过响应式与卸载测试」。只检查 install 或仅检查物理副本数量都不足以证明成功。Core-only smoke 已完成，但不代替此联合门禁。
 
 ---
 
@@ -106,7 +92,7 @@ public 才符合一致性预期。
 
 | 项                                                           | 原因                       |
 | ------------------------------------------------------------ | -------------------------- |
-| `zeus`/`zeus-ui` 的仓库可见性                                | 需读 GitHub 设置           |
+| `zeus`/`zeus-ui` 的仓库可见性                                | **已解决：均为 Public** |
 | `zeus-host` runner 的注册层级                                | 同上                       |
 | `ZEUS_UI_DISPATCH_TOKEN` / `ZEUS_LIVE_PASSPHRASE` 的迁移归属 | 用途不明，需读使用处上下文 |
-| ecosystem 的 GitHub 组织权限模型                             | 仓库尚未创建               |
+| ecosystem 的 GitHub 组织权限模型                             | **仓库已创建；高级 ruleset / environment 仍需管理员配置** |
