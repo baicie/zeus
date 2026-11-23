@@ -1,0 +1,9 @@
+consumer,consumer_version,framework_packages,framework_version,ui_packages,ui_version,status,evidence,validated_at,notes
+zeus/examples/admin,0.2.0-rc.3,"zeus; router; query; resource; i18n",workspace:*,"24 packages + @zeus-web/dialog",0.1.0-beta.34 + file:vendor,workspace_only,"examples/admin/package.json:15-48",2026-11-23,"registry 无 0.2.0；vendor 为 beta.35 本地构建"
+zeus/create-zeus templates,0.1.5,"basic-ts; application-ts; admin-ts; web-component-ts; component-library-ts","0.2.0-rc.3 (workspace)","webc-consumer-ts -> @zeus-web/button","0.1.0-beta.34",published_with_ui_dep,"packages/create/create-zeus/templates/webc-consumer-ts/package.json:13",2026-11-23,"发布物内含 UI 包依赖"
+zeus/examples/playground-editor,0.2.0-rc.3,"9 packages incl compiler-wasm; playground-engine",workspace:*,none,n/a,workspace_only,"examples/playground-editor/package.json",2026-11-23,"无 UI 依赖；强依赖 monorepo 源码树"
+zeus-ui/packages (46),0.1.0-beta.35,"runtime-dom; web-c-runtime; output-react-wrapper; output-vue-wrapper; zeus(peer)",0.1.1-beta.20,"zeus-compat (workspace)",workspace:*,published_pinned,"pnpm-lock 解析；逐包 manifest",2026-11-23,"30/46 包声明 @zeus-js 依赖；精确 pin 无 range"
+zeus-ui/examples/ai-workbench,0.1.0-beta.35,"zeus; runtime-dom; vite-plugin",0.1.1-beta.20 + 0.0.5,"ai-core; ai-adapters; ai-primitives; ai-wc",workspace:*,published_pinned,"examples/ai-workbench/package.json:12,13,20",2026-11-23,"zeus-ui 唯一直接消费 @zeus-js 的 example"
+zeus-ui/examples/* (15 others),0.1.0-beta.35,none,n/a,"various",workspace:*,local_only,"各 examples/*/package.json",2026-11-23,"零 @zeus-js 直接依赖"
+zeus/examples/* (20 non-admin),0.2.0-rc.3,"various 0-9",workspace:*,none,n/a,workspace_only,"各 examples/*/package.json",2026-11-23,"零 @zeus-web 依赖"
+zeus-ecosystem (planned),TBD,,">=0.2.0",,">=0.1.0-beta.35",unsupported,"npm view 输出",2026-11-23,"目标组合尚不存在；阻断 Phase 4（R-01）"
