@@ -229,10 +229,37 @@ function mergeEvents(
     result[key] = mergeEvent(value, inferred[key])
   }
 
+  // An event may be declared only in `meta.events`, with no matching emit in
+  // setup or in the options' `emits`. That is a legitimate declaration — the
+  // component dispatches it from an ordinary handler instead of exposing an
+  // emit — and dropping it here erased the event from the manifest, which in
+  // turn erased its React prop from the generated `.d.ts`.
+  //
+  // Adding it must not duplicate an event `declared` already carries under a
+  // different spelling: `emits: { checkedChange }` and
+  // `meta.events: { 'checked-change' }` name the same DOM event, and keeping
+  // both makes the manifest claim two dispatchers for one event — which
+  // `validateComponentManifest` rejects as ZEUS_WC_EVENT_NAME. `name` is the
+  // kebab-case DOM name both forms normalise to, so it is the identity to
+  // compare on; the declared entry wins and keeps its emit-derived detail.
+  const declaredNames = new Set(
+    Object.values(result).map(event => event.name ?? event.key),
+  )
+
   for (const [key, value] of Object.entries(explicit ?? {})) {
     if (result[key]) {
       result[key] = normalizeExplicitEvent(key, value, result[key])
+      continue
     }
+
+    const normalized = normalizeExplicitEvent(key, value, undefined)
+
+    if (declaredNames.has(normalized.name ?? key)) {
+      continue
+    }
+
+    result[key] = normalized
+    declaredNames.add(normalized.name ?? key)
   }
 
   return result

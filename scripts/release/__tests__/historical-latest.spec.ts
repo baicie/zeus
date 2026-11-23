@@ -59,8 +59,14 @@ function tempRoot(): string {
   return directory
 }
 
-/** The 13 real packages and the versions the registry actually returns. */
+/** The 15 real packages and the versions the registry actually returns. */
 const NATIVE_LATEST = '0.1.1-canary.20260812.106.1.658fe407'
+/**
+ * rc.3 published these two, so npm bound their `latest` to that prerelease.
+ * Recorded in the baseline on 2026-11-23 rather than deleted, because
+ * `docs/release-process.md` §5.4 stopped cleaning historical `latest` tags.
+ */
+const RC3_LATEST = '0.2.0-rc.3'
 const ROUTER_LATEST = '0.1.1-canary.20261020.188.1.02f2975b'
 const SSR_LATEST = '0.1.0-canary.20260805.97.1.fa5d9cef'
 
@@ -78,6 +84,8 @@ const REAL_ENTRIES: readonly HistoricalEntry[] = [
   { name: '@zeus-js/resource', latest: ROUTER_LATEST },
   { name: '@zeus-js/query', latest: ROUTER_LATEST },
   { name: '@zeus-js/testing', latest: ROUTER_LATEST },
+  { name: '@zeus-js/eslint-plugin', latest: RC3_LATEST },
+  { name: '@zeus-js/playground-engine', latest: RC3_LATEST },
 ]
 
 const RC = '0.2.0-rc.2'
@@ -93,7 +101,7 @@ function recordsWith(
   }))
 }
 
-/** The registry as it actually is: the 13 historical deviations, rest stable. */
+/** The registry as it actually is: the 15 historical deviations, rest stable. */
 function realRegistryRecords(): LatestTagRecord[] {
   const overrides: Record<string, LatestTagState> = {}
   for (const entry of REAL_ENTRIES) {
@@ -103,13 +111,12 @@ function realRegistryRecords(): LatestTagRecord[] {
     }
   }
   /*
-   * The three first publications are still unpublished before the release.
+   * Only `@zeus-js/i18n` is still unpublished. rc.3 got `eslint-plugin` and
+   * `playground-engine` out before it stopped, so those two now carry a
+   * prerelease `latest` — which is the deviation REAL_ENTRIES records, and why
+   * they must not be overridden back to LATEST_ABSENT here.
    */
-  for (const name of [
-    '@zeus-js/i18n',
-    '@zeus-js/eslint-plugin',
-    '@zeus-js/playground-engine',
-  ]) {
+  for (const name of ['@zeus-js/i18n']) {
     overrides[name] = { status: 'LATEST_ABSENT' }
   }
   return recordsWith(overrides)
@@ -149,12 +156,12 @@ function baselineOf(
   return loaded.baseline!
 }
 
-describe('the committed baseline describes exactly the thirteen packages', () => {
+describe('the committed baseline describes exactly the fifteen packages', () => {
   it('is the real repository file, and validates', () => {
     const root = path.resolve(import.meta.dirname, '../../..')
     const loaded = loadHistoricalBaseline(root)
     expect(loaded.problems).toEqual([])
-    expect(loaded.baseline!.packages).toHaveLength(13)
+    expect(loaded.baseline!.packages).toHaveLength(15)
     expect(loaded.baseline!.approvedBy).toBe('maintainer:baicie')
     expect(loaded.baseline!.decisionReference?.document).toBe(
       'docs/release-process.md',
@@ -270,14 +277,14 @@ describe('baseline validation refuses a file that would widen itself', () => {
 })
 
 describe('judging the baseline against the registry', () => {
-  it('accepts exactly the thirteen recorded deviations', () => {
+  it('accepts exactly the fifteen recorded deviations', () => {
     const baseline = baselineOf(REAL_ENTRIES)
     const judged = judgeHistorical({
       baseline,
       records: realRegistryRecords(),
       releaseVersion: RC,
     })
-    expect(judged.accepted).toHaveLength(13)
+    expect(judged.accepted).toHaveLength(15)
     expect(judged.drifted).toEqual([])
     expect(judged.unresolved).toEqual([])
   })
@@ -466,7 +473,7 @@ describe('precheck phase', () => {
     expect(policy.verdict).toBe('PASS')
   })
 
-  it('accepts exactly the thirteen historical deviations', () => {
+  it('accepts exactly the fifteen historical deviations', () => {
     const baseline = baselineOf(REAL_ENTRIES)
     const records = realRegistryRecords()
     const judged = judgeHistorical({ baseline, records, releaseVersion: RC })
@@ -478,7 +485,7 @@ describe('precheck phase', () => {
       phase: 'precheck',
     })
     expect(policy.verdict).toBe('ACCEPTED_HISTORICAL')
-    expect(policy.acceptedHistorical).toHaveLength(13)
+    expect(policy.acceptedHistorical).toHaveLength(15)
     expect(verdictBlocksRelease(policy.verdict)).toBe(false)
   })
 
@@ -568,6 +575,13 @@ describe('post-publish phase', () => {
       phase: 'post-publish',
     })
     expect(policy.verdict).toBe('ACCEPTED_HISTORICAL_AND_FIRST_PUBLISH')
+    /*
+     * 13 of the 15 historical entries still match the registry. The other two
+     * are `eslint-plugin` and `playground-engine`: this case moves them onto
+     * RC, which is exactly the version being released, and `judgeHistorical`
+     * refuses to let a baseline excuse a deviation the release created. They
+     * are counted as first-publish deviations instead, below.
+     */
     expect(policy.acceptedHistorical).toHaveLength(13)
     expect(policy.acceptedDeviation).toHaveLength(3)
     expect(verdictBlocksRelease(policy.verdict)).toBe(false)

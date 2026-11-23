@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/component-dts",
   "type": "module",
-  "version": "0.2.0-rc.3",
+  "version": "0.2.0-rc.4",
   "description": "DTS generators for Zeus component manifest",
   "license": "MIT",
   "repository": {
@@ -42,6 +42,7 @@
   "dependencies": {
     "@zeus-js/component-analyzer": "workspace:*"
   },
+  "author": "Baicie",
   "browser": {
     "@zeus-js/component-analyzer": "@zeus-js/component-analyzer/browser"
   },
@@ -58,7 +59,6 @@
       }
     ]
   },
-  "author": "Baicie",
   "keywords": [
     "zeus",
     "web-components",

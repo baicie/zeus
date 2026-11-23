@@ -76,13 +76,19 @@
       "group": "native"
     },
     {
-      "name": "@zeus-js/runtime-ssr",
-      "latest": "0.1.0-canary.20260805.97.1.fa5d9cef",
-      "firstObserved": "2026-08-05",
-      "group": "runtime"
+      "name": "@zeus-js/eslint-plugin",
+      "latest": "0.2.0-rc.3",
+      "firstObserved": "2026-11-19",
+      "group": "tooling"
     },
     {
-      "name": "@zeus-js/router",
+      "name": "@zeus-js/playground-engine",
+      "latest": "0.2.0-rc.3",
+      "firstObserved": "2026-11-19",
+      "group": "tooling"
+    },
+    {
+      "name": "@zeus-js/query",
       "latest": "0.1.1-canary.20261020.188.1.02f2975b",
       "firstObserved": "2026-10-20",
       "group": "runtime"
@@ -94,9 +100,15 @@
       "group": "runtime"
     },
     {
-      "name": "@zeus-js/query",
+      "name": "@zeus-js/router",
       "latest": "0.1.1-canary.20261020.188.1.02f2975b",
       "firstObserved": "2026-10-20",
+      "group": "runtime"
+    },
+    {
+      "name": "@zeus-js/runtime-ssr",
+      "latest": "0.1.0-canary.20260805.97.1.fa5d9cef",
+      "firstObserved": "2026-08-05",
       "group": "runtime"
     },
     {

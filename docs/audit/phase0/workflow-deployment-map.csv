@@ -1,0 +1,27 @@
+repository,workflow,lines,triggers,serves,artifacts,environment,secrets,deployment_target,cross_repo_zeus_ui,migration_owner,evidence_uploaded,risk
+zeus,admin-image.yml,793,"push main+paths; pull_request+paths; workflow_dispatch deploy","admin 应用镜像 + 生产部署","none (step summary only)",production,"TCR_USERNAME; TCR_PASSWORD; GITHUB_TOKEN; ZEUS_PLAYGROUND_DEPLOY_SSH_KEY; ZEUS_PLAYGROUND_DEPLOY_SSH_PASSWORD","ghcr.io/<owner>/zeus-admin -> admin.moonbyte.top:8443",gh api only (no checkout),zeus-ecosystem,no,R-15
+zeus,playground-image.yml,462,"push main+paths; pull_request; workflow_dispatch","playground 应用镜像 + 生产部署","none (step summary only)",production,"TCR_IMAGE_PLAYGROUND; TCR_USERNAME; TCR_PASSWORD; ZEUS_PLAYGROUND_DEPLOY_*","ghcr.io/<owner>/zeus-playground -> playground.moonbyte.top:8443",gh api only,INVESTIGATE (Q2),no,R-16
+zeus,playground-pages.yml,157,"push main+paths; workflow_dispatch","Playground 静态站","playground-pages-site",none,PLAYGROUND_PAGES_TOKEN,"github.io/zeus-playground",no,INVESTIGATE (Q2),yes,R-12
+zeus,demos-pages.yml,376,"push main+paths; workflow_dispatch ui-ref/publish","admin demo + zeus-ui ai-workbench demo","demos-pages-site (7d); demos-pages-pairing (30d)",demos-pages,DEMOS_PAGES_TOKEN,"github.io/zeus-demos",anonymous clone :98-107,zeus-ecosystem (or dual),yes,R-06
+zeus,host-deployment-prepare.yml,83,workflow_dispatch,四产品镜像构建 + 本地预演,host-deployment-stage1 (incl oci/*.tar),none,none,none,checkout :38-43,zeus-ecosystem,yes,
+zeus,host-deployment-stage2.yml,225,workflow_dispatch,四产品生产事务部署,host-deployment-stage2-evidence (30d),"${{ inputs.environment }}",ZEUS_ACCEPTANCE_ADMIN_EMAIL/PASSWORD,self-hosted zeus-host runner,no,zeus-ecosystem,yes,
+zeus,product-acceptance.yml,348,"workflow_dispatch; push feat/release-*","四产品 Linux/Windows 真实验收","product-acceptance-linux/windows; product-images-linux",none,hardcoded local creds,none,checkout x3 jobs,zeus-ecosystem (or dual),yes,
+zeus,ci.yml,1160,"push main; pull_request; workflow_dispatch","framework 主 CI + 发布证据","12 artifact classes",none,GITHUB_TOKEN,none,"checkout :952-958 (create-zeus-candidates)",zeus,yes,
+zeus,compiler-native.yml,141,"workflow_call; pull_request+paths; push main; workflow_dispatch",7 平台原生编译器,compiler-native-<target>,none,none,none,no,zeus,yes,
+zeus,release.yml,390,push tag v*,npm 发布链路,"ui-pairing; release-authorization; create-zeus-candidate-release; release-latest-policy; release-latest-precheck-snapshot",Release,NPM_TOKEN; GITHUB_TOKEN,none,"checkout :128-136 (pairing SHA)",zeus,yes,
+zeus,release-canary.yml,345,"push main; workflow_dispatch dry-run/publish",canary 通道 + 下游 dispatch,"canary-readiness; canary-readiness-dry-run; canary-packed-consumers",Canary,"NPM_TOKEN; ZEUS_UI_DISPATCH_TOKEN",none,dispatch only :336-345,zeus,yes,
+zeus,devtools-release.yml,87,"push tag create-zeus@*; vite-plugin@*",独立版本线发布,create-zeus-registry-report,Release,NPM_TOKEN,none,no,zeus,yes,
+zeus,repair-dist-tags.yml,68,workflow_dispatch,dist-tag 修复,latest-tag-repair,Release,NPM_TOKEN,none,no,zeus,yes,
+zeus,repair-native-latest.yml,70,workflow_dispatch + 确认串,native latest 清理,native-latest-cleanup-report-<run_id>,Release,NPM_TOKEN,none,no,zeus,yes,
+zeus,docs.yml,60,"push main+docs path; workflow_dispatch",框架文档站,pages artifact,github-pages,none,github.io/zeus,no,zeus,yes,
+zeus,component-host-bench.yml,152,"pull_request+paths; push main+paths",框架性能基线,component-host-benchmark (90d),none,none,none,no,zeus,yes,
+zeus,component-host-rc.yml,121,pull_request+paths,RC 快速门禁,component-host-rc-report,none,none,none,no,zeus,yes,
+zeus-ui,ci.yml,60,"push all branches; pull_request","本体门禁（编排 test/showcase/ai-workbench）",none,none,none,none,no,zeus-ui,no,
+zeus-ui,test.yml,226,workflow_call,组件包 + data-grid + AI 包,data-grid-benchmark-<run_id>; data-grid-framework-e2e,none,none,none,no,zeus-ui,yes,
+zeus-ui,showcase.yml,175,"workflow_call; workflow_dispatch",4 个 showcase,showcase-unit-artifacts; showcase-e2e-artifacts,none,none,none,no,zeus-ui,yes,
+zeus-ui,docs.yml,97,"pull_request; push main+paths",组件文档站 + Pages 部署,pages artifact,github-pages,none,github.io/zeus-ui,no,zeus-ui,yes,
+zeus-ui,ai-workbench.yml,405,"workflow_call; workflow_dispatch live","ai-workbench 应用 gates","ai-workbench-build/p0/byok/visual/live",ai-workbench-live,ZEUS_LIVE_BASE_URL/API_KEY/MODEL/PASSPHRASE,none,no (uses Core screenshots ref),zeus-ecosystem,yes,
+zeus-ui,ai-workbench-image.yml,758,"push main+paths; pull_request; workflow_dispatch deploy","ai-workbench + ai-host 生产部署","none (step summary only)",production,"TCR_USERNAME; TCR_PASSWORD; ZEUS_WORKBENCH_DEPLOY_SSH_KEY/PASSWORD","ghcr zeus-ai-workbench + zeus-ai-host -> ai.moonbyte.top:8443",gh api only,zeus-ecosystem,no,R-15
+zeus-ui,publish.yml,221,"workflow_call; workflow_dispatch",46 个 @zeus-web 发布,"ui-release-pairing; ui-publish-preflight",Release,NPM_PUBLISH_TOKEN,registry.npmjs.org,no,zeus-ui (cross-repo contract),yes,
+zeus-ui,release.yml,298,workflow_dispatch,发布编排 + 打 tag,ui-release-pairing-release,none,none,none,no,zeus-ui (cross-repo contract),yes,R-13
+zeus-ui,zeus-canary-compat.yml,241,"repository_dispatch; workflow_dispatch; schedule daily","上游兼容",none,none,none,none,no,zeus-ui,no,

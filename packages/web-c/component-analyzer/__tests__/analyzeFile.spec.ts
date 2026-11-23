@@ -673,6 +673,72 @@ describe('analyzeFile', () => {
     expect(result.components[0].events).toEqual({})
   })
 
+  // A component may dispatch an event from an ordinary handler without
+  // exposing it through `emits`. `meta.events` is then the only declaration,
+  // and dropping it erased the event from the manifest — and with it the
+  // event's React prop from the generated `.d.ts`. `examples/headless` hit
+  // this: `z-tabs` declared `value-change` only in `meta`, so `ZTabsProps` had
+  // no `onValueChange` and the React example failed to type-check.
+  it('keeps an event declared only in meta, with no emit', () => {
+    const code = `
+      import { defineElement } from '@zeus-js/zeus'
+
+      export const ZTabs = defineElement(
+        'z-tabs',
+        {
+          meta: {
+            events: {
+              'value-change': { detail: { value: 'string' } },
+            },
+          },
+        },
+        () => <div />,
+      )
+    `
+
+    const result = analyzeFile({ file: 'src/tabs.tsx', code })
+
+    expect(result.components[0].events).toEqual({
+      'value-change': expect.objectContaining({
+        key: 'value-change',
+        name: 'value-change',
+        reactName: 'onValueChange',
+        detail: { value: 'string' },
+      }),
+    })
+  })
+
+  // The same DOM event written two ways — `emits: { checkedChange }` and
+  // `meta.events: { 'checked-change' }` — must yield one entry, not two.
+  // Keeping both makes the manifest claim two dispatchers for one event, and
+  // `validateComponentManifest` rejects that as ZEUS_WC_EVENT_NAME.
+  it('does not duplicate an event declared in both emits and meta', () => {
+    const code = `
+      import { defineElement, event } from '@zeus-js/zeus'
+
+      export const ZCheckbox = defineElement(
+        'z-checkbox',
+        {
+          emits: { checkedChange: event<{ checked: boolean }>() },
+          meta: {
+            events: { 'checked-change': { detail: { checked: 'boolean' } } },
+          },
+        },
+        () => <button />,
+      )
+    `
+
+    const result = analyzeFile({ file: 'src/checkbox.tsx', code })
+    const events = result.components[0].events
+    const dispatchers = Object.values(events).map(e => e.name)
+
+    expect(dispatchers).toEqual(['checked-change'])
+    expect(events.checkedChange).toMatchObject({
+      reactName: 'onCheckedChange',
+      detail: { checked: 'boolean' },
+    })
+  })
+
   it('extracts detail from event type parameters', () => {
     const code = `
       import { defineElement, event } from '@zeus-js/zeus'

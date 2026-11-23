@@ -1,0 +1,22 @@
+{
+  "schema": "zeus.release-pairing/v1",
+  "coreVersion": "0.2.0-rc.4",
+  "uiCommit": null,
+  "uiVersion": "0.2.0-rc.4",
+  "verifiedAt": "2026-11-23T00:00:00.000Z",
+  "bootstrap": true,
+  "firstPublish": [
+    "@zeus-js/i18n",
+    "@zeus-js/eslint-plugin",
+    "@zeus-js/playground-engine"
+  ],
+  "recovery": {
+    "failedVersion": "0.2.0-rc.3",
+    "failedTagCommit": "649e2f6017c05129bb16345bd74c31135c99ad0e",
+    "failedRunId": "44447893463",
+    "failedRunTagCommit": "649e2f6017c05129bb16345bd74c31135c99ad0e",
+    "failedRunReachedPublish": true,
+    "note": "Reached publish and failed on @zeus-js/compiler-native-linux-x64-gnu with TLOG_CREATE_ENTRY_ERROR (409): npm's sigstore client found an equivalent Rekor entry already present for that exact tarball, and @baicie/release retries only on E409/EPUBLISHCONFLICT, not on that code. compiler-native-darwin-arm64, eslint-plugin and playground-engine published before the failure; every package after it, including @zeus-js/i18n, did not run. rc.4 re-cuts the whole line so every tarball is new and no Rekor entry can collide."
+  },
+  "note": "eslint-plugin and playground-engine have latest bound to 0.2.0-rc.3 from that release; naming them here records that the prerelease latest predates this cut and is the first-publication state, not a regression this release introduces."
+}
