@@ -157,6 +157,21 @@ export const PATH_RULES: readonly PathRule[] = [
     areas: ['tooling', 'consumers'],
     reason: 'gate scripts define what CI verifies',
   },
+  /*
+   * The governance data a release reads by path: pairing records, the
+   * historical `latest` baseline, and the frozen golden-components contract.
+   *
+   * Without this rule these files match nothing, and `classifyChanges` fails
+   * safe by running every area — correct, but it means adding one pairing
+   * record for a release would run the entire suite. They are also reviewed
+   * data rather than code, so the release and tooling areas are the honest
+   * classification.
+   */
+  {
+    pattern: /^meta\//,
+    areas: ['release', 'tooling'],
+    reason: 'governance data read by path at release time',
+  },
   {
     pattern: /^scripts\/release\//,
     areas: ['release', 'tooling'],
