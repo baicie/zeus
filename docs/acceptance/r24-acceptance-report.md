@@ -93,16 +93,25 @@ after : 4 created / 1 disposed   （净 3）
 
 ## 4. 结果
 
-| 检查                              | 本地（chromium 157）                       | CI    |
-| --------------------------------- | ------------------------------------------ | ----- |
-| `check:nested-hydration-browser`  | **7/7 通过**                               | 见 §9 |
-| `check:nested-binding-browser`    | **4/4 通过**                               | 见 §9 |
-| 导入顺序 DOM 先                   | 通过                                       | 同上  |
-| 导入顺序 SSR 先                   | 通过                                       | 同上  |
-| 反事实（`controls = ssrSignals`） | 失败，报 `CONTROL_SIGNAL_NOT_BOUND_TO_DOM` | —     |
+| 检查                              | 本地（chromium 157）                       | CI `browser-runtime`（3 引擎） |
+| --------------------------------- | ------------------------------------------ | ------------------------------ |
+| `check:nested-hydration-browser`  | **7/7 通过**                               | **3/3 引擎通过**（见 §9）      |
+| `check:nested-binding-browser`    | **4/4 通过**                               | **3/3 引擎通过**（见 §9）      |
+| 导入顺序 DOM 先                   | 通过                                       | 同上                           |
+| 导入顺序 SSR 先                   | 通过                                       | 同上                           |
+| 反事实（`controls = ssrSignals`） | 失败，报 `CONTROL_SIGNAL_NOT_BOUND_TO_DOM` | —                              |
 
-**Firefox / WebKit：NOT_RUN（本地无 Playwright 引擎）。** 两个检查已加入
-`browser-runtime` job，三引擎由 CI 覆盖。在 CI 实际跑过之前，本条不得写成已验证。
+**三引擎已在 CI 实际跑过**（run `45110152226`，job `browser-runtime`，
+head `2940c434`）：
+
+```
+Nested hydration:        chromium 156.0.8078.4 PASSED / firefox 157.0 PASSED / webkit 27.2 PASSED
+Nested binding control:  chromium 156.0.8078.4 PASSED / firefox 157.0 PASSED / webkit 27.2 PASSED
+```
+
+Chromium/Firefox/WebKit 各自 7 项与 4 项断言全过，这是一条 **CI_VERIFIED**。
+本地仍然只有 chromium，Firefox/WebKit 未在本地安装 —— 本地与 CI 的差别就
+在这里，不是结论的差别。
 
 ---
 
@@ -145,6 +154,47 @@ after : 4 created / 1 disposed   （净 3）
 
 全部为**本地**结果。只有 CI 实际跑过才能标记 `CI_VERIFIED`。
 
+### 6.1 Node/npm 矩阵（TASK 14）
+
+命令：`pnpm check:node-compat-matrix`。每行两组数据，**故意分开**：
+
+| Node / npm       | 伞包（只装 `zeus`）   | 逐包安装 | 渲染 |
+| ---------------- | --------------------- | -------- | ---- |
+| v24.18.0 / 11.16 | `ETARGET`（机制问题） | ok       | ok   |
+| v24.16.0 / 11.13 | `ETARGET`             | ok       | ok   |
+| v22.12.0 / 10.9  | `ETARGET`             | ok       | ok   |
+| v20.19.0 / 10.8  | `ETARGET`             | ok       | ok   |
+
+四行的伞包列都是 `ETARGET`，这是**候选 tarball 机制**的属性而非 npm：
+`@zeus-js/zeus` 的 `dependencies` 指向 registry 上的 `0.2.0-rc.3`，
+只有 tarball 的 registry 满足不了。R22 测到的 npm major 差异需要 registry 上
+**有部分包**才复现，所以那是隔离演练的题目，不是这张表。
+
+有用的是第二列：逐包安装时四个组合全部安装并渲染成功，
+**框架本身没有排除任何一组**。npm 10 丢弃 optional 整组的问题仍然存在
+（见 §7），但它影响的是伞包路径，不是框架能力。
+
+### 6.2 一个被修掉的挂死缺陷（本轮新发现）
+
+`check:node-ssr-consumer` 在 CI 的 `packed-consumers` job 里挂了 **26 分 30 秒**，
+只打出一行 404 就被 job 超时杀掉，`ci-gate` 因此判失败（run `45110152226`）。
+
+根因不是浏览器、也不是资源缺失，而是**资源生命周期**：`browser.close()`
+从未被调用，`server.close()` 只在成功路径上。任何失败或 BLOCKED 都会留下
+一个活着的 HTTP server 和一个活着的浏览器进程，事件循环永远不空 ——
+于是进程既不退出也不报错。
+
+修复三处：
+
+1. `browser` / `server` / `page` 提到模块作用域，`finally` 里逐一关闭；
+2. 整个检查加 **120 秒看门狗**，超时打印已完成步骤并 `process.exit(1)`；
+   用 `exit` 而不是 `exitCode`，因为要能离开一个被 socket 卡住的事件循环；
+3. 请求记录改为存进 report，只打印非 favicon 的 4xx/5xx。
+
+反事实验证：注入一个永不 resolve 的 `await` 后，看门狗在第 17 秒触发、
+`EXIT=1`，并打印 `Steps completed: install ... -> a separate Node process renders ...`。
+恢复后 6 秒通过、`EXIT=0`。
+
 ---
 
 ## 7. 发布状态（与产品验收分开）
@@ -170,23 +220,28 @@ npm 兼容性：`npm 10.9.0` 丢弃整个 optional 组（`NOT_INSTALLED`），
 
 ## 8. 未完成与阻塞
 
-| 项                          | 状态         | 原因                       |
-| --------------------------- | ------------ | -------------------------- |
-| Firefox / WebKit 真实运行   | NOT_RUN      | 本机无 Playwright 引擎     |
-| `test/r24-vite-show-branch` | **BLOCKED**  | 分支切换时改动丢失，需重做 |
-| TASK 14 兼容矩阵            | NOT_RUN      | 需多 Node 版本环境         |
-| TASK 15 独立消费者 CI Gate  | NOT_RUN      | 依赖 TASK 14               |
-| TASK 17 #394 去重           | BLOCKED      | 需先合并 #393，属发布决策  |
-| TASK 23 发布证据            | 只读部分完成 | provenance / pairing 未查  |
+| 项                          | 状态         | 原因                                     |
+| --------------------------- | ------------ | ---------------------------------------- |
+| Firefox / WebKit 本地运行   | NOT_RUN      | 本机无 Playwright 引擎；CI 已覆盖，见 §4 |
+| `test/r24-vite-show-branch` | **BLOCKED**  | 分支切换时改动丢失，需重做               |
+| TASK 17 #394 去重           | BLOCKED      | 需先合并 #393，属发布决策                |
+| TASK 23 发布证据            | 只读部分完成 | provenance / pairing 未查                |
+
+TASK 14 兼容矩阵与 TASK 15 消费者 Gate 在 R24.1 中已完成，见 §6.1。
 
 ---
 
 ## 9. CI
 
-| Run         | SHA        | 结果       |
-| ----------- | ---------- | ---------- |
-| 45108452461 | `2940c434` | 见 PR 页面 |
-| 45108452291 | `2940c434` | 见 PR 页面 |
+| Run         | SHA        | 结果                                                                                                                      |
+| ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 45110152226 | `2940c434` | `browser-runtime` SUCCESS（两检查 3/3 引擎）；`ci-gate` FAIL，因 `packed-consumers` 被 `check:node-ssr-consumer` 挂死超时 |
+| 45108452461 | `2940c434` | 见 PR 页面                                                                                                                |
+| 45108452291 | `2940c434` | 见 PR 页面                                                                                                                |
+
+`45110152226` 的失败**不是** Hydration 修复的失败：`browser-runtime` 里
+两个检查三引擎全过。失败的是我新加步骤的生命周期缺陷，已在 §6.2 修复，
+需在下一个 HEAD 上复验。
 
 #394 之前的 run `45049098126` 为 SUCCESS，但**不含**本轮修复与新增检查。
 本报告不把它的绿色当作本轮结论。
@@ -199,13 +254,13 @@ npm 兼容性：`npm 10.9.0` 丢弃整个 optional 组（`NOT_INSTALLED`），
 BETA_READY: NO
 ```
 
-理由：真实 Registry 的框架本体 0/5，dist-tag 污染 15 个包，provenance 未验证，
-三引擎结果未取。Hydration 侧的根因已定位并修复，但那是产品正确性的一小块，
+理由：真实 Registry 的框架本体 0/5，dist-tag 污染 15 个包，provenance 未验证。
+Hydration 侧根因已定位并修复，三引擎 CI 已验证；但那是产品正确性的一小块，
 不是发布就绪。
 
 **REMAINING_P0**
 
-1. 在 CI 上确认三引擎结果（本轮的修复依赖它）
+1. 在下一个 HEAD 上复验 `packed-consumers`（挂死缺陷已修，未复验）
 2. 真实 Registry 的 25 个未发布包（属发布决策，需授权）
 3. `latest` 修复（需授权）
 4. provenance 查询

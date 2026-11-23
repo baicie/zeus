@@ -158,6 +158,41 @@ const evidence: Record<string, unknown> = {
 
 class BlockedError extends Error {}
 
+// Declared outside the `try` so the `finally` block can always release them.
+// Scoping them to the try is what made the cleanup unreachable on the failure
+// path in the first place.
+let server: { origin: string; close: () => Promise<void> } | undefined
+let browser: import('@playwright/test').Browser | undefined
+let page: import('@playwright/test').Page | undefined
+// Hoisted so the `finally` can record it whatever happened: a run that times
+// out waiting for `__hydrated` is exactly the run whose request list matters.
+let requested: string[] = []
+
+/**
+ * A deadline for the whole check.
+ *
+ * Cleanup in `finally` is what lets a *failing* run exit. It does not help a
+ * run that is *waiting*: `waitForFunction` on a page whose module graph never
+ * finishes loading waits out its timeout, and a hung child process waits
+ * forever. In CI the check sat for 26 minutes this way and the job's own
+ * timeout killed it, so the only record was "cancelled" with no step named.
+ *
+ * Two minutes is far above the ~40 s this takes when everything works, and far
+ * below any job timeout, so a hang reports itself instead of being a mystery.
+ */
+const DEADLINE_MS = 120_000
+const watchdog = setTimeout(() => {
+  const reached = steps.map(entry => entry.step).join(' -> ') || '(none)'
+  console.error(
+    `TIMEOUT: the check did not finish within ${DEADLINE_MS / 1000}s. ` +
+      `Steps completed: ${reached}`,
+  )
+  // `process.exit` rather than `process.exitCode`: the point is to leave even
+  // if the event loop is held by a socket or a browser that will not close.
+  process.exit(1)
+}, DEADLINE_MS)
+watchdog.unref()
+
 try {
   // ---- 1. A project outside the repository ------------------------------
   fs.writeFileSync(
@@ -281,9 +316,8 @@ process.stdout.write(JSON.stringify({ html }))
 
   // ---- 3. Hydrate that exact HTML in a browser --------------------------
   const moduleFiles = readDirectory(path.join(project, 'src'))
-  const server = await serve(project, moduleFiles, html)
-
-  let browser: import('@playwright/test').Browser | undefined
+  server = await serve(project, moduleFiles, html)
+  const origin = server.origin
   try {
     browser = await chromium.launch(chromiumLaunchOptions())
   } catch (error) {
@@ -302,8 +336,11 @@ process.stdout.write(JSON.stringify({ html }))
     throw new BlockedError()
   }
 
-  const page = await browser.newPage()
+  page = await browser.newPage()
   const pageErrors: string[] = []
+  // Kept rather than printed: on success it is noise, and on a timeout with no
+  // `__hydrated` it is the list that names what never arrived.
+  requested = []
   page.on('pageerror', error => {
     pageErrors.push(error.message)
     console.log('  [pageerror]', error.message.slice(0, 200))
@@ -311,11 +348,25 @@ process.stdout.write(JSON.stringify({ html }))
   page.on('console', m => {
     if (m.type() === 'error') console.log('  [console]', m.text().slice(0, 200))
   })
+  // The favicon request is the one 404 a healthy run produces; reporting it
+  // would train the reader to ignore this line, which is what hid the real
+  // cause the first time.
   page.on('response', r => {
-    if (r.status() >= 400) console.log('  [http]', r.status(), r.url())
+    const url = r.url()
+    if (r.status() >= 400 && !url.endsWith('/favicon.ico')) {
+      console.log('  [http]', r.status(), url)
+    }
+  })
+  // A page whose module graph fails to load never sets `__hydrated`, and
+  // `waitForFunction` then waits out its timeout with nothing to show for it.
+  // Recording what was requested makes the missing resource name itself
+  // rather than leaving a bare timeout.
+  page.on('request', r => {
+    const url = r.url()
+    if (!url.endsWith('/favicon.ico')) requested.push(url)
   })
   page.setDefaultTimeout(30_000)
-  await page.goto(server.origin)
+  await page.goto(origin)
   await page.waitForFunction(
     () => (globalThis as { __hydrated?: boolean }).__hydrated === true,
   )
@@ -391,15 +442,40 @@ process.stdout.write(JSON.stringify({ html }))
   })
 
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join('; ')}`)
-  await page.close()
   passed = true
-  await server.close()
 } catch (error) {
   if (!(error instanceof BlockedError)) {
     failure = error instanceof Error ? error.message : String(error)
     throw error
   }
 } finally {
+  clearTimeout(watchdog)
+  evidence.requested = requested
+  // Every exit path closes both resources.
+  //
+  // The first version closed the page and the server only on the success path,
+  // and never closed the browser at all. A check that fails therefore left a
+  // live HTTP server and a live browser holding the event loop open, and the
+  // process sat there instead of exiting: in CI that was 26 minutes of silence
+  // until the job's own timeout killed it, with no failure line to read.
+  // Cleanup belongs here, where it runs whatever happened.
+  try {
+    await page?.close()
+  } catch {
+    // A page in a crashed browser cannot be closed; the browser close below is
+    // the part that matters for the process to exit.
+  }
+  try {
+    await browser?.close()
+  } catch {
+    // Same: a browser that already died has nothing to release.
+  }
+  try {
+    await server?.close()
+  } catch {
+    // The server may already be closed by a failed `listen`.
+  }
+
   fs.writeFileSync(
     path.join(output, 'report.json'),
     `${JSON.stringify({ ...evidence, steps, passed, blocked, failure }, null, 2)}\n`,
