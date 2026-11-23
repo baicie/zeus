@@ -520,6 +520,41 @@ describe('vite-plugin-zeus transform', () => {
     expect(domCode).toContain('from "virtual:dom-runtime"')
   })
 
+  // Hydration markers are the plugin's to request, and this is the option that
+  // requests them. It was missing entirely until an end-to-end check went
+  // through the plugin rather than the compiler: `auto_hydrate` defaults to
+  // false, so every component Vite compiled came out without root markers and
+  // `render(..., { hydrate: true })` failed with ZEUS_HYDRATION_NO_ADOPTION on
+  // markup the same source had produced for SSR.
+  it('emits hydration markers when autoHydrate is on', async () => {
+    const code = getCode(
+      await createTransformHarness({
+        compiler: { autoHydrate: true },
+      })(source, '/src/App.tsx'),
+    )
+
+    expect(code).toContain('autoHydrateComponent')
+  })
+
+  it('emits no hydration markers by default', async () => {
+    const code = getCode(await createTransformHarness()(source, '/src/App.tsx'))
+
+    expect(code).not.toContain('autoHydrateComponent')
+  })
+
+  // Both environments have to agree: the server writes the markers the client
+  // looks for. A per-target switch would be a way to set them inconsistently,
+  // so the one option drives both.
+  it('applies autoHydrate to the SSR target as well', async () => {
+    const code = getCode(
+      await createTransformHarness({
+        compiler: { autoHydrate: true },
+      })(source, '/src/App.tsx', { moduleType: 'tsx', ssr: true }),
+    )
+
+    expect(code).toContain('zeus:hydrate')
+  })
+
   it('registers a full-remount HMR boundary before top-level roots in serve mode', async () => {
     const code = getCode(
       await createTransformHarness({}, 'serve')(rootSource, '/src/main.tsx'),
