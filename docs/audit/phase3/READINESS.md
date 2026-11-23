@@ -136,15 +136,62 @@ beta.34 的 peer 硬绑 `0.1.1-beta.20`，与 rc.5 不相容。
 | `@zeus-js/runtime-dom` | **3** | rc.5、beta.20、beta.20 |
 | `@zeus-js/signal`      | **3** | 同上                   |
 
-### 7.3 为什么这比「版本号不一致」严重
+### 7.3 物理副本数 ≠ 活跃引擎数（2026-11-23 修订）
 
-`signal` 是响应式引擎本体。磁盘存在三个副本说明**可能**产生多个模块身份及响应式作用域；但要声称浏览器真的加载三个独立引擎，仍必须检查打包后 realpath、模块去重、活跃实例和浏览器执行结果。
+`signal` 是响应式引擎本体。磁盘存在多个副本说明**可能**产生多个模块身份及
+响应式作用域；但要声称浏览器真的加载了多个独立引擎，必须检查打包后 realpath、
+模块去重、活跃实例和浏览器执行结果——**不能仅靠 `npm ls` 推断**。
 
-- 若 A/B 引擎实例分别执行 `createSignal` 和 `createEffect`，可能发生跨引擎跟踪不一致或显式报错。
-- 清理行为是否泄漏需要真实 mount/unmount 证据。
-- 不能仅靠 `npm ls` 推断具体是静默失败还是显式错误。
+**这两件事已经分开测了**（详见附录）：
 
-这也解释了为什么本报告不把「`pnpm install` 成功」当作通过标准。
+| 指标               | 实测值   | 含义                     |
+| ------------------ | -------- | ------------------------ |
+| 物理 `signal` 副本 | 4 个     | 磁盘上有几份文件         |
+| **活跃运行时引擎** | **2 个** | 真正被求值、持有依赖图的 |
+
+验证方式：对每个副本做 `realpath`，再在 Node 与真实 Chrome 中分别加载两份引擎，
+比较 `createSignal` 的引用相等性并尝试跨引擎建立 effect。结果是
+`A.createSignal === B.createSignal` 为 `false`，跨引擎调用立即抛错。
+
+副本数不等于引擎数：没有被 import 的副本不构成任何风险。
+
+### 7.4 跨引擎的**实际**行为：立即报错，带修复指引
+
+本报告初版称「静默失效」。**这个结论是错的**，已通过真实运行时实验推翻。
+
+Zeus 的 signal 有引擎身份检查。跨实例调用时立即抛出：
+
+```
+Error: Cannot create an effect with a different Zeus signal engine.
+       Deduplicate @zeus-js/signal for this reactive tree.
+```
+
+**验证环境**（VERIFIED）：
+
+| 环境                           | 结果                                                          |
+| ------------------------------ | ------------------------------------------------------------- |
+| Node 22.12 ESM                 | `Cannot create an effect with a different Zeus signal engine` |
+| Chrome（Playwright，真实页面） | 同样的错误，`pageerror` 捕获                                  |
+
+同引擎对照组正常工作（effect 执行 2 次，符合预期）。
+
+`0.2.0-rc.5` 与 `0.1.1-beta.20` **两个版本都带这个检查**，所以不存在「旧版本没有保护」的窗口。
+
+### 7.5 那真正的问题是什么
+
+不是"静默失效"，而是：
+
+1. **安装期就冲突**：npm 直接 `ERESOLVE` 拒绝（beta.34 的 peer 硬绑 `0.1.1-beta.20`）；
+   pnpm 则只警告 `✕ unmet peer` 并继续——**两个包管理器的行为不同**。
+2. **绕过 peer 检查后，运行期快速失败**：对开发者友好（有明确指引），
+   但意味着混用组合**根本跑不起来**，任何依赖双版本的方案都不成立。
+
+**结论反而更强**：不是"可能出错"，是"确定不可用"。
+
+### 7.6 仍不把「install 成功」当验收标准
+
+理由变了：不是因为会静默失效，而是因为
+`--legacy-peer-deps` 能让一个**运行时必然崩溃**的组合"安装成功"。
 
 ### 7.4 对 Phase 3 的含义
 
@@ -229,3 +276,86 @@ zeus/.github/workflows/host-deployment-stage2.yml:111
 | D-P3-03 | R-V1 的根治方式（B2）         | **高**            |
 | D-P3-04 | `zeus-host` runner 的注册范围 | 中                |
 | D-P3-05 | Phase 3c 的消费者应该装什么   | **高**（依赖 02） |
+
+---
+
+## 附录：R-V1 运行时验证（2026-11-23，P1-1）
+
+### 隔离消费者（仓库外）
+
+`/tmp` 下的独立项目，不读任何 workspace 链接。安装均指定
+`--registry=https://registry.npmjs.org`。
+
+### 场景矩阵
+
+| 场景 | 依赖                                  | 安装 | `signal` 物理副本 | 版本                 |
+| ---- | ------------------------------------- | ---- | ----------------: | -------------------- |
+| A    | `@zeus-js/*@0.2.0-rc.5` 单独          | ✅   |                 1 | rc.5                 |
+| B    | `@zeus-web/button@0.1.0-beta.34` 单独 | ✅   |                 1 | 0.1.1-beta.20        |
+| C    | Core rc.5 + UI beta.34 混用           | ⚠️   |             **4** | rc.5 + 0.1.1-beta.20 |
+
+场景 C 的安装差异（**同一组合，两个包管理器行为不同**）：
+
+```
+npm  --legacy-peer-deps → 装上了，但运行期必然崩溃
+npm  （严格）           → ERESOLVE，拒绝安装
+pnpm （严格）           → 警告 "✕ unmet peer @zeus-js/zeus@0.1.1-beta.20: found 0.2.0-rc.5"，继续安装
+```
+
+### 跨引擎的运行时行为（真实执行）
+
+```js
+const A = await import('@zeus-js/signal') // rc.5
+const B = await import('.../button/node_modules/@zeus-js/signal/...') // beta.20
+
+A === B // false
+A.createSignal === B.createSignal // false
+
+A.createRoot(() => {
+  B.createEffect(() => {})
+})
+// Error: Cannot create an effect with a different Zeus signal engine.
+//        Deduplicate @zeus-js/signal for this reactive tree.
+```
+
+**两个环境都复现**：
+
+| 环境                           | 结果                   |
+| ------------------------------ | ---------------------- |
+| Node 22.12（ESM）              | 抛错                   |
+| Chrome（Playwright，真实页面） | 抛错，`pageerror` 捕获 |
+
+同引擎对照组：effect 执行 2 次，符合预期。
+
+### 最小复现
+
+```bash
+mkdir rv1 && cd rv1
+cat > package.json <<'EOF'
+{"name":"rv1","private":true,"dependencies":{
+  "@zeus-js/zeus":"0.2.0-rc.5",
+  "@zeus-js/signal":"0.2.0-rc.5",
+  "@zeus-web/button":"0.1.0-beta.34"}}
+EOF
+npm install --registry=https://registry.npmjs.org --legacy-peer-deps
+node --input-type=module -e "
+const A = await import('@zeus-js/signal')
+const B = await import('./node_modules/@zeus-web/button/node_modules/@zeus-js/signal/dist/signal.esm-bundler.js')
+A.createRoot(() => B.createEffect(() => {}))
+"
+# Error: Cannot create an effect with a different Zeus signal engine.
+```
+
+### 对验收条件的对照
+
+| 条件                   | 结果                                     |
+| ---------------------- | ---------------------------------------- |
+| 依赖图无非预期跨版本包 | ❌ 场景 C 有 2 个活跃引擎                |
+| 无错误 peer 契约       | ❌ beta.34 硬绑 `0.1.1-beta.20`          |
+| 无跨引擎运行时异常     | ❌ 抛 `different Zeus signal engine`     |
+| 响应式更新正确         | ✅ 同引擎内正常（effect 2 次）           |
+| 卸载后无遗留订阅       | 未测（跨引擎在建立阶段即失败，无从卸载） |
+| 三种浏览器证据         | ⚠️ 仅 Chromium（Firefox/WebKit 未装）    |
+
+**结论**：R-V1 不是"可能有风险"，是**该组合确定不可用**，并且在安装阶段
+（npm）或首次创建 effect 时（pnpm + 运行时）就会暴露。这不是静默缺陷。
