@@ -112,8 +112,12 @@ export const RELOCATED_DOCS: Readonly<Record<string, string>> = {
  * Root paths that moved, and where each one went.
  *
  * Three governance directories moved into `meta/`, and the benchmark fixture
- * moved beside the code that builds it. Two separate failures are checked
- * against this table, and they pull in opposite directions:
+ * moved beside the code that builds it — which is why this table is about
+ * *root paths* and not about `meta/`: `benchmarks/` left the root without
+ * going anywhere near it.
+ *
+ * Two separate failures are checked against this table, and they pull in
+ * opposite directions:
  *
  * - the *old* path returning at the root. `release-pairing/`, `release-policy/`
  *   and `tests/` were each a single-purpose directory at the top level, and a
@@ -130,7 +134,7 @@ export const RELOCATED_DOCS: Readonly<Record<string, string>> = {
  * exactly one file, and `tests/` held exactly one, so a directory-level check
  * would accept `tests/` without the contract in it.
  */
-export const MIGRATED_TO_META: Readonly<
+export const MIGRATED_ROOT_PATHS: Readonly<
   Record<string, { readonly to: string; readonly kind: 'directory' | 'file' }>
 > = {
   'release-pairing': { to: 'meta/release/pairing', kind: 'directory' },
@@ -251,7 +255,7 @@ export function checkRelocatedPaths(
 }
 
 /**
- * The `meta/` migration, in both directions.
+ * The migrated root paths, in both directions.
  *
  * The old path returning is one failure; the new path disappearing is the
  * other, and it is the one that costs more — the release reads
@@ -260,11 +264,11 @@ export function checkRelocatedPaths(
  * future refactor cannot pass by making the old path exist and the new one
  * vanish.
  */
-export function checkMetaMigration(
+export function checkMigratedRootPaths(
   exists: (relative: string) => boolean,
 ): Finding[] {
   const findings: Finding[] = []
-  for (const [oldPath, { to, kind }] of Object.entries(MIGRATED_TO_META)) {
+  for (const [oldPath, { to, kind }] of Object.entries(MIGRATED_ROOT_PATHS)) {
     if (!exists(oldPath)) continue
     findings.push({
       rule: 'migrated-path-returned',
@@ -409,7 +413,9 @@ export function runAllChecks(): Finding[] {
     ...checkRelocatedPaths(relative =>
       fs.existsSync(path.join(root, relative)),
     ),
-    ...checkMetaMigration(relative => fs.existsSync(path.join(root, relative))),
+    ...checkMigratedRootPaths(relative =>
+      fs.existsSync(path.join(root, relative)),
+    ),
     ...checkIgnoreExceptionOrder(readIfExists),
     ...checkPipelineDocIsMarkedHistorical(readIfExists),
     ...checkCurrentPipelineEntry(relative =>

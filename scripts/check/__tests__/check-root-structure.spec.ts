@@ -14,12 +14,12 @@ import {
   checkCurrentPipelineEntry,
   checkForbiddenRootFiles,
   checkIgnoreExceptionOrder,
-  checkMetaMigration,
+  checkMigratedRootPaths,
   checkPipelineDocIsMarkedHistorical,
   checkPinnedDirectories,
   checkRelocatedPaths,
   checkRootDirectories,
-  MIGRATED_TO_META,
+  MIGRATED_ROOT_PATHS,
   PINNED_ROOT_DIRECTORIES,
   REQUIRED_META_PATHS,
   runAllChecks,
@@ -225,19 +225,19 @@ describe('governance data lives under meta/ and only there', () => {
     paths.includes(relative)
 
   it('accepts the real tree', () => {
-    expect(checkMetaMigration(p => p.startsWith('meta/'))).toEqual([])
+    expect(checkMigratedRootPaths(p => p.startsWith('meta/'))).toEqual([])
   })
 
   it.each(['release-pairing', 'release-policy', 'tests', 'benchmarks'])(
     'reports %s coming back at the root',
     directory => {
-      const findings = checkMetaMigration(
+      const findings = checkMigratedRootPaths(
         p => p === directory || p.startsWith('meta/'),
       )
       expect(
         findings.filter(f => f.rule === 'migrated-path-returned'),
       ).toHaveLength(1)
-      expect(findings[0]!.detail).toContain(MIGRATED_TO_META[directory]!.to)
+      expect(findings[0]!.detail).toContain(MIGRATED_ROOT_PATHS[directory]!.to)
     },
   )
 
@@ -247,7 +247,7 @@ describe('governance data lives under meta/ and only there', () => {
    * existing and would not say which file came back.
    */
   it('reports a single migrated file returning under its old path', () => {
-    const findings = checkMetaMigration(
+    const findings = checkMigratedRootPaths(
       everything([
         'release-policy/historical-latest.json',
         ...REQUIRED_META_PATHS,
@@ -271,7 +271,7 @@ describe('governance data lives under meta/ and only there', () => {
     const present = REQUIRED_META_PATHS.filter(
       p => p !== 'meta/release/pairing/v0.2.0-rc.3.json',
     )
-    const findings = checkMetaMigration(everything(present))
+    const findings = checkMigratedRootPaths(everything(present))
     expect(findings).toHaveLength(1)
     expect(findings[0]!.rule).toBe('meta-path-missing')
     expect(findings[0]!.detail).toContain(
@@ -283,7 +283,7 @@ describe('governance data lives under meta/ and only there', () => {
     const present = REQUIRED_META_PATHS.filter(
       p => p !== 'meta/contracts/golden-components.json',
     )
-    const findings = checkMetaMigration(everything(present))
+    const findings = checkMigratedRootPaths(everything(present))
     expect(findings).toHaveLength(1)
     expect(findings[0]!.rule).toBe('meta-path-missing')
     expect(findings[0]!.detail).toContain(
@@ -292,7 +292,7 @@ describe('governance data lives under meta/ and only there', () => {
   })
 
   it('reports every missing path, not just the first', () => {
-    const findings = checkMetaMigration(() => false)
+    const findings = checkMigratedRootPaths(() => false)
     expect(findings).toHaveLength(REQUIRED_META_PATHS.length)
     expect(new Set(findings.map(f => f.rule))).toEqual(
       new Set(['meta-path-missing']),
