@@ -1,0 +1,54 @@
+group_id,source_file,line_range,behavior_under_test,expect_count,owner_layer,destination_repository,destination_test,keep_input_and_expectation,needs_new_host,action,risk
+G01,scripts/check/check-admin.ts,52-71,构建与依赖预检（vendored-dialog + tsc + build）,0,application,zeus-ecosystem,apps/admin 的 CI 预检步骤,yes,no,move,low
+G02,scripts/check/check-admin.ts,73-91,Server 启动（每浏览器 startAdminServer）,0,application,zeus-ecosystem,apps/admin 的 e2e setup,yes,no,move,low
+G03,scripts/check/check-admin.ts,151-161,登录（填表→提交→login-card 消失）,3,integration,zeus-ecosystem,apps/admin e2e 登录流程,yes,no,move,low
+G04,scripts/check/check-admin.ts,162-181,会话 Cookie 存在与可读,2,application,zeus-ecosystem,apps/admin e2e 会话断言,yes,no,move,low
+G05,scripts/check/check-admin.ts,182-185,DataGrid 初始行可见,1,component,zeus-ui,e2e/advanced/data-grid（已覆盖）,yes,no,drop_duplicate,low
+G06,scripts/check/check-admin.ts,186-225,zoom=2 下无文档溢出,1,integration,zeus-ecosystem,apps/admin e2e 布局断言,yes,no,move,low
+G07,scripts/check/check-admin.ts,226-228,分页 Page 2 of 3,2,integration,zeus-ecosystem,apps/admin e2e 分页,yes,no,move,low
+G08,scripts/check/check-admin.ts,229-230,行 aria-selected,1,component,zeus-ui,e2e/advanced/data-grid accessibility（已覆盖）,yes,no,drop_duplicate,low
+G09,scripts/check/check-admin.ts,231-249,搜索过滤与计数,6,integration,zeus-ecosystem,apps/admin e2e 搜索,yes,no,move,medium
+G10,scripts/check/check-admin.ts,250-255,状态过滤,3,integration,zeus-ecosystem,apps/admin e2e 过滤,yes,no,move,low
+G11,scripts/check/check-admin.ts,256-259,选中摘要文本,1,integration,zeus-ecosystem,apps/admin e2e 选择,yes,no,move,low
+G12,scripts/check/check-admin.ts,260-273,陈旧查询与行 DOM 身份（600ms stale）,4,integration,zeus-ecosystem,apps/admin e2e 时序断言,yes,no,move,high
+G13,scripts/check/check-admin.ts,274-281,详情导航（URL/detail-id/邮箱/dialog）,4,integration,zeus-ecosystem,apps/admin e2e 导航,yes,no,move,medium
+G14,scripts/check/check-admin.ts,282-325,表单重建竞态（ref 不得建立 Show 依赖；节点替换=0）,2,framework,zeus,新建 zeus 集成宿主（待定）,yes,YES,new_host,high
+G15,scripts/check/check-admin.ts,326-331,保存流程与 dialog 关闭,2,integration,zeus-ecosystem,apps/admin e2e 保存,yes,no,move,low
+G16,scripts/check/check-admin.ts,332-350,保存后详情传播,1,integration,zeus-ecosystem,apps/admin e2e 传播,yes,no,move,low
+G17,scripts/check/check-admin.ts,351-360,同文档导航不重载,2,framework,zeus,新建 zeus Router 集成宿主,yes,YES,new_host,high
+G18,scripts/check/check-admin.ts,361-372,Router 历史 back/forward 与 preload,6,framework,zeus,同上,yes,YES,new_host,high
+G19,scripts/check/check-admin.ts,373-385,深链/刷新/404 错误路由,5,framework,zeus,同上,yes,YES,new_host,high
+G20,scripts/check/check-admin.ts,386-392,报表/审计页数据,5,integration,zeus-ecosystem,apps/admin e2e 页面,yes,no,move,low
+G21,scripts/check/check-admin.ts,393-408,组件画廊容器与 5 个 section,2,component,zeus-ui,apps/docs gallery 等价断言,yes,no,recreate,medium
+G22,scripts/check/check-admin.ts,426-446,Dialog 构建修复 symbol（依赖来源证明）,1,component,zeus-ecosystem（保留）/ zeus-ui（语义）,apps/admin 的 vendor 预检,yes,no,split_note,medium
+G23,scripts/check/check-admin.ts,448-459,Dialog 打开与焦点移入,3,component,zeus-ui,check-dialog-interaction 步骤 01（已覆盖）,yes,no,drop_duplicate,low
+G24,scripts/check/check-admin.ts,460-483,Dialog Tab 焦点陷阱,1,component,zeus-ui,check-dialog-interaction 步骤 02（更强）,yes,no,drop_duplicate,low
+G25,scripts/check/check-admin.ts,485-496,Dialog Escape 关闭,2,component,zeus-ui,check-dialog-interaction 步骤 03（更强）,yes,no,drop_duplicate,low
+G26,scripts/check/check-admin.ts,498-509,Dialog 重新打开,2,component,zeus-ui,check-dialog-interaction 步骤 04/06/08,yes,no,drop_duplicate,low
+G27,scripts/check/check-admin.ts,511-527,Dialog 焦点回归 trigger,1,component,zeus-ui,check-dialog-interaction 步骤 03,yes,no,drop_duplicate,low
+G28,scripts/check/check-admin.ts,529-547,Dialog confirm 与 toast,3,component,zeus-ui,check-dialog-interaction 受控段 + toast 断言（部分缺）,yes,partial,recreate_partial,medium
+G29,scripts/check/check-admin.ts,548-568,表单控件 value-change 跨元素边界,3,component,zeus-ui,e2e/contract/cross-host-contract（已覆盖）,yes,no,drop_duplicate,low
+G30,scripts/check/check-admin.ts,569-590,Tabs 键盘 ArrowRight,3,component,zeus-ui,e2e/contract/a11y-keyboard（已覆盖）,yes,no,drop_duplicate,low
+G31,scripts/check/check-admin.ts,592-601,Accordion data-state 与宿主 value,2,component,zeus-ui,e2e/contract/a11y-keyboard（已覆盖）,yes,no,drop_duplicate,low
+G32,scripts/check/check-admin.ts,603-613,Switch 内层 control 点击,1,component,zeus-ui,e2e/contract（已覆盖）,yes,no,drop_duplicate,low
+G33,scripts/check/check-admin.ts,615-621,Progress/Empty/Error/Success 状态,4,component,zeus-ui,apps/docs gallery 等价断言,yes,no,fix_then_recreate,low
+G34,scripts/check/check-admin.ts,623-661,Roles 页成员计数与 matrix ARIA,8,integration,zeus-ecosystem,apps/admin e2e roles,yes,no,move,low
+G35,scripts/check/check-admin.ts,662-675,Settings 保存与主题持久化,4,integration,zeus-ecosystem,apps/admin e2e settings,yes,no,move,low
+G36,scripts/check/check-admin.ts,676-723,i18n 切换与 CJK 正则与 reload 持久,5,framework,zeus,新建 zeus i18n 集成宿主,yes,YES,new_host,high
+G37,scripts/check/check-admin.ts,724-742,Viewer 权限 403 路由错误,4,integration,zeus-ecosystem,apps/admin e2e 权限,yes,no,move,medium
+G38,scripts/check/check-admin.ts,743-762,未认证 API 401 与会话探针,3,application,zeus-ecosystem,apps/admin server e2e,yes,no,move,low
+G39,scripts/check/check-admin.ts,763,页面错误预算（无 pageerror）,1,integration,zeus-ecosystem,apps/admin e2e 全局断言,yes,no,move,low
+G40,scripts/check/check-admin.ts,827-830,生产会话复用,1,application,zeus-ecosystem,apps/admin e2e setup,yes,no,move,low
+G41,scripts/check/check-admin.ts,842-897,Native DevTools 快照（owners/bindings/timeline）,10,framework,zeus,新建 zeus DevTools 集成宿主,yes,YES,new_host,high
+G42,scripts/check/check-admin.ts,940-947,总闸门（每浏览器必须 passed）,0,application,zeus-ecosystem,apps/admin e2e runner,yes,no,move,low
+S01,examples/admin/server/__tests__/api.spec.ts,92-644,HTTP API：鉴权/CRUD/持久化/CSRF/限流/会话（16 it/59 expect）,59,application,zeus-ecosystem,apps/admin/server/__tests__/api.spec.ts,yes,no,move,low
+S02,examples/admin/server/__tests__/database.spec.ts,30-243,备份恢复/seed/损坏库/bootstrap（8 it/18 expect）,18,application,zeus-ecosystem,apps/admin/server/__tests__/database.spec.ts,yes,no,move,low
+S03,examples/admin/server/__tests__/rate-limit.spec.ts,5-36,锁定恢复与 Map 有界（2 it/5 expect）,5,application,zeus-ecosystem,apps/admin/server/__tests__/rate-limit.spec.ts,yes,no,move,low
+D01,scripts/checks/wc/check-dialog-interaction.ts,1-1276,Dialog 三引擎交互（28 assert / 19 步）,28,component,zeus-ui,原地保留（不迁）,yes,no,keep,low
+D02,scripts/checks/wc/check-component-mode-parity.ts,1-399,WC/React/Vue 模式行为对齐,0,component,zeus-ui,原地保留,yes,no,keep,low
+D03,e2e/contract/cross-host-contract.spec.ts,1-571,四宿主 light-DOM/反射/事件名/payload 一致,0,framework,zeus-ui,原地保留（跨宿主契约核心资产）,yes,no,keep,medium
+D04,e2e/contract/a11y-keyboard.spec.ts,1-622,四宿主 ARIA 与键盘,0,component,zeus-ui,原地保留,yes,no,keep,low
+D05,e2e/advanced/data-grid/*,1-4677,DataGrid runtime（排序/选择/编辑/虚拟化/池化/缓存）,0,component,zeus-ui,原地保留,yes,no,keep,low
+E01,scripts/release/deployment-acceptance.ts,39-1365,四产品部署验收（含 import admin server auth）,0,application,zeus-ecosystem,随部署迁；需解耦 import,yes,no,split,high
+E02,scripts/check/check-sbom.ts,1-594,CycloneDX SBOM 生成与一致性,0,application,双份（zeus 保留 + ecosystem 新建）,zeus 保留框架 SBOM；ecosystem 新建镜像 SBOM,yes,no,split,medium
+E03,scripts/release/playground-online-acceptance.ts,1-1028,Playground 在线验收（CSP/origin/build-info）,0,application,zeus（随 Playground）,接进 CI,yes,no,keep_and_wire,medium
