@@ -212,6 +212,19 @@ pipeline.rs    阶段顺序与早退形状（transform_module 委托给它）
   由 `check-golden-components.ts` 按路径读取。
 - `vendor/` 产物必须保持 provenance（`provenance.json` 校验其来源提交）。
 - 不得执行 `npm publish`、`npm dist-tag` 或创建 Release Tag，除非任务明确授权。
+
+**Git 历史（强制）：**
+
+- 不得 `git push --force`、`--force-with-lease`、`--mirror`，也不得用 GitHub API
+  的 `force: true` 更新 ref。这三者是同一件事，只是入口不同。
+- push 被拒时，答案是 `fetch` 后 merge；不是重写远端。若远端 HEAD 已更新，
+  基于它创建后继提交，再非强制推送。
+- GitHub 的 HTTP/2 在本机网络下常报 `Error in the HTTP2 framing layer`。
+  用 `git -c http.version=HTTP/1.1 push` 正常推送即可——**不要**因此改用
+  API 加 force。这是流程违规最常见的入口。
+- `pnpm check:git-safety` 对 `scripts/` 全树扫描上述调用。它只约束调用它的
+  脚本，**不能替代远端分支保护**——后者才是唯一对所有客户端生效的控制。
+
 - 不得借目录移动刷新 Golden。
 
 > 权威文档：[`docs/release-process.md`](docs/release-process.md)、

@@ -25,6 +25,7 @@
     "check:ssr-safe-import": "tsx scripts/check/check-ssr-safe-import.ts",
     "lint": "eslint --cache .",
     "check:workflows": "tsx scripts/ci/check-workflows.ts",
+    "check:git-safety": "tsx scripts/ci/check-git-safety.ts",
     "lint-fix": "eslint --fix .",
     "format": "prettier --write --cache .",
     "format-check": "prettier --check --cache .",
