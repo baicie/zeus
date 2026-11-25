@@ -326,11 +326,33 @@ fn cases() -> Vec<GoldenCase> {
     );
 
     // ---- HMR ------------------------------------------------------------
+    /*
+     * `collect_render_names` records a render call under three conditions, all
+     * of them required: the module imports the name (a free `render(...)` is
+     * invisible), the import comes from `@zeus-js/runtime-dom` or
+     * `@zeus-js/zeus` (the source string is compared literally, so a bare
+     * `'zeus'` does not count), and an expression parses as a string literal.
+     *
+     * The fixture below meets all three. The earlier version met none: it
+     * declared no import at all, so the plan was None and the case compared
+     * null to null while being named for the plan it never produced.
+     *
+     * The literal is written `class={'contract'}` rather than `class="contract"`
+     * for the same reason: only an expression the pass can parse as a string
+     * literal becomes a slot, and a bare JSX attribute lowers to a Static
+     * attribute that never reaches the rewrite.
+     */
     golden!(
-        "HMR plan for a render call",
+        "HMR plan for an imported render call with a maskable literal",
         "hmr.tsx",
         GoldenOptions { hmr: true, ..dom() },
-        "export function App(props) {\n  return <p>{props.value}</p>\n}\nrender(App, document.body)\n"
+        "import { render } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <p class={'contract'}>{props.value}</p>\n}\nrender(App, document.body)\n"
+    );
+    golden!(
+        "HMR plan is absent when nothing is maskable",
+        "hmr-no-literals.tsx",
+        GoldenOptions { hmr: true, ..dom() },
+        "import { render } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <p>{props.value}</p>\n}\nrender(App, document.body)\n"
     );
     golden!(
         "HMR is skipped when a manual boundary exists",
@@ -568,6 +590,7 @@ fn golden_output_is_unchanged() {
 
     for case in cases() {
         let output = run(&case);
+        let produced_hmr_plan = output.hmr_plan.is_some();
         let document = GoldenCase {
             purpose: case.purpose,
             source: case.source,
@@ -582,6 +605,30 @@ fn golden_output_is_unchanged() {
             fs::write(&path, format!("{serialized}\n")).expect("write golden fixture");
             written += 1;
             continue;
+        }
+
+        /*
+         * A fixture named `hmr*` that records `"hmrPlan": null` asserts only
+         * that two nulls are equal. That is how this suite reported an HMR
+         * golden as passing for as long as every plan was null: the case was
+         * named for the plan, the comparison was `null == null`, and nothing
+         * asked whether a plan had been produced at all.
+         */
+        /*
+         * Both exemptions are cases where a null plan is the correct answer and
+         * the fixture therefore asserts nothing: a module with no maskable
+         * literal, and one that declares its own `import.meta.hot` boundary so
+         * the compiler must not synthesise one.
+         */
+        let expects_plan = case.filename.starts_with("hmr")
+            && !case.filename.contains("no-literals")
+            && !case.filename.contains("manual");
+
+        if expects_plan && !produced_hmr_plan {
+            failures.push(format!(
+                "{} ({}): an HMR fixture produced no hmrPlan; a null plan proves nothing",
+                case.filename, case.purpose,
+            ));
         }
 
         failures.extend(compare_fixture(
@@ -613,7 +660,7 @@ fn golden_output_is_unchanged() {
 fn golden_fixture_set_is_complete() {
     assert_eq!(
         cases().len(),
-        45,
+        46,
         "the golden set must keep covering every pipeline behaviour; add a case rather than remove one"
     );
 }

@@ -1,6 +1,6 @@
 {
-  "purpose": "HMR plan for a render call",
-  "source": "export function App(props) {\n  return <p>{props.value}</p>\n}\nrender(App, document.body)\n",
+  "purpose": "HMR plan for an imported render call with a maskable literal",
+  "source": "import { render } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <p class={'contract'}>{props.value}</p>\n}\nrender(App, document.body)\n",
   "filename": "hmr.tsx",
   "options": {
     "target": "dom",
@@ -12,16 +12,16 @@
     "autoHydrate": false
   },
   "expected": {
-    "code": "import { template as $zeusTemplate, insert as $zeusInsert, bindText as $zeusBindText } from \"zeus\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<p><!></p>\");\nexport function App(props) {\n  return (() => {\nconst $zeusEl = $zeusTmpl().firstChild;\nconst $zeusWalker = $zeusEl.ownerDocument.createTreeWalker($zeusEl, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\nconst $zeusText = $zeusMarker.ownerDocument.createTextNode(\"\");\n$zeusInsert($zeusMarker.parentNode, $zeusText, $zeusMarker);\n$zeusMarker.remove();\n$zeusBindText($zeusText, () => (props.value));\nreturn $zeusEl;\n})()\n}\nrender(App, document.body)\n",
+    "code": "import { template as $zeusTemplate, insert as $zeusInsert, bindText as $zeusBindText, bindClass as $zeusBindClass } from \"zeus\";\nimport { createHmrState as _zeusCreateHmrState } from \"zeus\";\nconst _zeusHmrState = _zeusCreateHmrState(import.meta.hot, \"hmr.tsx\", {\"version\":1,\"signature\":\"[\\\"zeus\\\",true,[[3,\\\"class\\\"]],[\\\"import { render } from '@zeus-js/runtime-dom'\\\\nexport function App(props) {\\\\n  return <p class={\\\",\\\"}>{props.value}</p>\\\\n}\\\\nrender(App, document.body)\\\\n\\\"]]\",\"bindings\":[{\"id\":3,\"kind\":\"class\",\"value\":\"contract\"}]});\nconst _zeusHmrDisposers = [];\nif (import.meta.hot) {\n  import.meta.hot.accept()\n  import.meta.hot.dispose(() => {\n    for (const dispose of _zeusHmrDisposers.splice(0).reverse()) {\n      try { dispose() } catch (error) {\n        console.error('[Zeus HMR] root disposal failed', error)\n      }\n    }\n    _zeusHmrState.dispose()\n  })\n}\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<p data-zeus-node=\\\"2\\\"><!></p>\");\nimport { render } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return (() => {\nconst $zeusEl = $zeusTmpl().firstChild;\n$zeusEl.removeAttribute(\"data-zeus-node\");\nconst $zeusWalker = $zeusEl.ownerDocument.createTreeWalker($zeusEl, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\n$zeusBindClass($zeusEl, () => (_zeusHmrState.read(3)));\nconst $zeusText = $zeusMarker.ownerDocument.createTextNode(\"\");\n$zeusInsert($zeusMarker.parentNode, $zeusText, $zeusMarker);\n$zeusMarker.remove();\n$zeusBindText($zeusText, () => (props.value));\nreturn $zeusEl;\n})()\n}\n;(_zeusHmrDisposers.push(render(App, document.body)), _zeusHmrDisposers[_zeusHmrDisposers.length - 1]);\n",
     "map": {
       "version": 3,
       "file": "hmr.tsx",
       "sources": ["hmr.tsx"],
       "sourcesContent": [
-        "export function App(props) {\n  return <p>{props.value}</p>\n}\nrender(App, document.body)\n"
+        "import { render } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <p class={'contract'}>{props.value}</p>\n}\nrender(App, document.body)\n"
       ],
       "names": [],
-      "mappings": ";;AAAA,OAAO,SAAS,IAAI;EAClB,O;;;;;;;gCAAW,MAAM,K;;;AACnB;AACA,OAAO,KAAK,SAAS"
+      "mappings": ";;;;;;;;;;;;;;;;AAAA,SAAS,SAAS,OAAO,KAAK,GAAG,QAAQ;AACzC,OAAO,SAAS,IAAI;EAClB,O;;;;;+BAAiB,cAAc,O;;;;gCAAD,MAAM,K;;;AACtC;yBACA,OAAO,KAAK,SAAS,K"
     },
     "diagnostics": [],
     "hydrationPlan": {
@@ -37,7 +37,14 @@
               "optional": false
             },
             {
-              "bindings": [],
+              "bindings": [
+                {
+                  "id": 3,
+                  "kind": "attr",
+                  "name": "class",
+                  "once": false
+                }
+              ],
               "id": "c1.e2",
               "kind": "element",
               "nodeId": 2,
@@ -47,14 +54,14 @@
             {
               "bindings": [
                 {
-                  "id": 3,
+                  "id": 4,
                   "kind": "text",
                   "once": false
                 }
               ],
-              "id": "c1.t3",
+              "id": "c1.t4",
               "kind": "text",
-              "nodeId": 3,
+              "nodeId": 4,
               "optional": false
             }
           ],
@@ -63,6 +70,16 @@
       ],
       "version": 1
     },
-    "hmrPlan": null
+    "hmrPlan": {
+      "bindings": [
+        {
+          "id": 3,
+          "kind": "class",
+          "value": "contract"
+        }
+      ],
+      "signature": "[\"zeus\",true,[[3,\"class\"]],[\"import { render } from '@zeus-js/runtime-dom'\\nexport function App(props) {\\n  return <p class={\",\"}>{props.value}</p>\\n}\\nrender(App, document.body)\\n\"]]",
+      "version": 1
+    }
   }
 }

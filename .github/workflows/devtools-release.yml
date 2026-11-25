@@ -61,6 +61,13 @@ jobs:
       - name: Verify vite-plugin tarball
         run: pnpm check:vite-plugin-package
 
+      # The tag that releases the plugin also decides which compiler it will
+      # depend on. Publishing a plugin whose compiler returns no hmrPlan is the
+      # 0.0.5 defect, and it cannot be found after the fact by reading versions.
+      - name: Verify the compiler contract the tarball will ship with
+        if: startsWith(github.ref_name, 'vite-plugin@')
+        run: pnpm check:vite-plugin-contract
+
       - name: Publish package
         run: pnpm standalone:publish "${{ github.ref_name }}"
         env:

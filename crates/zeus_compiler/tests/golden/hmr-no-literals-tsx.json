@@ -1,0 +1,68 @@
+{
+  "purpose": "HMR plan is absent when nothing is maskable",
+  "source": "import { render } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <p>{props.value}</p>\n}\nrender(App, document.body)\n",
+  "filename": "hmr-no-literals.tsx",
+  "options": {
+    "target": "dom",
+    "runtimeModule": "zeus",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": true,
+    "pureDefineElement": false,
+    "autoHydrate": false
+  },
+  "expected": {
+    "code": "import { template as $zeusTemplate, insert as $zeusInsert, bindText as $zeusBindText } from \"zeus\";\nconst _zeusHmrDisposers = [];\nif (import.meta.hot) {\n  import.meta.hot.accept()\n  import.meta.hot.dispose(() => {\n    for (const dispose of _zeusHmrDisposers.splice(0).reverse()) {\n      try { dispose() } catch (error) {\n        console.error('[Zeus HMR] root disposal failed', error)\n      }\n    }\n  })\n}\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<p><!></p>\");\nimport { render } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return (() => {\nconst $zeusEl = $zeusTmpl().firstChild;\nconst $zeusWalker = $zeusEl.ownerDocument.createTreeWalker($zeusEl, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\nconst $zeusText = $zeusMarker.ownerDocument.createTextNode(\"\");\n$zeusInsert($zeusMarker.parentNode, $zeusText, $zeusMarker);\n$zeusMarker.remove();\n$zeusBindText($zeusText, () => (props.value));\nreturn $zeusEl;\n})()\n}\n;(_zeusHmrDisposers.push(render(App, document.body)), _zeusHmrDisposers[_zeusHmrDisposers.length - 1]);\n",
+    "map": {
+      "version": 3,
+      "file": "hmr-no-literals.tsx",
+      "sources": ["hmr-no-literals.tsx"],
+      "sourcesContent": [
+        "import { render } from '@zeus-js/runtime-dom'\nexport function App(props) {\n  return <p>{props.value}</p>\n}\nrender(App, document.body)\n"
+      ],
+      "names": [],
+      "mappings": ";;;;;;;;;;;;;AAAA,SAAS,SAAS,OAAO,KAAK,GAAG,QAAQ;AACzC,OAAO,SAAS,IAAI;EAClB,O;;;;;;;gCAAW,MAAM,K;;;AACnB;yBACA,OAAO,KAAK,SAAS,K"
+    },
+    "diagnostics": [],
+    "hydrationPlan": {
+      "components": [
+        {
+          "id": 1,
+          "nodes": [
+            {
+              "bindings": [],
+              "id": "c1.root",
+              "kind": "root",
+              "nodeId": 1,
+              "optional": false
+            },
+            {
+              "bindings": [],
+              "id": "c1.e2",
+              "kind": "element",
+              "nodeId": 2,
+              "optional": false,
+              "tagName": "p"
+            },
+            {
+              "bindings": [
+                {
+                  "id": 3,
+                  "kind": "text",
+                  "once": false
+                }
+              ],
+              "id": "c1.t3",
+              "kind": "text",
+              "nodeId": 3,
+              "optional": false
+            }
+          ],
+          "templateId": "c1.root"
+        }
+      ],
+      "version": 1
+    },
+    "hmrPlan": null
+  }
+}
