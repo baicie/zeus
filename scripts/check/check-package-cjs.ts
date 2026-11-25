@@ -87,6 +87,7 @@ const expectedDevelopmentTargets: Record<string, string> = {
   '@zeus-js/zeus/server': './dist/server.cjs',
   '@zeus-js/eslint-plugin': './dist/eslint-plugin.cjs',
   '@zeus-js/vite-plugin': './dist/vite-plugin.cjs',
+  '@zeus-js/devtools-consumer': './dist/consumer.cjs',
   '@zeus-js/playground-engine': './dist/playground-engine.cjs',
   '@zeus-js/playground-engine/hmr': './dist/hmr.cjs',
   '@zeus-js/bundler-plugin': './dist/bundler-plugin.cjs',
