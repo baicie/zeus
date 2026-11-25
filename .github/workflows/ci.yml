@@ -272,6 +272,14 @@ jobs:
       - name: Release package registration
         run: pnpm check:package-versions
 
+      # The version table in `docs/api/packages.md` is derived from the
+      # manifests, and publishing a package without regenerating it left main
+      # red: the table said `0.1.1-beta.14` while the manifest said
+      # `0.1.1-beta.15`. Running the generator in `--check` mode here means a
+      # release that forgets it fails before the merge rather than after.
+      - name: Package table matches the manifests
+        run: pnpm check:package-table
+
       # The Changesets `fixed` list duplicates `zeusFixedPackages`, and the two
       # are compared by `scripts/release/__tests__/release-config.spec.ts`.
       # That test runs under the shared vitest config, whose top-level import
@@ -618,38 +626,16 @@ jobs:
         with:
           name: rc-readiness
           path: temp/release/rc-readiness.json
-      # Strict UI provenance over a real build-info.
+      # `check:admin` drives the Admin example in three engines. It survives
+      # the legacy workflow removal because it starts the app itself — the
+      # `Verify UI provenance` step that preceded it did not, and it was
+      # deleted with the image workflow it belonged to.
       #
-      # `verifyUiSources` had no caller outside its tests, so the strict checks
-      # were never run against an artifact. This builds the Admin example's
-      # build-info and verifies it at `release-strict`: the lockfile must be the
-      # one in this checkout, every registry package must resolve to bytes, and
-      # the document's declared pairing must match its own `uiCommit`.
-      #
-      # A tampered integrity, a document verified against a different lockfile,
-      # or a stale build-info all fail here rather than at release time.
-      - name: Verify UI provenance against the lockfile
-        run: |
-          pnpm --filter @zeus-js/example-admin build
-          node --import tsx scripts/release/build-info.ts \
-            --product admin \
-            --dist examples/admin/dist \
-            --core-commit "$GITHUB_SHA" \
-            --ui-commit "${ZEUS_UI_COMMIT:-$(git rev-parse HEAD)}" \
-            --ui-manifest examples/admin/package.json \
-            --version "$(node -p "require('./package.json').version")" \
-            --built-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          # The manifest pins every @zeus-web package to one exact version, and
-          # the attestation's source ref is that version's tag in zeus-ui.
-          # Passing it pins the *release* the bytes came from, not just the
-          # repository — a package republished from a branch would fail here.
-          UI_VERSION="$(node -p "Object.entries(require('./examples/admin/package.json').dependencies).find(([n]) => n === '@zeus-web/button')[1]")"
-          pnpm check:ui-provenance \
-            --build-info examples/admin/dist/build-info.json \
-            --manifest examples/admin/package.json \
-            --read-attestations \
-            --expected-ref "refs/tags/v$UI_VERSION"
-
+      # What that step covered, and where it went: it built a `build-info.json`
+      # and ran `verify-ui-provenance --read-attestations` against it. The
+      # migrated Admin lives in `zeus-ecosystem` and writes its own build-info
+      # through `scripts/release/build-image.mjs`, so the same binding is
+      # checked where that artifact is produced rather than from here.
       - name: Admin navigation in Chromium, Firefox and WebKit
         run: pnpm check:admin
       - name: Candidate packed HMR in Chromium, Firefox and WebKit
