@@ -10,8 +10,17 @@ import { findWorkspacePackages } from '../shared/utils.ts'
  * Resolved from the workspace rather than a path table, for the same reason
  * `standalone-publish` is: a hand-maintained path table is what broke the
  * native artifact copy during the six-domain move.
+ *
+ * This list and the one in `standalone-publish.ts` must agree. They are two
+ * halves of one decision — a package that can be versioned but not published,
+ * or published but not versioned, is a package with a release path that does
+ * not work. `standalone-packages.spec.ts` asserts they match.
  */
-const standalonePackages = ['create-zeus', 'vite-plugin']
+const standalonePackages = [
+  'create-zeus',
+  'vite-plugin',
+  '@zeus-js/devtools-consumer',
+]
 
 function packageDir(pkgName: string): string {
   const match = findWorkspacePackages().find(
