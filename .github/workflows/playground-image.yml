@@ -189,14 +189,26 @@ jobs:
           file: examples/playground-editor/Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
-          # Every tag the deployment may reference. `main` is the moving tag for
-          # operators, `sha-*` and the date tag are immutable audit points.
+          # Every tag the deployment may reference.
+          #
+          # GHCR is the canonical registry and keeps the full audit trail: the
+          # moving `main`, an immutable `sha-*` per commit, and a date tag.
+          #
+          # TCR gets `main` only. It is a domestic mirror for the deployment
+          # host's pull, and it has a hard 100-tag limit per repository —
+          # pushing `sha-*` there added one tag per commit until it filled:
+          #
+          #   denied: The repository zeus123/zeus-playground's tag has reached
+          #   its limit(100)
+          #
+          # The mirror's job is "what the host should run now", which is `main`.
+          # The immutable record of any past build stays in GHCR, where the
+          # limit does not apply and the digest is authoritative anyway.
           tags: |
             ${{ env.IMAGE }}:${{ steps.vars.outputs.tag }}
             ${{ env.IMAGE }}:sha-${{ github.sha }}
             ${{ env.IMAGE }}:${{ steps.vars.outputs.date_tag }}
             ${{ vars.TCR_IMAGE_PLAYGROUND != '' && format('{0}:{1}', vars.TCR_IMAGE_PLAYGROUND, steps.vars.outputs.tag) || '' }}
-            ${{ vars.TCR_IMAGE_PLAYGROUND != '' && format('{0}:sha-{1}', vars.TCR_IMAGE_PLAYGROUND, github.sha) || '' }}
           build-args: |
             ZEUS_CORE_COMMIT=${{ github.sha }}
             ZEUS_UI_COMMIT=${{ steps.ui.outputs.sha }}

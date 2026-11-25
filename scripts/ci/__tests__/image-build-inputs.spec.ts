@@ -170,3 +170,41 @@ describe.each(WORKFLOWS)('$name triggers cover the build inputs', entry => {
     expect(coveredBy(push, '.dockerignore')).toBe(true)
   })
 })
+
+describe('registry tag budget', () => {
+  it('mirrors only the moving tag to the domestic registry', () => {
+    /*
+     * TCR has a hard 100-tag limit per repository. Pushing `sha-*` there added
+     * one tag per commit until the repository filled, and then every build
+     * failed with
+     *
+     *   denied: The repository zeus123/zeus-playground's tag has reached its
+     *   limit(100)
+     *
+     * — a build that compiled successfully and could not publish, which reads
+     * like a registry outage and is a tag budget. The mirror's job is "what the
+     * host should run now"; the audit trail belongs in GHCR, which has no such
+     * limit and is authoritative by digest anyway.
+     */
+    const workflow = readFileSync(
+      path.join(root, '.github/workflows/playground-image.yml'),
+      'utf8',
+    )
+
+    const tcrTags = workflow
+      .split('\n')
+      .filter(line => line.includes('TCR_IMAGE') && line.includes('format('))
+
+    expect(
+      tcrTags.length,
+      'the workflow should name its TCR tags',
+    ).toBeGreaterThan(0)
+
+    for (const line of tcrTags) {
+      expect(
+        line,
+        `a per-commit tag will fill the 100-tag limit: ${line.trim()}`,
+      ).not.toMatch(/sha-|date_tag|\$\{\{ github\.sha \}\}/)
+    }
+  })
+})
