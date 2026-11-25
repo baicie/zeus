@@ -310,7 +310,7 @@ console.log(
   ),
 )
 
-interface RequireConditions {
+export interface RequireConditions {
   production: string
   development: string
   default: string
@@ -327,28 +327,46 @@ function hasRequireTarget(value: unknown): boolean {
   return Object.values(record).some(hasRequireTarget)
 }
 
-function readRequireConditions(value: unknown): RequireConditions | null {
+export function readRequireConditions(
+  value: unknown,
+): RequireConditions | null {
   if (!value || typeof value !== 'object') return null
 
   const requireValue = (value as Record<string, unknown>).require
   if (!requireValue || typeof requireValue !== 'object') return null
 
   const conditions = requireValue as Record<string, unknown>
-  const keys = Object.keys(conditions)
+
+  /*
+   * `types` is allowed here, and it has to come first.
+   *
+   * TypeScript requires `types` to precede the runtime conditions inside a
+   * conditional export, and a CommonJS consumer needs a `.d.cts` to typecheck a
+   * `require` import at all — without one it gets TS1479 or TS7016. So the
+   * contract's three runtime conditions stay exactly as they were, and `types`
+   * is read past rather than counted.
+   *
+   * Requiring a key count of three was the earlier shape, and it made adding
+   * correct types look like a CJS contract violation:
+   * `require conditions do not match the contract. received: null`.
+   */
+  const { types, ...runtime } = conditions
+  const keys = Object.keys(runtime)
 
   if (
     keys.length !== 3 ||
     keys[0] !== 'production' ||
     keys[1] !== 'development' ||
     keys[2] !== 'default' ||
-    typeof conditions.production !== 'string' ||
-    typeof conditions.development !== 'string' ||
-    typeof conditions.default !== 'string'
+    typeof runtime.production !== 'string' ||
+    typeof runtime.development !== 'string' ||
+    typeof runtime.default !== 'string' ||
+    (types !== undefined && typeof types !== 'string')
   ) {
     return null
   }
 
-  return conditions as unknown as RequireConditions
+  return runtime as unknown as RequireConditions
 }
 
 function createExpectedConditions(
