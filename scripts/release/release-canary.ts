@@ -213,6 +213,25 @@ async function main(): Promise<void> {
       run('pnpm', ['install', '--lockfile-only'])
     })
 
+    /*
+     * Regenerate the package table after the version rewrite.
+     *
+     * `release:version-packages` rewrites manifests and nothing else, so the
+     * table `docs/api/packages.md` carries still names the previous versions.
+     * `package-table.spec.ts` did not notice — it reads the committed source via
+     * `git archive HEAD`, which the staging rewrite does not touch — but
+     * `write-package-table.spec.ts` reads the working tree, and it failed on
+     * every canary run until this step existed.
+     *
+     * Generating rather than checking: the rewrite is the thing that made them
+     * disagree, so the sequence is rewrite-then-regenerate. A `--check` here
+     * would fail on a tree this script had just produced, which is a check
+     * arguing with its own caller.
+     */
+    recorder.run('package-table', 'regenerate the package table', () => {
+      run('pnpm', ['exec', 'tsx', 'scripts/check/write-package-table.ts'])
+    })
+
     // Verify the staged tree before the precheck spends minutes on it.
     //
     // Two contracts are in play: the committed source (checked by
