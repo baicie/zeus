@@ -5,6 +5,7 @@ on:
     tags:
       - 'create-zeus@*'
       - 'vite-plugin@*'
+      - 'devtools-consumer@*'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -50,7 +51,7 @@ jobs:
         run: pnpm build --withTypes
 
       - name: Build devtools
-        run: pnpm --filter create-zeus --filter @zeus-js/vite-plugin --if-present build
+        run: pnpm --filter create-zeus --filter @zeus-js/vite-plugin --filter @zeus-js/devtools-consumer --if-present build
 
       - name: Verify CommonJS entries
         run: pnpm check:cjs
@@ -80,6 +81,7 @@ jobs:
           case "$RELEASE_REF" in
             create-zeus@*) PACKAGE="create-zeus" ;;
             vite-plugin@*) PACKAGE="@zeus-js/vite-plugin" ;;
+            devtools-consumer@*) PACKAGE="@zeus-js/devtools-consumer" ;;
             *) echo "Unsupported devtools release ref: $RELEASE_REF" >&2; exit 1 ;;
           esac
           VERSION="${RELEASE_REF##*@}"

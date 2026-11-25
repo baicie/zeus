@@ -1,18 +1,52 @@
 {
   "name": "@zeus-js/devtools-consumer",
-  "private": true,
-  "type": "module",
   "version": "0.1.1-beta.14",
-  "description": "Internal DevTools event consumer and panel state model for Zeus",
+  "type": "module",
+  "description": "DevTools event consumer and panel state model for Zeus",
   "license": "MIT",
+  "sideEffects": false,
+  "main": "index.cjs",
+  "module": "dist/consumer.esm-bundler.js",
+  "types": "dist/consumer.d.ts",
+  "files": [
+    "index.cjs",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/consumer.d.ts",
+      "import": "./dist/consumer.esm-bundler.js",
+      "require": {
+        "production": "./dist/consumer.prod.cjs",
+        "development": "./dist/consumer.cjs",
+        "default": "./index.cjs"
+      },
+      "default": "./dist/consumer.esm-bundler.js"
+    }
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/baicie/zeus.git",
     "directory": "packages/tooling/consumer"
   },
-  "sideEffects": false,
+  "buildOptions": {
+    "name": "ZeusDevtoolsConsumer",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ],
+    "target": "es2022"
+  },
   "keywords": [
     "zeus",
     "devtools"
-  ]
+  ],
+  "author": "Baicie",
+  "bugs": {
+    "url": "https://github.com/baicie/zeus/issues"
+  },
+  "homepage": "https://github.com/baicie/zeus/tree/main/packages/tooling/consumer#readme",
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
+  }
 }
