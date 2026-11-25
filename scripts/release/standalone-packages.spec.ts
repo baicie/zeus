@@ -119,3 +119,68 @@ describe('the standalone release lists', () => {
     }
   })
 })
+
+describe('standalone release tags', () => {
+  it('names tags the release workflow actually triggers on', () => {
+    /*
+     * The dry run produced `@zeus-js/devtools-consumer@0.1.1-beta.15` while
+     * `devtools-release.yml` listens for `devtools-consumer@*`. A tag that
+     * matches no trigger starts no workflow, so "the tag was pushed" and "the
+     * package was published" come apart silently — the release looks complete
+     * and nothing is on npm.
+     *
+     * The tag format is read from `standalone-release.ts` rather than assumed,
+     * because a test that hard-codes the format it expects cannot catch a
+     * change to it.
+     */
+    const source = fs.readFileSync(
+      path.join(root, 'scripts/release/standalone-release.ts'),
+      'utf8',
+    )
+    const toTag = /toTag: \(pkg, version\) => `([^`]+)`/.exec(source)
+    const workflow = fs.readFileSync(
+      path.join(root, '.github/workflows/devtools-release.yml'),
+      'utf8',
+    )
+
+    expect(
+      toTag,
+      'toTag should be readable from standalone-release.ts',
+    ).not.toBeNull()
+
+    const patterns = [...workflow.matchAll(/^\s*-\s*'([^']+)@\*'/gm)].map(
+      entry => entry[1],
+    )
+
+    expect(
+      patterns.length,
+      'the workflow should declare tag patterns',
+    ).toBeGreaterThan(0)
+
+    const released = readList(
+      'standalone-release.ts',
+      /const standalonePackages = \[([^\]]+)\]/,
+    )
+
+    for (const name of released) {
+      /* The tag component is what `toTag` puts before the `@`. */
+      const short = name.replace(/^@zeus-js\//, '')
+
+      expect(
+        patterns.includes(short),
+        `${name} would tag as "${short}@…" but the workflow triggers on ${patterns.map(p => `${p}@*`).join(', ')}`,
+      ).toBe(true)
+    }
+  })
+
+  it('produces a tag without the npm scope for every standalone package', () => {
+    const source = fs.readFileSync(
+      path.join(root, 'scripts/release/standalone-release.ts'),
+      'utf8',
+    )
+    const body = /toTag: \(pkg, version\) => `([^`]+)`/.exec(source)?.[1] ?? ''
+
+    /* The template must strip the scope; a bare `${pkg}@${version}` does not. */
+    expect(body).toMatch(/replace\(\/\^@zeus-js\\\/\//)
+  })
+})

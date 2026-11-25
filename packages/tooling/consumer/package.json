@@ -14,9 +14,12 @@
   ],
   "exports": {
     ".": {
-      "types": "./dist/consumer.d.ts",
-      "import": "./dist/consumer.esm-bundler.js",
+      "import": {
+        "types": "./dist/consumer.d.ts",
+        "default": "./dist/consumer.esm-bundler.js"
+      },
       "require": {
+        "types": "./dist/consumer.d.cts",
         "production": "./dist/consumer.prod.cjs",
         "development": "./dist/consumer.cjs",
         "default": "./index.cjs"
@@ -26,7 +29,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/baicie/zeus.git",
+    "url": "git+https://github.com/baicie/zeus.git",
     "directory": "packages/tooling/consumer"
   },
   "buildOptions": {

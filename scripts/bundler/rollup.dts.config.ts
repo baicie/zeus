@@ -57,7 +57,7 @@ const packageConfigs: RollupOptions[] = targetPackages.flatMap(pkg => {
       plugins: [
         dts(),
         patchTypes(pkg, pkgDir),
-        ...(pkg === 'zeus' ? [copyMts(pkgDir)] : []),
+        copyDeclarationExtensions(pkg, pkgDir),
       ],
       onwarn(warning, warn) {
         if (
@@ -272,13 +272,39 @@ function patchTypesCode(code: string): string {
   return s.toString()
 }
 
-function copyMts(pkgDir: string): Plugin {
+/**
+ * Writes the declaration file under the extensions TypeScript resolves
+ * per module system.
+ *
+ * ## Why this is necessary
+ *
+ * Every package publishes a CommonJS entry and declares
+ * `exports["."].require`. With only a `.d.ts`, TypeScript treats that file as
+ * ESM and a consumer compiling with `module: node16` gets
+ *
+ *     TS1479: The current file is a CommonJS module whose imports will produce
+ *     'require' calls; however, the referenced file is an ECMAScript module
+ *
+ * — measured against `@zeus-js/zeus` as well as the DevTools consumer, so this
+ * is every package, not one. Dropping `require.types` instead swaps that for
+ * `TS7016: Could not find a declaration file`. The declaration has to exist
+ * under the extension that matches how it is reached.
+ *
+ * `.d.mts` for `zeus` is the mirror case: that package also exposes an ESM-only
+ * surface.
+ */
+function copyDeclarationExtensions(pkg: string, pkgDir: string): Plugin {
   return {
-    name: 'copy-zeus-mts',
+    name: `copy-declaration-extensions-${pkg}`,
     writeBundle(_, bundle) {
-      const dtsEntry = bundle['zeus.d.ts']
-      if (dtsEntry && 'code' in dtsEntry) {
-        writeFileSync(`${pkgDir}/dist/zeus.d.mts`, dtsEntry.code)
+      const dtsEntry = bundle[`${pkg}.d.ts`]
+
+      if (!dtsEntry || !('code' in dtsEntry)) return
+
+      writeFileSync(`${pkgDir}/dist/${pkg}.d.cts`, dtsEntry.code)
+
+      if (pkg === 'zeus') {
+        writeFileSync(`${pkgDir}/dist/${pkg}.d.mts`, dtsEntry.code)
       }
     },
   }
