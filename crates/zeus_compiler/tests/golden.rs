@@ -624,13 +624,11 @@ fn golden_output_is_unchanged() {
             && !case.filename.contains("no-literals")
             && !case.filename.contains("manual");
 
-        if expects_plan {
-            if !produced_hmr_plan {
-                failures.push(format!(
-                    "{} ({}): an HMR fixture produced no hmrPlan; a null plan proves nothing",
-                    case.filename, case.purpose,
-                ));
-            }
+        if expects_plan && !produced_hmr_plan {
+            failures.push(format!(
+                "{} ({}): an HMR fixture produced no hmrPlan; a null plan proves nothing",
+                case.filename, case.purpose,
+            ));
         }
 
         failures.extend(compare_fixture(
