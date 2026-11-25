@@ -50,7 +50,7 @@
 | `@zeus-js/playground-engine`                | `packages/tooling/playground-engine`                 | 0.2.0-rc.5    | tooling  |                                               |
 | `@zeus-js/testing`                          | `packages/tooling/testing`                           | 0.2.0-rc.5    | tooling  | 官方测试工具：渲染、事件、查询与 effect 刷新  |
 | `@zeus-js/devtools-consumer`                | `packages/tooling/consumer`                          | 0.1.1-beta.15 | tooling  | DevTools 事件消费与面板模型（仅开发期）       |
-| `@zeus-js/vite-plugin`                      | `packages/tooling/vite-plugin`                       | 0.0.5         | tooling  | Vite 集成插件                                 |
+| `@zeus-js/vite-plugin`                      | `packages/tooling/vite-plugin`                       | 0.0.6         | tooling  | Vite 集成插件                                 |
 | `@zeus-js/bundler-plugin`                   | `packages/web-c/bundler-plugin`                      | 0.2.0-rc.5    | web-c    | bundler 插件宿主（Vite / Rollup / Rolldown）  |
 | `@zeus-js/component-analyzer`               | `packages/web-c/component-analyzer`                  | 0.2.0-rc.5    | web-c    | 组件分析器（解析 JSX）                        |
 | `@zeus-js/component-dts`                    | `packages/web-c/component-dts`                       | 0.2.0-rc.5    | web-c    | manifest DTS 生成器                           |
