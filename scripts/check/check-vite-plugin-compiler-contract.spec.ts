@@ -39,7 +39,36 @@ function pluginWithStubCompiler(
    */
   fs.writeFileSync(path.join(directory, 'index.cjs'), "'use strict'\n")
 
-  if (resolveBehaviour === 'missing') return directory
+  if (resolveBehaviour === 'missing') {
+    /*
+     * A bare empty directory does not isolate resolution.
+     *
+     * `createRequire` walks up from the stub to the filesystem root, and in this
+     * repository that is only a few levels from the real
+     * `@zeus-js/compiler-native` — so the stub resolved the tree's compiler and
+     * the test passed locally while failing in CI, where the same walk found a
+     * different install. The package.json below claims the scope and points at
+     * a path that does not exist, which makes the resolution fail for the
+     * reason the test is about rather than for an accident of layout.
+     */
+    fs.mkdirSync(
+      path.join(directory, 'node_modules/@zeus-js/compiler-native'),
+      { recursive: true },
+    )
+    fs.writeFileSync(
+      path.join(
+        directory,
+        'node_modules/@zeus-js/compiler-native/package.json',
+      ),
+      JSON.stringify({
+        name: '@zeus-js/compiler-native',
+        version: '0.0.0',
+        main: 'missing.js',
+      }),
+    )
+
+    return directory
+  }
 
   const compiler = path.join(directory, 'node_modules/@zeus-js/compiler-native')
 
