@@ -85,6 +85,7 @@ describe('zeus release config', () => {
         'temp/release/tarballs.json',
       ],
       ['pnpm', 'api:check'],
+      ['pnpm', 'check:package-table'],
       ['pnpm', 'check'],
       ['pnpm', 'lint'],
       ['pnpm', 'test-unit'],
