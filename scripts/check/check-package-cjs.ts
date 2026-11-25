@@ -3,6 +3,11 @@ import path from 'node:path'
 
 import pico from 'picocolors'
 
+import {
+  hasRequireTarget,
+  readRequireConditions,
+  type RequireConditions,
+} from './cjs-conditions'
 import { findWorkspacePackages } from '../shared/utils'
 
 const requireSmoke = String.raw`
@@ -309,47 +314,6 @@ console.log(
     `Package CommonJS entry smoke tests passed (${checkedPackages.size} packages, ${checkedSpecifiers.size} exports, ${checkedConditionalLoads} conditional loads, ${checkedFallbackLoads} wrapper fallbacks).`,
   ),
 )
-
-interface RequireConditions {
-  production: string
-  development: string
-  default: string
-}
-
-function hasRequireTarget(value: unknown): boolean {
-  if (!value || typeof value !== 'object') return false
-
-  const record = value as Record<string, unknown>
-  if (typeof record.require === 'string') return true
-
-  if (record.require && typeof record.require === 'object') return true
-
-  return Object.values(record).some(hasRequireTarget)
-}
-
-function readRequireConditions(value: unknown): RequireConditions | null {
-  if (!value || typeof value !== 'object') return null
-
-  const requireValue = (value as Record<string, unknown>).require
-  if (!requireValue || typeof requireValue !== 'object') return null
-
-  const conditions = requireValue as Record<string, unknown>
-  const keys = Object.keys(conditions)
-
-  if (
-    keys.length !== 3 ||
-    keys[0] !== 'production' ||
-    keys[1] !== 'development' ||
-    keys[2] !== 'default' ||
-    typeof conditions.production !== 'string' ||
-    typeof conditions.development !== 'string' ||
-    typeof conditions.default !== 'string'
-  ) {
-    return null
-  }
-
-  return conditions as unknown as RequireConditions
-}
 
 function createExpectedConditions(
   specifier: string,
