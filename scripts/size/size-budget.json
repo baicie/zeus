@@ -73,6 +73,12 @@
       "reason": "Build-time only, but it is loaded by every consumer's dev server, so its install and start cost is real."
     },
     {
+      "package": "@zeus-js/devtools-consumer",
+      "metric": "gzip",
+      "limitKiB": 12,
+      "reason": "Development-time only — an app loads it behind `import.meta.env.DEV` and a query flag — so it never reaches a user's download. It is published, though, and its install cost is real: 8.3 KiB gzip for the panel model and event graph today. A limit rather than a tolerance because the package has no baseline: this is its first published shape, so there is no previous measurement to compare against. 12 KiB leaves room for the panel and not for a runtime."
+    },
+    {
       "package": "@zeus-js/playground-engine",
       "metric": "gzip",
       "tolerancePercent": 15,
