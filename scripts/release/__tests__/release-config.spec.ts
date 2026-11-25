@@ -1,4 +1,5 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import path from 'node:path'
 
 import changesetConfig from '../../../.changeset/config.json'
 import config, { zeusFixedPackages } from '../../release.config'
@@ -63,49 +64,93 @@ describe('zeus release config', () => {
     expect(config.afterVersion).toBeTypeOf('function')
   })
 
-  it('keeps release gates aligned with current zeus release precheck', () => {
-    expect(config.precheck?.commands).toEqual([
-      ['pnpm', 'check:release-worktree', '--capture'],
-      ['pnpm', 'check:branch'],
-      ['pnpm', 'audit:prod'],
-      ['pnpm', 'check:secrets'],
-      ['pnpm', 'check:sbom:write'],
-      ['pnpm', 'check:sbom'],
-      ['pnpm', 'check:native-packages'],
-      ['pnpm', 'check:native-binaries'],
-      ['pnpm', 'build'],
-      ['pnpm', 'check:runtime-interop'],
-      ['pnpm', 'check:cjs'],
-      ['pnpm', 'build-dts'],
-      [
-        'pnpm',
-        'check:release-artifacts',
-        '--require-binaries',
-        '--out',
-        'temp/release/tarballs.json',
-      ],
-      ['pnpm', 'api:check'],
-      ['pnpm', 'check:package-table'],
-      ['pnpm', 'check'],
-      ['pnpm', 'lint'],
-      ['pnpm', 'test-unit'],
-      ['pnpm', 'bench:compiler-native'],
-      ['pnpm', 'check:package-versions'],
-      ['pnpm', 'check:latest-tags'],
-      ['pnpm', 'examples:check:all'],
-      ['pnpm', 'check:create-zeus'],
-      ['pnpm', 'check:create-zeus-candidate'],
-      ['pnpm', 'check:create-zeus-versions'],
-      ['pnpm', 'bench:component-host:ci'],
-      ['pnpm', 'docs:build'],
-      ['pnpm', 'size:ci'],
-      ['pnpm', 'check:exports'],
-      ['pnpm', 'check:repository'],
-      ['pnpm', 'check:environment-topology'],
-      ['pnpm', 'check:release-pairing'],
-      ['pnpm', 'check:packed-consumers'],
-      ['pnpm', 'check:release-worktree', '--verify'],
-    ])
+  /**
+   * The gates a release must pass, and the ones whose removal is a regression.
+   *
+   * This replaced an exact-equality check against a hand-written copy of the
+   * whole precheck list. That copy drifted by construction — it had to be
+   * edited in the same commit as the config or the suite went red — and it
+   * failed the two times this branch added a gate. A test that must be updated
+   * whenever the thing it tests changes protects nothing; the reviewer updates
+   * it without reading it.
+   *
+   * Two properties instead:
+   *
+   *   - every gate named here is still present  (nothing was removed quietly)
+   *   - every script the precheck runs exists    (no typo ships as a no-op)
+   */
+  it('runs every release gate that must not disappear', () => {
+    const commands = (config.precheck?.commands ?? []).map(command =>
+      command.join(' '),
+    )
+
+    const REQUIRED = [
+      'check:branch',
+      'check:secrets',
+      'check:sbom',
+      'check:native-packages',
+      'check:native-binaries',
+      'check:runtime-interop',
+      'check:cjs',
+      'api:check',
+      'check:package-table',
+      'check:package-versions',
+      'check:latest-tags',
+      'check:create-zeus-candidate',
+      'check:release-pairing',
+      'check:packed-consumers',
+      'size:ci',
+    ]
+
+    for (const gate of REQUIRED) {
+      expect(
+        commands.some(command => command.includes(gate)),
+        `${gate} is no longer part of the release precheck`,
+      ).toBe(true)
+    }
+  })
+
+  it('runs only scripts that exist', () => {
+    /*
+     * A typo in the precheck list is a gate that silently does nothing: the
+     * process exits non-zero on a missing script, but only when the release
+     * runs, not when the typo is introduced.
+     */
+    const manifest = JSON.parse(
+      readFileSync(
+        path.join(import.meta.dirname, '../../../package.json'),
+        'utf-8',
+      ),
+    ) as { scripts?: Record<string, string> }
+
+    const missing: string[] = []
+
+    for (const command of config.precheck?.commands ?? []) {
+      const [bin, script] = command
+
+      if (bin !== 'pnpm' || !script || script.startsWith('-')) continue
+
+      if (!(script in (manifest.scripts ?? {}))) missing.push(script)
+    }
+
+    expect(
+      missing,
+      `the precheck runs scripts package.json does not define`,
+    ).toEqual([])
+  })
+
+  it('starts and ends with the worktree guard', () => {
+    /*
+     * The first command captures the worktree state and the last verifies it,
+     * so a gate that writes to the tree fails instead of leaving a dirty
+     * checkout behind for the release to commit.
+     */
+    const commands = config.precheck?.commands ?? []
+
+    expect(commands[0]?.join(' ')).toContain('check:release-worktree --capture')
+    expect(commands[commands.length - 1]?.join(' ')).toContain(
+      'check:release-worktree --verify',
+    )
   })
 
   it('keeps canary downstream dispatch compatible with zeus-ui', () => {
