@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { readRequireConditions } from '../check-package-cjs'
+import { readRequireConditions } from '../cjs-conditions'
 
 /**
  * The CommonJS contract reader.

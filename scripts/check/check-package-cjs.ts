@@ -3,6 +3,11 @@ import path from 'node:path'
 
 import pico from 'picocolors'
 
+import {
+  hasRequireTarget,
+  readRequireConditions,
+  type RequireConditions,
+} from './cjs-conditions'
 import { findWorkspacePackages } from '../shared/utils'
 
 const requireSmoke = String.raw`
@@ -309,65 +314,6 @@ console.log(
     `Package CommonJS entry smoke tests passed (${checkedPackages.size} packages, ${checkedSpecifiers.size} exports, ${checkedConditionalLoads} conditional loads, ${checkedFallbackLoads} wrapper fallbacks).`,
   ),
 )
-
-export interface RequireConditions {
-  production: string
-  development: string
-  default: string
-}
-
-function hasRequireTarget(value: unknown): boolean {
-  if (!value || typeof value !== 'object') return false
-
-  const record = value as Record<string, unknown>
-  if (typeof record.require === 'string') return true
-
-  if (record.require && typeof record.require === 'object') return true
-
-  return Object.values(record).some(hasRequireTarget)
-}
-
-export function readRequireConditions(
-  value: unknown,
-): RequireConditions | null {
-  if (!value || typeof value !== 'object') return null
-
-  const requireValue = (value as Record<string, unknown>).require
-  if (!requireValue || typeof requireValue !== 'object') return null
-
-  const conditions = requireValue as Record<string, unknown>
-
-  /*
-   * `types` is allowed here, and it has to come first.
-   *
-   * TypeScript requires `types` to precede the runtime conditions inside a
-   * conditional export, and a CommonJS consumer needs a `.d.cts` to typecheck a
-   * `require` import at all — without one it gets TS1479 or TS7016. So the
-   * contract's three runtime conditions stay exactly as they were, and `types`
-   * is read past rather than counted.
-   *
-   * Requiring a key count of three was the earlier shape, and it made adding
-   * correct types look like a CJS contract violation:
-   * `require conditions do not match the contract. received: null`.
-   */
-  const { types, ...runtime } = conditions
-  const keys = Object.keys(runtime)
-
-  if (
-    keys.length !== 3 ||
-    keys[0] !== 'production' ||
-    keys[1] !== 'development' ||
-    keys[2] !== 'default' ||
-    typeof runtime.production !== 'string' ||
-    typeof runtime.development !== 'string' ||
-    typeof runtime.default !== 'string' ||
-    (types !== undefined && typeof types !== 'string')
-  ) {
-    return null
-  }
-
-  return runtime as unknown as RequireConditions
-}
 
 function createExpectedConditions(
   specifier: string,
