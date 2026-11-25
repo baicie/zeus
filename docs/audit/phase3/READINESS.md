@@ -13,9 +13,9 @@
 
 **Phase 3a/3b 可以开始，且新仓库已落地；完整 Phase 3c（Core + UI 联合消费者）仍未通过。** 以下两个问题阻止的是完整 Core/UI 验收，不是创建仓库或 Core-only smoke：
 
-| #   | 阻塞                                        | 证据等级 | 影响                                         |
-| --- | ------------------------------------------- | -------- | -------------------------------------------- |
-| B1  | `@zeus-web/*` 的 `0.1.0-beta.35` 全部未发布 | VERIFIED | 46/46 包在 registry 上不存在，最新是 beta.34 |
+| #   | 阻塞                                        | 证据等级 | 影响                                                     |
+| --- | ------------------------------------------- | -------- | -------------------------------------------------------- |
+| B1  | `@zeus-web/*` 的 `0.1.0-beta.35` 全部未发布 | VERIFIED | 46/46 包在 registry 上不存在，最新是 beta.34             |
 | B2  | R-V1：旧 beta 与 rc.5 在依赖树中共存        | VERIFIED | 安装树发现三份物理副本；活跃模块实例和浏览器表现仍需验证 |
 
 B1 是 Phase 1 就已识别的门禁 G1 的第二半（P2）。B2 是这个门禁没达成时的具体后果。
@@ -42,12 +42,12 @@ fatal: repository 'https://github.com/baicie/zeus-ecosystem.git/' not found
 
 ## 2. 新仓库推荐名称与可见性
 
-| 项       | 建议                       | 理由                                                        |
-| -------- | -------------------------- | ----------------------------------------------------------- |
-| 名称     | `zeus-ecosystem`           | 与 Phase 1 全部文档、迁移矩阵 CSV 一致，改名要同步 35 行    |
-| 可见性   | **public（实际状态）**      | 与 zeus / zeus-ui 两个公开仓库一致，禁止提交凭据和客户数据 |
-| 默认分支 | `main`                     | 与两个上游仓库一致                                          |
-| 初始内容 | 空仓库 + 基础 CI，不迁代码 | Phase 3a 的定义                                             |
+| 项       | 建议                       | 理由                                                       |
+| -------- | -------------------------- | ---------------------------------------------------------- |
+| 名称     | `zeus-ecosystem`           | 与 Phase 1 全部文档、迁移矩阵 CSV 一致，改名要同步 35 行   |
+| 可见性   | **public（实际状态）**     | 与 zeus / zeus-ui 两个公开仓库一致，禁止提交凭据和客户数据 |
+| 默认分支 | `main`                     | 与两个上游仓库一致                                         |
+| 初始内容 | 空仓库 + 基础 CI，不迁代码 | Phase 3a 的定义                                            |
 
 后续已通过 GitHub 仓库元数据确认 `zeus`、`zeus-ui` 均为 **public**；ecosystem 也实际创建为 public。D-P3-01 已关闭。
 
@@ -208,18 +208,18 @@ Phase 3c 的完整验收要求已发布 Core + UI 联合消费者。预检时若
 以下是从 zeus 与 zeus-ui 现有 workflow 中统计出的、会被迁入 ecosystem 的部分
 （VERIFIED 为 grep 结果，INFERRED 为归属判断）：
 
-| 项                                       | 现有用法                              | 迁移后是否需要             | 证据     |
-| ---------------------------------------- | ------------------------------------- | -------------------------- | -------- |
-| `contents: write`                        | 3 处（release、github-release、部署） | 是                         | VERIFIED |
-| `packages: write`                        | 3 处（GHCR 镜像推送）                 | 是                         | VERIFIED |
-| `id-token: write`                        | 7 处（npm provenance）                | **ecosystem 不需要 npm 发布权限** | VERIFIED |
-| `actions: read`                          | 2 处                                  | 是                         | VERIFIED |
+| 项                                       | 现有用法                              | 迁移后是否需要                                | 证据     |
+| ---------------------------------------- | ------------------------------------- | --------------------------------------------- | -------- |
+| `contents: write`                        | 3 处（release、github-release、部署） | 是                                            | VERIFIED |
+| `packages: write`                        | 3 处（GHCR 镜像推送）                 | 是                                            | VERIFIED |
+| `id-token: write`                        | 7 处（npm provenance）                | **ecosystem 不需要 npm 发布权限**             | VERIFIED |
+| `actions: read`                          | 2 处                                  | 是                                            | VERIFIED |
 | `NPM_TOKEN`                              | 12 处                                 | **否；ecosystem 是消费者，不在此发布 npm 包** | VERIFIED |
-| `TCR_USERNAME/PASSWORD`                  | 各 9 处（腾讯云镜像仓库）             | 是（Admin/Workbench 镜像） | VERIFIED |
-| `ZEUS_WORKBENCH_DEPLOY_SSH_KEY/PASSWORD` | 各 1 处                               | 是                         | VERIFIED |
-| `ZEUS_PLAYGROUND_DEPLOY_SSH_*`           | 各 2 处                               | 否（Playground 留在 zeus） | INFERRED |
-| `ZEUS_UI_DISPATCH_TOKEN`                 | 1 处                                  | 待定                       | UNKNOWN  |
-| `ZEUS_LIVE_PASSPHRASE`                   | 1 处                                  | 待定                       | UNKNOWN  |
+| `TCR_USERNAME/PASSWORD`                  | 各 9 处（腾讯云镜像仓库）             | 是（Admin/Workbench 镜像）                    | VERIFIED |
+| `ZEUS_WORKBENCH_DEPLOY_SSH_KEY/PASSWORD` | 各 1 处                               | 是                                            | VERIFIED |
+| `ZEUS_PLAYGROUND_DEPLOY_SSH_*`           | 各 2 处                               | 否（Playground 留在 zeus）                    | INFERRED |
+| `ZEUS_UI_DISPATCH_TOKEN`                 | 1 处                                  | 待定                                          | UNKNOWN  |
+| `ZEUS_LIVE_PASSPHRASE`                   | 1 处                                  | 待定                                          | UNKNOWN  |
 
 **Environments**（VERIFIED，现有 4 个）：`Release`、`Canary`、`production`、
 `ai-workbench-live`。
@@ -269,13 +269,13 @@ zeus/.github/workflows/host-deployment-stage2.yml:111
 
 ## 未解决项汇总（详见 DECISIONS.md）
 
-| ID      | 问题                          | 阻塞程度          |
-| ------- | ----------------------------- | ----------------- |
+| ID      | 问题                          | 阻塞程度           |
+| ------- | ----------------------------- | ------------------ |
 | D-P3-01 | ecosystem 仓库的可见性        | **已关闭：Public** |
-| D-P3-02 | beta.35 何时发布（B1）        | **高**            |
-| D-P3-03 | R-V1 的根治方式（B2）         | **高**            |
-| D-P3-04 | `zeus-host` runner 的注册范围 | 中                |
-| D-P3-05 | Phase 3c 的消费者应该装什么   | **高**（依赖 02） |
+| D-P3-02 | beta.35 何时发布（B1）        | **高**             |
+| D-P3-03 | R-V1 的根治方式（B2）         | **高**             |
+| D-P3-04 | `zeus-host` runner 的注册范围 | 中                 |
+| D-P3-05 | Phase 3c 的消费者应该装什么   | **高**（依赖 02）  |
 
 ---
 
