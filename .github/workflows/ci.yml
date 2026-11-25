@@ -428,6 +428,11 @@ jobs:
       # the plugin actually resolves what it returns, rather than comparing
       # version numbers.
       - run: pnpm check:vite-plugin-contract
+      # A rule in prose was not enough: a release session used the GitHub API
+      # with force: true to get past a transport failure, collapsing five
+      # commits on the remote. This makes the rule executable for every
+      # script in the tree, and prints what it does not cover.
+      - run: pnpm check:git-safety
       - run: pnpm check:repository
       - name: Verify release tarballs
         run: pnpm check:release-artifacts
