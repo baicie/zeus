@@ -73,18 +73,18 @@ export const KNOWN_SCHEMA_FALSE_POSITIVES = [
   },
 ] as const
 
-export const KNOWN_SHELL_FINDINGS = [
-  {
-    file: '.github/workflows/demos-pages.yml',
-    rule: 'SC2016',
-    reason: 'single quotes are intentional; the expression is expanded later',
-  },
-  {
-    file: '.github/workflows/product-acceptance.yml',
-    rule: 'SC2034',
-    reason: 'VERSION is read by the following step through GITHUB_ENV',
-  },
-] as const
+/**
+ * Shellcheck findings that are known and accepted, per file.
+ *
+ * Empty since the legacy workflows were removed — the two entries here named
+ * files that no longer exist. The explicit type stays: without it TypeScript
+ * infers `never[]` from the literal and the lookup below fails to compile.
+ */
+export const KNOWN_SHELL_FINDINGS: ReadonlyArray<{
+  readonly file: string
+  readonly rule: string
+  readonly reason: string
+}> = []
 
 export interface WorkflowProblem {
   readonly file: string

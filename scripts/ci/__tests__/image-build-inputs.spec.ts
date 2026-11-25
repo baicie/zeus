@@ -27,18 +27,14 @@ interface Workflow {
   readonly dockerfile: string
 }
 
+/*
+ * `admin-image` was removed with the legacy Admin workflows; the property it
+ * checked — every Dockerfile input can trigger its own build — is asserted for
+ * the image CI that still exists. The Admin image now builds in
+ * `zeus-ecosystem`, from published packages, and its inputs are checked by that
+ * repository's own size and evidence gates.
+ */
 const WORKFLOWS: readonly Workflow[] = [
-  {
-    name: 'admin-image',
-    workflow: readFileSync(
-      path.join(root, '.github/workflows/admin-image.yml'),
-      'utf8',
-    ),
-    dockerfile: readFileSync(
-      path.join(root, 'examples/admin/Dockerfile'),
-      'utf8',
-    ),
-  },
   {
     name: 'playground-image',
     workflow: readFileSync(
@@ -172,21 +168,5 @@ describe.each(WORKFLOWS)('$name triggers cover the build inputs', entry => {
   it('triggers on .dockerignore, which decides the build context', () => {
     const push = triggerPaths(entry.workflow, 'push')
     expect(coveredBy(push, '.dockerignore')).toBe(true)
-  })
-})
-
-describe('admin-image deploys only from main', () => {
-  const workflow = WORKFLOWS[0]?.workflow ?? ''
-
-  it('computes should_deploy from ref and event, not from a manual flag alone', () => {
-    expect(workflow).toMatch(
-      /if \[\[ "\$\{GITHUB_REF\}" == "refs\/heads\/main" && "\$\{GITHUB_EVENT_NAME\}" == "push" \]\]/,
-    )
-  })
-
-  it('gates the deploy job on should_deploy', () => {
-    const deployJob = workflow.slice(workflow.indexOf('\n  deploy:'))
-    expect(deployJob, 'a deploy job must exist').not.toBe('')
-    expect(deployJob).toMatch(/needs\.build\.outputs\.should_deploy == 'true'/)
   })
 })
