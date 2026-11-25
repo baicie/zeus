@@ -272,6 +272,14 @@ jobs:
       - name: Release package registration
         run: pnpm check:package-versions
 
+      # The version table in `docs/api/packages.md` is derived from the
+      # manifests, and publishing a package without regenerating it left main
+      # red: the table said `0.1.1-beta.14` while the manifest said
+      # `0.1.1-beta.15`. Running the generator in `--check` mode here means a
+      # release that forgets it fails before the merge rather than after.
+      - name: Package table matches the manifests
+        run: pnpm check:package-table
+
       # The Changesets `fixed` list duplicates `zeusFixedPackages`, and the two
       # are compared by `scripts/release/__tests__/release-config.spec.ts`.
       # That test runs under the shared vitest config, whose top-level import

@@ -108,6 +108,14 @@ export default defineReleaseConfig({
         'temp/release/tarballs.json',
       ],
       ['pnpm', 'api:check'],
+      /*
+       * The version table is derived from the manifests, and a release that
+       * bumps one without the other is what put `package-table.spec.ts` red on
+       * main after publishing the DevTools consumer. Listed here beside
+       * `api:check` because they are the same kind of check: a derived document
+       * that must agree with the tree it describes.
+       */
+      ['pnpm', 'check:package-table'],
       ['pnpm', 'check'],
       ['pnpm', 'lint'],
       ['pnpm', 'test-unit'],
