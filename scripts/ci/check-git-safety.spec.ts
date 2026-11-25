@@ -1,3 +1,5 @@
+import { spawnSync } from 'node:child_process'
+
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -106,6 +108,50 @@ describe('the transport workaround', () => {
         'b',
       ]).safe,
     ).toBe(true)
+  })
+})
+
+describe('the scanner itself', () => {
+  it('does not skip a real force-push because it lives in a test file', () => {
+    /*
+     * Excluding `*.spec.ts` from the scan is what stops the guard reporting its
+     * own test inputs as violations. The cost is that a test which actually
+     * runs `git push --force` would not be seen — so the exclusion is only
+     * defensible while no spec contains a real invocation, which is what this
+     * asserts.
+     *
+     * A spec that needs to exercise the detector passes the command as a
+     * string; it must not shell out to git.
+     */
+    /*
+     * One `git grep` rather than reading every file: the per-file version took
+     * 29 seconds and hit the test timeout, which is a worse failure than the
+     * one it was checking for.
+     *
+     * The pattern is deliberately narrow — a literal `git` argv entry followed
+     * by `--force` on the same line. A spec that needs to exercise the detector
+     * passes the command as a string; this finds the ones that shell out.
+     */
+    const result = spawnSync(
+      'git',
+      ['grep', '-n', '-e', '--force', '--', 'scripts'],
+      {
+        encoding: 'utf8',
+      },
+    )
+
+    const offenders = (result.stdout ?? '')
+      .split('\n')
+      .filter(line => line.includes('.spec.ts:'))
+      /*
+       * This file contains the search it is describing, so its own line
+       * matches. The guard is about specs that *run* git, not specs that
+       * mention the flag while looking for it.
+       */
+      .filter(line => !line.includes('check-git-safety.spec.ts:'))
+      .filter(line => /execFileSync|spawnSync|exec\b/.test(line))
+
+    expect(offenders).toEqual([])
   })
 })
 

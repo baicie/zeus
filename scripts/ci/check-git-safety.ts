@@ -141,7 +141,17 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     .filter(
       file =>
         file.endsWith('.ts') &&
+        /*
+         * Test files are excluded because they contain the patterns on purpose.
+         *
+         * `check-git-safety.spec.ts` lists `push --force`, `--mirror` and the
+         * rest as *inputs* to the detector, so scanning it reports the guard
+         * testing itself as five violations. The same reasoning covers
+         * `__tests__` directories, and the guard's own source — which names
+         * each pattern in order to match it.
+         */
         !file.includes('__tests__') &&
+        !file.endsWith('.spec.ts') &&
         !file.endsWith('check-git-safety.ts'),
     )
 
