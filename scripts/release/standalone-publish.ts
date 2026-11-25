@@ -12,7 +12,19 @@ import { findWorkspacePackages } from '../shared/utils.ts'
  * the native artifact copy broke. A missing entry is reported instead of
  * falling back to a path that silently does not exist.
  */
-const standalonePackages = new Set(['create-zeus', '@zeus-js/vite-plugin'])
+const standalonePackages = new Set([
+  'create-zeus',
+  '@zeus-js/vite-plugin',
+  /*
+   * The DevTools consumer is a development-time observer of the runtime event
+   * protocol. It was `private: true` for as long as it existed, so the Admin
+   * app's `?devtools` panel — behind `import.meta.env.DEV` in the original —
+   * could not be carried over by a migration that may only install published
+   * packages. Publishing it is what makes that panel restorable; it is not a
+   * production dependency of anything.
+   */
+  '@zeus-js/devtools-consumer',
+])
 
 function packageDir(pkgName: string): string {
   const match = findWorkspacePackages().find(
