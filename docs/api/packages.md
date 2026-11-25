@@ -18,7 +18,9 @@
 
 ## 1. 包总览
 
-下表由各 `package.json` 派生（`scripts/check/check-package-table.ts` 校验）。可发布包 = 工作区中 `private` 不为 `true` 的包；`compiler-wasm` 与 `devtools-consumer` 为 private，故不在表内。
+下表由各 `package.json` 派生（`scripts/check/check-package-table.ts` 校验）。可发布包 = 工作区中 `private` 不为 `true` 的包；`compiler-wasm` 仍为 private，故不在表内。`devtools-consumer` 自 `0.1.1-beta.15` 起可发布。
+
+修改 manifest 的版本后，运行 `pnpm tsx scripts/check/write-package-table.ts` 重写这张表，不要手工改版本号。
 
 | 包名                                        | 路径                                                 | 版本          | 类型     | 说明                                          |
 | ------------------------------------------- | ---------------------------------------------------- | ------------- | -------- | --------------------------------------------- |
@@ -47,7 +49,7 @@
 | `@zeus-js/eslint-plugin`                    | `packages/tooling/eslint-plugin`                     | 0.2.0-rc.5    | tooling  | Zeus 源码与编译器内置节点 ESLint 规则         |
 | `@zeus-js/playground-engine`                | `packages/tooling/playground-engine`                 | 0.2.0-rc.5    | tooling  |                                               |
 | `@zeus-js/testing`                          | `packages/tooling/testing`                           | 0.2.0-rc.5    | tooling  | 官方测试工具：渲染、事件、查询与 effect 刷新  |
-| `@zeus-js/devtools-consumer`                | `packages/tooling/consumer`                          | 0.1.1-beta.14 | tooling  | DevTools 事件消费与面板模型（仅开发期）       |
+| `@zeus-js/devtools-consumer`                | `packages/tooling/consumer`                          | 0.1.1-beta.15 | tooling  | DevTools 事件消费与面板模型（仅开发期）       |
 | `@zeus-js/vite-plugin`                      | `packages/tooling/vite-plugin`                       | 0.0.5         | tooling  | Vite 集成插件                                 |
 | `@zeus-js/bundler-plugin`                   | `packages/web-c/bundler-plugin`                      | 0.2.0-rc.5    | web-c    | bundler 插件宿主（Vite / Rollup / Rolldown）  |
 | `@zeus-js/component-analyzer`               | `packages/web-c/component-analyzer`                  | 0.2.0-rc.5    | web-c    | 组件分析器（解析 JSX）                        |
