@@ -336,3 +336,64 @@ Playground 的编译器是 WebAssembly 模块。`script-src` 没有 `'wasm-unsaf
 `@zeus-js/devtools-consumer` 有同样的情况（`latest` 也指向 beta），所以这不是
 `compiler-wasm` 独有的问题，而是独立版本线整体的缺口。修复它属于发布策略的改动，
 不在本轮范围内——但迁移后如果 ecosystem 按 `latest` 取版本，会取到一个 beta。
+
+## 十二、P2 侦察：一次错误的"阻塞"判断，以及它为什么会发生
+
+> **更正**：本节最初记录 `@zeus-js/output-wc` / `output-css` 从未发布过 rc.5，
+> 判定为 P2 的第二个阻塞。**这个判断是错的。** 两个包在 npmjs 上都有 rc.5。
+> 保留这段记录，因为错误的成因比结论更值得记住。
+
+我查 npm 时用的是 `registry.npmmirror.com`（本机 `.npmrc` 的默认 registry）。
+镜像对 rc.5 这批包滞后，`npm view @zeus-js/output-wc@0.2.0-rc.5` 返回
+`E404 No match found for version 0.2.0-rc.5`。我用这个结果下了结论。
+
+用 `registry.npmjs.org` 交叉验证后：
+
+```
+@zeus-js/output-wc@0.2.0-rc.5        -> 0.2.0-rc.5   ✓
+@zeus-js/output-css@0.2.0-rc.5       -> 0.2.0-rc.5   ✓
+@zeus-js/playground-engine@0.2.0-rc.5 -> 0.2.0-rc.5  ✓
+```
+
+我甚至回溯到 rc.5 的发布日志（run 45155201513），看到
+`📦 @zeus-js/output-wc@0.2.0-rc.5` 在 tarball 清单里 —— 也就是说证据一直指向
+「发布成功」，而我先入为主地用镜像的 404 解释了它。
+
+**教训**：判断"某个版本是否存在"必须用 `registry.npmjs.org`。镜像滞后会把
+已发布的包报成不存在，而这个仓库里几乎所有的 `npm view` 都走镜像。
+
+### 因此 P2 没有第二个阻塞
+
+Playground 的全部依赖（`compiler-wasm@0.1.1-beta.20` + 8 个 `0.2.0-rc.5` 包
+
+- `vite-plugin@0.0.6`）都可以从 npmjs 装到。
+
+开始迁移前先验证「Playground 的全部依赖能从 npm 装齐」。装不上：
+
+```
+npm error notarget No matching version found for @zeus-js/output-wc@0.2.0-rc.5
+```
+
+逐个核对 32 个固定发布组包的 rc.5 在 npm 上的存在性，**两个缺失**：
+
+| 包                    | 仓库版本   | npm 上的 rc 系列 | 谁依赖它                     |
+| --------------------- | ---------- | ---------------- | ---------------------------- |
+| `@zeus-js/output-wc`  | 0.2.0-rc.5 | **一个都没有**   | `playground-engine`、`web-c` |
+| `@zeus-js/output-css` | 0.2.0-rc.5 | **一个都没有**   | `web-c`                      |
+
+两者都在 `zeusFixedPackages` 内、都非 private，所以这不是"故意不发布"，而是
+rc.5 那次发布**漏掉了它们**。npm 上它们最新的版本停在
+`0.1.1-canary.20261027.237.1.d8533522`。
+
+**为什么之前没暴露**：`apps/admin` 不需要它们（它只用 `zeus`/`router`/`query`/`resource`
+和 `@zeus-web/*` 组件），而 `playground-engine` 是第一个依赖 `output-wc` 的消费者。
+所以这条缺口在 ecosystem 的现有三个应用里都看不到。
+
+**这改变了 P2 的顺序**：不是「建 apps/playground → 装依赖」，而是
+「补发布 output-wc + output-css@0.2.0-rc.5 → 建 apps/playground」。
+在补发之前，`pnpm add @zeus-js/playground-engine@0.2.0-rc.5` 必然失败，
+且错误信息指向 output-wc 而不是 playground-engine，排查时容易误判成 engine 的问题。
+
+补发的方式与 compiler-wasm 不同：这两个包版本跟随固定组，所以不能用独立 tag，
+要走 `release.yml` 的 rc 通道重发——而 `0.2.0-rc.5` 这个版本号一旦在 npm 上存在过
+就不能重复使用，需要确认那次发布到底是「从未推送」还是「推送失败」。
