@@ -24,6 +24,12 @@ const standalonePackages = new Set([
    * production dependency of anything.
    */
   '@zeus-js/devtools-consumer',
+  /*
+   * The browser compiler host, published for the migrated Playground. Its
+   * `.wasm` is a cargo artifact that `.gitignore` excludes, so `prepack` builds
+   * it — without that hook the tarball would carry the loader and no compiler.
+   */
+  '@zeus-js/compiler-wasm',
 ])
 
 function packageDir(pkgName: string): string {

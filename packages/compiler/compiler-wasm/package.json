@@ -2,7 +2,6 @@
   "name": "@zeus-js/compiler-wasm",
   "type": "module",
   "version": "0.1.1-beta.20",
-  "private": true,
   "description": "WebAssembly build of the Zeus Rust compiler for browsers and Workers",
   "license": "MIT",
   "repository": {
@@ -31,6 +30,10 @@
   ],
   "scripts": {
     "build:wasm": "node scripts/build.mjs",
+    "prepack": "node scripts/build.mjs",
     "test:wasm": "node --test __tests__/*.test.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

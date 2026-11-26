@@ -6,6 +6,12 @@ import pico from 'picocolors'
 
 import { findWorkspacePackages } from '../shared/utils'
 
+/**
+ * Subpaths that name a data file rather than a module. A `.wasm`, `.json` or
+ * asset subpath is fetched, so it has no type surface to declare.
+ */
+const DATA_SUBPATH = /\.(wasm|json|css|svg|png)$/
+
 const allowWildcard = new Set<string>([
   // 尽量为空。如果临时保留某个包，必须写原因和 TODO。
 ])
@@ -67,7 +73,15 @@ function checkExports(
   exportsField: Record<string, unknown>,
 ): void {
   for (const [key, value] of Object.entries(exportsField)) {
-    if (!hasTypesTarget(value)) {
+    /*
+     * A subpath that resolves to a data file has no type to declare. Requiring
+     * one would only be satisfiable by inventing a `.d.ts` that says nothing,
+     * which is worse than the exemption: the file is fetched by the browser, not
+     * imported for its types. `@zeus-js/compiler-wasm` exports the compiled
+     * `zeus-compiler.wasm` this way, and `fetch()` is its only consumer.
+     */
+    const isDataSubpath = DATA_SUBPATH.test(key)
+    if (!isDataSubpath && !hasTypesTarget(value)) {
       error(`${pkgName} export "${key}" is missing "types" condition`)
     }
     checkExportValue(pkgName, pkgDir, key, value)

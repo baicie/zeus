@@ -59,6 +59,22 @@ const DEFAULT_REQUIRED_FIXED_PACKAGE_ROOTS = [
   'packages/web-c',
 ]
 
+/*
+ * Public packages that sit under a fixed-version root but carry their own
+ * version line.
+ *
+ * `packages/tooling` is exempt as a whole directory because its three packages
+ * are all standalone. `packages/compiler` cannot be exempted that way — the
+ * compiler packages must track the core version — so the one exception is named
+ * here instead, with the reason it is an exception.
+ *
+ * `@zeus-js/compiler-wasm` stopped being private when the Playground moved to
+ * `zeus-ecosystem` (a repository that may only install published packages). It
+ * is published on its own tag, like `vite-plugin`, so its version tracks the
+ * wasm build rather than the runtime.
+ */
+const STANDALONE_PACKAGES_UNDER_FIXED_ROOTS = ['@zeus-js/compiler-wasm']
+
 const DEFAULT_ROOT_VERSION_PACKAGE = '@zeus-js/zeus'
 
 export function checkZeusPackageVersions(
@@ -111,10 +127,9 @@ export function checkZeusPackageVersions(
     }
 
     const isFixedPackage = fixedPackages.includes(packageName)
-    const mustBeFixed = isUnderAnyRoot(
-      item.relativeDir,
-      requiredFixedPackageRoots,
-    )
+    const mustBeFixed =
+      isUnderAnyRoot(item.relativeDir, requiredFixedPackageRoots) &&
+      !STANDALONE_PACKAGES_UNDER_FIXED_ROOTS.includes(packageName)
 
     if (mustBeFixed && !isFixedPackage) {
       problems.push({

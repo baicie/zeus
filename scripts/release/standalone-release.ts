@@ -20,6 +20,13 @@ const standalonePackages = [
   'create-zeus',
   'vite-plugin',
   '@zeus-js/devtools-consumer',
+  /*
+   * The browser compiler host. It was `private: true` because it used to ship
+   * inside the Playground's own build; that assumption ended when the
+   * Playground moved to `zeus-ecosystem`, which may only install published
+   * packages. Same situation as `@zeus-js/devtools-consumer` above.
+   */
+  '@zeus-js/compiler-wasm',
 ]
 
 function packageDir(pkgName: string): string {

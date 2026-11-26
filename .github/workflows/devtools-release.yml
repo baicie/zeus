@@ -6,6 +6,7 @@ on:
       - 'create-zeus@*'
       - 'vite-plugin@*'
       - 'devtools-consumer@*'
+      - 'compiler-wasm@*'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -50,6 +51,14 @@ jobs:
       - name: Build framework and declarations
         run: pnpm build --withTypes
 
+      # `zeus-compiler.wasm` is a cargo artifact and `.gitignore` excludes it, so
+      # it does not exist after checkout. Building it here is what makes the
+      # published tarball carry a compiler rather than only its loader; the
+      # package's own `prepack` builds it too, and this step surfaces a toolchain
+      # problem before the publish attempt instead of inside it.
+      - name: Build the browser compiler
+        run: pnpm --filter @zeus-js/compiler-wasm build:wasm
+
       - name: Build devtools
         run: pnpm --filter create-zeus --filter @zeus-js/vite-plugin --filter @zeus-js/devtools-consumer --if-present build
 
@@ -82,6 +91,7 @@ jobs:
             create-zeus@*) PACKAGE="create-zeus" ;;
             vite-plugin@*) PACKAGE="@zeus-js/vite-plugin" ;;
             devtools-consumer@*) PACKAGE="@zeus-js/devtools-consumer" ;;
+            compiler-wasm@*) PACKAGE="@zeus-js/compiler-wasm" ;;
             *) echo "Unsupported devtools release ref: $RELEASE_REF" >&2; exit 1 ;;
           esac
           VERSION="${RELEASE_REF##*@}"
