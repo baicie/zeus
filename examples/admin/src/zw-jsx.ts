@@ -18,10 +18,13 @@
  *   plain attributes to satisfy the type checker, and `check:admin` caught it
  *   as `aria-colcount="0"`.
  *
- * The real fix is in the generator (`packages/web-c/component-dts/src/
- * generateJsxDts.ts` in Core), which now emits `ref` with the other common
- * props. `prop:` needs the same treatment in the generated type; until a
- * `@zeus-web/*` release carries both, this module is the app's bridge.
+ * The generator (`packages/web-c/component-dts/src/generateJsxDts.ts` in Core)
+ * now emits `ref` with the other common props, and `@zeus-web/*@0.1.0-beta.35`
+ * carries it. What it emits is `(element: HTMLElement | null) => void` for
+ * every tag, so `withRef` returns that same signature and lets the caller's own
+ * type parameter narrow the callback — see the note on the function. `prop:`
+ * still needs the same treatment in the generated type, so this module stays as
+ * the bridge for that half.
  *
  * It is deliberately narrow. Both helpers spread a correctly-typed value rather
  * than casting the element to `any`, so every *other* prop stays checked — a
@@ -40,8 +43,22 @@
  */
 export function withRef<T extends Element>(
   ref: (element: T | null) => void,
-): { ref: (element: T | null) => void } {
-  return { ref }
+): { ref: (element: HTMLElement | null) => void } {
+  /*
+   * The returned signature says `HTMLElement`, and the callback narrows.
+   *
+   * `@zeus-web/*@0.1.0-beta.35` generates `ref?: (element: HTMLElement | null)
+   * => void` on every intrinsic element — the typed element a component is
+   * declared with, and the callback a caller supplies, do not have to agree at
+   * the type level because the compiler passes whatever the tag constructs.
+   * Returning `(element: T | null) => void` from here made the two disagree in
+   * the direction TypeScript rejects: a function accepting only `DialogElement`
+   * cannot stand where one accepting any `HTMLElement` is expected.
+   *
+   * The narrowing the caller asked for still happens — `withRef<DialogElement>`
+   * types the callback's parameter — and the runtime value is that element.
+   */
+  return { ref: ref as (element: HTMLElement | null) => void }
 }
 
 /**
