@@ -84,3 +84,133 @@ const ENTRY_PACKAGE_DIR = path.join(repoRoot, 'packages/core/zeus')
 审计的其余维度（应用源码逐文件分类、engine 边界、安全边界、
 CI/交付、测试拆分、Core examples 分类）由并行审计产出，
 落定后并入本文档。
+
+---
+
+## 六、逐文件分类（六个维度的交叉核对结果）
+
+审计分六个维度独立进行，每个维度随后由另一个 agent 读同样的文件做**反驳式复核**。
+130 条发现中 15 条被推翻——它们比通过的 115 条更有价值，因为每一条都是一个
+「看起来合理但代码不是那样」的判断。
+
+| 迁移动作                 | 条目 |
+| ------------------------ | ---- |
+| 留在 Core                | 41   |
+| 拆分（一部分留一部分走） | 40   |
+| 迁到 Playground 应用     | 37   |
+| 迁到 ecosystem demos     | 11   |
+| 删除                     | 1    |
+
+### 被推翻的判断
+
+| 原判断                                                  | 实际情况                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `host.tsx` / `host-counter.tsx` 是框架能力              | 只由 Playground 的 `host.html` 入口、Inspector 外链和 Playground 门禁消费；core 无消费者。且「全仓唯一在非沙箱页面把 Zeus CE 挂进 React StrictMode 与 Vue 3」不成立——`react-wrapper`、`use-headless-react`、`vue-wrapper`、`use-headless-vue` 早已各自覆盖 |
+| `check-playground-browser.ts` 属 Playground 产品        | 它断言的是**文档站** `docs/public/playground` 静态页（`docs/.vitepress/config.ts:15` 导航、`docs.yml`），随 Playground 迁走会打断文档站                                                                                                                    |
+| `playground-image.yml` / `playground-pages.yml` 留 Core | 它们直接构建/读取 `examples/playground-editor`，是本仓审计文档自己写明要迁 ecosystem 的对象                                                                                                                                                                |
+| `deployment-layout` 是 product-test                     | 它是部署期校验与 manifest 构造库，类别应为 product-deploy，动作留在 Core                                                                                                                                                                                   |
+| `stencil-wrapper` 是框架能力                            | 该包**零 Zeus 使用**（唯一的 `@zeus` 命中是它自己的名字），不演示任何框架能力；phase0/phase1 审计记的是 retire                                                                                                                                             |
+| `project-board` 是 Playground 产品                      | 它是单文件的 Core 框架演示（context/memo/Show/For/inspector），`docs/audit/phase1` 记录的是 keep in zeus                                                                                                                                                   |
+
+涉及 host 页面与 engine 边界的条目，我需要自己再核一遍才写进设计——两轮 agent
+对同一批文件给出了不同结论，说明那里确实有需要人判断的边界。
+
+## 七、P10 的硬约束：parity corpus 只剩 2 个余量
+
+`packages/compiler/compiler-wasm/__tests__/parity.test.mjs:171`：
+
+```js
+assert.ok(corpus.length > 60, `corpus has ${corpus.length} modules`)
+```
+
+`corpusRoots` 包含整个 `examples/`，所以**每迁走一个含 `.tsx` 的目录，语料就少几项**。
+实测当前总数（2026-11-26，`main` @ `aa4e37a4`）：
+
+| 来源                          | 数量   |
+| ----------------------------- | ------ |
+| `examples/`                   | 58     |
+| `scripts/bench/fixtures`      | 9      |
+| `scripts/playground/fixtures` | 2      |
+| inline sources                | 11     |
+| **合计**                      | **80** |
+
+按审计列出的迁移清单计算：
+
+| 目录                 | 减少   |
+| -------------------- | ------ |
+| `registry-react`     | 7      |
+| `playground-editor`  | 4      |
+| `use-headless-cli`   | 2      |
+| `stencil-wrapper`    | 2      |
+| `headless-demo`      | 1      |
+| `use-headless-react` | 1      |
+| `project-board`      | 1      |
+| **合计**             | **18** |
+
+迁移后 62，守卫仍通过，**但余量只有 2**。此后任何再迁走一个含 `.tsx` 的目录都会
+让 Rust 编译器的 WASM/原生一致性门禁变红，而失败信息是「corpus has 59 modules」，
+看起来像语料被误删，不像迁移导致。
+
+**处理方式**（需要与 P10 同批做）：把 corpus 的输入从「整个 `examples/` 目录」
+改为显式的 fixture 清单，或把迁移走的目录换成等量的专用 fixture。不能靠
+「暂时调低门槛」——那正是这条守卫存在的理由（它的注释写着语料曾经悄悄丢掉九个模块
+而 `> 60` 的守卫没拦住）。
+
+### Core examples 分类（P10）
+
+| 目录                                               | .tsx  | 分类                                                    | 动作               |
+| -------------------------------------------------- | ----- | ------------------------------------------------------- | ------------------ |
+| `counter` / `todo` / `context` / `light-dom-slots` | 各 1  | 最小框架示例                                            | 留                 |
+| `web-component`                                    | 4     | 框架测试 fixture（全部 `shadow: false`，无 Shadow DOM） | 留                 |
+| `devtools-panel`                                   | 1     | 框架测试 fixture                                        | 留                 |
+| `next-boundary`                                    | 4     | 框架测试 fixture                                        | 留                 |
+| `headless`                                         | 23    | 框架测试 fixture（6 个消费示例）                        | 留                 |
+| `playground-editor`                                | 4     | 完整应用                                                | 迁 ecosystem apps  |
+| `headless-demo`                                    | 1     | 复杂 Demo                                               | 迁 ecosystem demos |
+| `use-headless-{cli,react,vue}`                     | 2/1/0 | 复杂 Demo                                               | 迁 ecosystem demos |
+| `registry-{react,vue}`                             | 7/0   | 复杂 Demo                                               | 迁 ecosystem demos |
+| `project-board`                                    | 1     | 复杂 Demo（单文件 Kanban 演示）                         | 迁 ecosystem demos |
+| `stencil-wrapper`                                  | 2     | 零 Zeus 使用                                            | 退役，不迁移       |
+| `admin`                                            | 0     | 已空                                                    | 已删（#418）       |
+
+## 八、两条矛盾结论的亲自核实
+
+两轮 agent 对同一批文件给出了不同判断。以下是逐条查证后的结论，
+不是采信其中一方。
+
+### `host.html` / `host.tsx`：属 Playground，不属 Core
+
+三个消费者，全在 Playground 内部：
+
+```
+examples/playground-editor/vite.config.ts:44   build 入口 host.html
+examples/playground-editor/src/playground/ui.tsx:878  Inspector 的外链
+scripts/playground/check-playground-editor.ts:382      goto `${host}/host.html`
+```
+
+core 里没有任何消费者。审计提到它「证明 React/Vue 可以把 Zeus 自定义元素挂起来」，
+这个能力已分别由 `examples/react-wrapper`、`examples/use-headless-react`、
+`examples/vue-wrapper`、`examples/use-headless-vue` 覆盖——宿主页唯一多出的是
+「同一页同时演示两者」。
+
+**结论**：随 Playground 迁移。若 core 想要一份「同页双框架宿主」的证据，
+应由 P10 新建一个最小示例并配 core 自己的门禁，而不是留着这个页面等它变孤儿。
+
+另外审计指出 `host.tsx:76-81` 发的 `zeus-webc-host` 消息**全仓没有监听者**
+（`target=_blank` 打开时 `window.parent === window` 直接 return），是死协议。
+
+### `check-playground-browser.ts`：测文档站，不测 Playground 产品
+
+目标目录写死在源码里：
+
+```
+scripts/playground/check-playground-browser.ts:12
+const directory = path.join(root, 'docs/public/playground')
+```
+
+它验证的是文档站 `/playground/` 下的静态编译器演示（基路径 `/zeus/playground/`、
+本地设置存储 `zeus-playground.settings.v2`），与 `examples/playground-editor` 无关。
+把它随 Playground 迁走会**打断文档站**。
+
+**结论**：这个脚本留在 core，或随文档站一起处理——但不能算作 Playground 产品测试。
+P7 的清单里它应当被单独标注。
