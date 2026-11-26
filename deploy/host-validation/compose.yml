@@ -24,40 +24,6 @@ services:
       options: { max-size: '10m', max-file: '3' }
     restart: unless-stopped
 
-  admin:
-    image: ${ZEUS_ADMIN_IMAGE:?set ZEUS_ADMIN_IMAGE to image@sha256:...}
-    container_name: ${ZEUS_ADMIN_CONTAINER:-zeus-host-validation-admin}
-    ports:
-      - '${ZEUS_ADMIN_BIND:-127.0.0.1}:${ZEUS_ADMIN_PORT:-8082}:8080'
-    environment:
-      ZEUS_ADMIN_EMAIL: ${ZEUS_ADMIN_EMAIL:?}
-      ZEUS_ADMIN_PASSWORD: ${ZEUS_ADMIN_PASSWORD:?}
-      ZEUS_ADMIN_VIEWER_PASSWORD: ${ZEUS_ADMIN_VIEWER_PASSWORD:?}
-      ZEUS_ADMIN_SEED_DEMO: ${ZEUS_ADMIN_SEED_DEMO:-false}
-      ZEUS_ADMIN_BOOTSTRAP: ${ZEUS_ADMIN_BOOTSTRAP:-false}
-      ZEUS_ADMIN_ACCEPTANCE_EMAIL: ${ZEUS_ADMIN_ACCEPTANCE_EMAIL:-}
-      ZEUS_ADMIN_ACCEPTANCE_PASSWORD: ${ZEUS_ADMIN_ACCEPTANCE_PASSWORD:-}
-      ZEUS_ADMIN_ACCEPTANCE_USER_ID: ${ZEUS_ADMIN_ACCEPTANCE_USER_ID:-acceptance}
-      ZEUS_ADMIN_ACCEPTANCE_TTL_MINUTES: ${ZEUS_ADMIN_ACCEPTANCE_TTL_MINUTES:-120}
-      ZEUS_ADMIN_TRUST_PROXY: ${ZEUS_ADMIN_TRUST_PROXY:-false}
-      ZEUS_ADMIN_ORIGINS: ${ZEUS_ADMIN_ORIGINS:-}
-      ZEUS_ADMIN_HOST: 0.0.0.0
-      ZEUS_ADMIN_DB: /data/admin.sqlite
-      ZEUS_ADMIN_UPLOAD_BYTES: '65536'
-    volumes:
-      - ${ZEUS_ADMIN_DATA_DIR:-./.data/admin}:/data
-    read_only: true
-    tmpfs:
-      - /tmp
-    security_opt:
-      - no-new-privileges:true
-    mem_limit: ${ZEUS_ADMIN_MEM:-256m}
-    cpus: ${ZEUS_ADMIN_CPUS:-0.50}
-    logging:
-      driver: json-file
-      options: { max-size: '10m', max-file: '3' }
-    restart: unless-stopped
-
   ai-host:
     image: ${ZEUS_AI_HOST_IMAGE:?set ZEUS_AI_HOST_IMAGE to image@sha256:...}
     container_name: ${ZEUS_AI_HOST_CONTAINER:-zeus-host-validation-ai-host}

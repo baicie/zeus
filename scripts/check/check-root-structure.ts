@@ -36,7 +36,6 @@ export interface Finding {
 
 /** Root directories a contributor may create without asking. */
 export const ALLOWED_ROOT_DIRECTORIES = [
-  '.agents',
   '.changeset',
   '.claude',
   '.github',
@@ -52,6 +51,7 @@ export const ALLOWED_ROOT_DIRECTORIES = [
   'node_modules',
   'packages',
   'scripts',
+  'skills',
   'target',
   'temp',
 ] as const

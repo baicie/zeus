@@ -18,7 +18,6 @@ const root = path.resolve(import.meta.dirname, '../..')
 let repoRoot = root
 const TENANT = 'stage1-local-acceptance'
 const ADMIN_PASSWORD = 'stage1-admin-password-123'
-const VIEWER_PASSWORD = 'stage1-viewer-password-123'
 const PROJECT = 'zeus-stage1-local'
 
 function main(): void {
@@ -147,7 +146,6 @@ async function runStage1(options: Stage1Options): Promise<void> {
           coreCommit,
           images.playground,
         ),
-        product('admin', 'http://127.0.0.1:8082/', coreCommit, images.admin),
         {
           ...product(
             'ai-workbench',
@@ -225,7 +223,6 @@ async function runStage1(options: Stage1Options): Promise<void> {
     products: [
       provenanceProduct('webc-studio', images.playground),
       provenanceProduct('native-lab', images.playground),
-      provenanceProduct('admin', images.admin),
       provenanceProduct('ai-workbench', images.workbench),
     ],
   }
@@ -285,7 +282,7 @@ function buildImages(input: {
   readonly reuseImages: boolean
   readonly sandboxUrl: string
   readonly hostOrigins: string
-}): Record<'playground' | 'admin' | 'aiHost' | 'workbench', ImageRecord> {
+}): Record<'playground' | 'aiHost' | 'workbench', ImageRecord> {
   const common = [
     '--build-arg',
     `ZEUS_CORE_COMMIT=${input.coreCommit}`,
@@ -312,26 +309,11 @@ function buildImages(input: {
       buildInfoPath: '/usr/share/nginx/html/build-info.json',
     },
     /*
-     * Admin moved to `zeus-ecosystem/apps/admin`, and this build has not moved
-     * with it.
-     *
-     * `examples/admin` is gone, so this entry cannot build. Pointing it at the
-     * migrated Dockerfile is not a rename: that image has a different build
-     * context (the ecosystem repository), a different runtime port and a
-     * different build-info path, so the swap belongs in a change that also
-     * exercises `host-deployment-prepare.yml` end to end. Measured, that
-     * workflow last succeeded on 2026-11-07 and has not run since.
-     *
-     * Left failing on purpose: a stage1 run that cannot build Admin should say
-     * so, rather than silently produce a plan with no Admin image in it.
+     * Admin is not built here. It moved to `zeus-ecosystem/apps/admin`, and
+     * `examples/admin` was deleted with it (#418), so there is no Dockerfile in
+     * this repository to build from. Stage 1 covers the three products whose
+     * sources still live in this repository.
      */
-    admin: {
-      image: 'zeus-admin:stage1',
-      context: input.coreRoot,
-      dockerfile: 'examples/admin/Dockerfile',
-      extra: [],
-      buildInfoPath: '/app/dist/build-info.json',
-    },
     aiHost: {
       image: 'zeus-ai-host:stage1',
       context: input.uiRoot,
@@ -512,36 +494,23 @@ function writeEnvFile(
 ): void {
   const ai = createAiDeploymentEnvironment(TENANT, { publicReplay: true })
   const dataRoot = path.join(output, 'data')
-  for (const directory of [
-    path.join(dataRoot, 'admin'),
-    path.join(dataRoot, 'ai'),
-  ]) {
+  for (const directory of [path.join(dataRoot, 'ai')]) {
     fs.mkdirSync(directory, { recursive: true, mode: 0o777 })
     fs.chmodSync(directory, 0o777)
   }
   const lines = [
     `ZEUS_PLAYGROUND_IMAGE=${images.playground.image}`,
-    `ZEUS_ADMIN_IMAGE=${images.admin.image}`,
     `ZEUS_AI_HOST_IMAGE=${images.aiHost.image}`,
     `ZEUS_AI_WORKBENCH_IMAGE=${images.workbench.image}`,
     `ZEUS_PLAYGROUND_CONTAINER=zeus-stage1-playground`,
-    `ZEUS_ADMIN_CONTAINER=zeus-stage1-admin`,
     `ZEUS_AI_HOST_CONTAINER=zeus-stage1-ai-host`,
     `ZEUS_AI_WORKBENCH_CONTAINER=zeus-stage1-ai-workbench`,
     'ZEUS_PLAYGROUND_BIND=127.0.0.1',
     'ZEUS_PLAYGROUND_HOST_PORT=8080',
     'ZEUS_PLAYGROUND_SANDBOX_PORT=8081',
-    'ZEUS_ADMIN_BIND=127.0.0.1',
-    'ZEUS_ADMIN_PORT=8082',
     'ZEUS_AI_WORKBENCH_BIND=127.0.0.1',
     'ZEUS_AI_WORKBENCH_PORT=8083',
-    `ZEUS_ADMIN_DATA_DIR=${path.join(dataRoot, 'admin')}`,
     `ZEUS_AI_DATA_DIR=${path.join(dataRoot, 'ai')}`,
-    'ZEUS_ADMIN_EMAIL=acceptance@example.test',
-    `ZEUS_ADMIN_PASSWORD=${ADMIN_PASSWORD}`,
-    `ZEUS_ADMIN_VIEWER_PASSWORD=${VIEWER_PASSWORD}`,
-    'ZEUS_ADMIN_SEED_DEMO=true',
-    'ZEUS_ADMIN_BOOTSTRAP=true',
     'ZEUS_AI_ORIGINS=http://127.0.0.1:8083',
     ...ai.lines,
     `# ui commit ${uiCommit}`,
@@ -582,7 +551,6 @@ async function waitForHealth(
   const targets = [
     'http://127.0.0.1:8080/',
     'http://127.0.0.1:8081/sandbox.html',
-    'http://127.0.0.1:8082/api/health',
     'http://127.0.0.1:8083/ai-host/health',
   ]
   for (const target of targets) {
