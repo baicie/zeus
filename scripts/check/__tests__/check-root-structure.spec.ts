@@ -13,7 +13,6 @@ import {
   ALLOWED_ROOT_DIRECTORIES,
   checkCurrentPipelineEntry,
   checkForbiddenRootFiles,
-  checkIgnoreExceptionOrder,
   checkMigratedRootPaths,
   checkPipelineDocIsMarkedHistorical,
   checkPinnedDirectories,
@@ -87,7 +86,7 @@ describe('a pinned directory may not silently disappear', () => {
     ).toEqual([])
   })
 
-  it.each(['meta', 'vendor', 'deploy', 'crates'])(
+  it.each(['meta', 'deploy', 'crates'])(
     'names %s and says what depends on it',
     directory => {
       const findings = checkPinnedDirectories(
@@ -123,47 +122,6 @@ describe('a relocated path may not come back', () => {
     )
     expect(findings).toHaveLength(1)
     expect(findings[0]!.detail).toContain('docs/ci/optimization-baseline.md')
-  })
-})
-
-describe('the vendor ignore exception must follow the rule it excepts', () => {
-  const gitignoreInOrder = [
-    'node_modules',
-    'dist',
-    '!vendor/zeus-web-dialog/dist/',
-  ].join('\n')
-
-  it('accepts the exception after the exclusion', () => {
-    const findings = checkIgnoreExceptionOrder(file =>
-      file === '.gitignore' ? gitignoreInOrder : null,
-    )
-    expect(findings).toEqual([])
-  })
-
-  it('reports the exception placed above the exclusion', () => {
-    const reversed = [
-      '!vendor/zeus-web-dialog/dist/',
-      'node_modules',
-      'dist',
-    ].join('\n')
-    const findings = checkIgnoreExceptionOrder(file =>
-      file === '.gitignore' ? reversed : null,
-    )
-    expect(findings).toHaveLength(1)
-    expect(findings[0]!.rule).toBe('vendor-exception-order')
-    expect(findings[0]!.detail).toContain('.gitignore')
-  })
-
-  it('reports a missing exception', () => {
-    const findings = checkIgnoreExceptionOrder(file =>
-      file === '.gitignore' ? 'node_modules\ndist\n' : null,
-    )
-    expect(findings).toHaveLength(1)
-    expect(findings[0]!.rule).toBe('vendor-exception-missing')
-  })
-
-  it('treats a missing ignore file as nothing to check', () => {
-    expect(checkIgnoreExceptionOrder(() => null)).toEqual([])
   })
 })
 

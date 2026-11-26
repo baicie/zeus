@@ -54,7 +54,6 @@ export const ALLOWED_ROOT_DIRECTORIES = [
   'scripts',
   'target',
   'temp',
-  'vendor',
 ] as const
 
 /**
@@ -65,7 +64,6 @@ export const ALLOWED_ROOT_DIRECTORIES = [
  */
 export const PINNED_ROOT_DIRECTORIES: Readonly<Record<string, string>> = {
   meta: 'write-pair-attestation.ts reads the pairing record through the GitHub contents API by path, and check-golden-components.ts resolves meta/contracts by path',
-  vendor: '.gitignore and .dockerignore order exceptions around it',
   deploy: 'deployment-layout.ts enforces it as a path-safety prefix',
   crates: 'Cargo.toml workspace members and both Dockerfiles',
 }
@@ -291,52 +289,6 @@ export function checkMigratedRootPaths(
 }
 
 /**
- * The ignore-file ordering trap, made checkable.
- *
- * `.gitignore` and `.dockerignore` both need an exception for
- * `vendor/zeus-web-dialog/dist` that comes *after* the rule excluding `dist`.
- * Git applies the last matching pattern, so an exception placed above is
- * silently ignored — which is how a vendored package once reached CI with a
- * manifest and no code.
- */
-export function checkIgnoreExceptionOrder(
-  readFile: (relative: string) => string | null,
-): Finding[] {
-  const findings: Finding[] = []
-  const rules: ReadonlyArray<{ file: string; exclusion: RegExp }> = [
-    { file: '.gitignore', exclusion: /^dist$/ },
-    { file: '.dockerignore', exclusion: /^\*\*\/dist$/ },
-  ]
-
-  for (const { file, exclusion } of rules) {
-    const text = readFile(file)
-    if (text === null) continue
-    const lines = text.split(/\r?\n/)
-    const exclusionIndex = lines.findIndex(line => exclusion.test(line.trim()))
-    const exceptionIndex = lines.findIndex(line =>
-      line.trim().startsWith('!vendor/zeus-web-dialog/dist'),
-    )
-    if (exceptionIndex === -1) {
-      findings.push({
-        rule: 'vendor-exception-missing',
-        detail: `${file} must keep the !vendor/zeus-web-dialog/dist exception`,
-      })
-      continue
-    }
-    if (exclusionIndex !== -1 && exceptionIndex < exclusionIndex) {
-      findings.push({
-        rule: 'vendor-exception-order',
-        detail:
-          `${file}: the vendor exception at line ${exceptionIndex + 1} comes before ` +
-          `the exclusion at line ${exclusionIndex + 1}. Git applies the last matching ` +
-          `pattern, so the exception is ignored and the vendored build is dropped.`,
-      })
-    }
-  }
-  return findings
-}
-
-/**
  * Documents that describe the current compiler must not contradict the code.
  *
  * This is the weakest of the checks by design: it cannot read the code and
@@ -416,7 +368,6 @@ export function runAllChecks(): Finding[] {
     ...checkMigratedRootPaths(relative =>
       fs.existsSync(path.join(root, relative)),
     ),
-    ...checkIgnoreExceptionOrder(readIfExists),
     ...checkPipelineDocIsMarkedHistorical(readIfExists),
     ...checkCurrentPipelineEntry(relative =>
       fs.existsSync(path.join(root, relative)),
