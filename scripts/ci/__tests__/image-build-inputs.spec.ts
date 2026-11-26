@@ -14,12 +14,8 @@
  * `ci-workflow-triggers.spec.ts`). The shapes read here are the flat `paths:`
  * glob lists under each trigger and the `COPY`/`RUN` lines of a Dockerfile.
  */
-import { readFileSync } from 'node:fs'
-import path from 'node:path'
 
 import { describe, expect, it } from 'vitest'
-
-const root = path.resolve(import.meta.dirname, '../../..')
 
 interface Workflow {
   readonly name: string
@@ -28,25 +24,18 @@ interface Workflow {
 }
 
 /*
- * `admin-image` was removed with the legacy Admin workflows; the property it
- * checked — every Dockerfile input can trigger its own build — is asserted for
- * the image CI that still exists. The Admin image now builds in
- * `zeus-ecosystem`, from published packages, and its inputs are checked by that
- * repository's own size and evidence gates.
+ * Both image workflows that used to live here are gone.
+ *
+ * `admin-image` was removed with the legacy Admin workflows. `playground-image`
+ * was disabled when the Playground moved to `zeus-ecosystem/apps/playground` —
+ * its source no longer exists in this repository.
+ *
+ * The property these entries checked — every Dockerfile input can trigger its
+ * own build — is now asserted in `zeus-ecosystem`, where both images are built
+ * from published packages by `app-images.yml`. Keeping an entry here would mean
+ * reading a Dockerfile this repository no longer has.
  */
-const WORKFLOWS: readonly Workflow[] = [
-  {
-    name: 'playground-image',
-    workflow: readFileSync(
-      path.join(root, '.github/workflows/playground-image.yml'),
-      'utf8',
-    ),
-    dockerfile: readFileSync(
-      path.join(root, 'examples/playground-editor/Dockerfile'),
-      'utf8',
-    ),
-  },
-]
+const WORKFLOWS: readonly Workflow[] = []
 
 /** The globs under `on.<event>.paths`, and nothing else. */
 function triggerPaths(workflow: string, event: string): string[] {
@@ -128,6 +117,16 @@ function coveredBy(globs: readonly string[], file: string): boolean {
     return false
   })
 }
+
+/*
+ * `describe.each` over an empty array registers zero tests and the file passes
+ * while asserting nothing — the failure mode this repository keeps finding. The
+ * list is empty by design now, so that is stated once, explicitly, instead of
+ * being indistinguishable from a broken suite.
+ */
+it('no image workflow remains in this repository, and that is deliberate', () => {
+  expect(WORKFLOWS).toHaveLength(0)
+})
 
 describe.each(WORKFLOWS)('$name triggers cover the build inputs', entry => {
   it('covers every path the Dockerfile copies or executes', () => {

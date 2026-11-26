@@ -57,34 +57,12 @@ interface CatalogPair {
  * languages genuinely agree here — not a way to silence a missing translation.
  */
 const IDENTICAL_BY_DESIGN: Readonly<Record<string, readonly string[]>> = {
-  'examples/playground-editor/src/playground/locales': [
-    // Product names.
-    'html.title',
-    'html.titleNative',
-    'html.titleWebc',
-    'title.nativeLab',
-    'title.webcStudio',
-    // Product and technology identifiers shown as labels.
-    'product.native',
-    'product.webc',
-    'example.native',
-    'example.webc',
-    // DOM and build terms with no accepted Chinese equivalent.
-    'inspector.light',
-    'inspector.shadow',
-    'inspector.manifest',
-    'output.pill',
-    // Example titles that are code identifiers.
-    'example.nativeHello.title',
-    'example.nativeShowFor.title',
-    'example.nativeRouterQuery.title',
-    'example.webcShadow.title',
-  ],
-  'examples/admin/src/locales': [
-    // A person's name used as a placeholder example. Names are not translated;
-    // a Chinese "艾达·洛夫莱斯" would misrepresent what the field expects.
-    'gallery.namePlaceholder',
-  ],
+  /*
+   * Empty since the two applications that had locale catalogs moved to
+   * `zeus-ecosystem`: `examples/admin` went first, then
+   * `examples/playground-editor`. Any entry left here would name a directory
+   * this repository does not have.
+   */
 }
 
 function findCatalogPairs(): readonly CatalogPair[] {

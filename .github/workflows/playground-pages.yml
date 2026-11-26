@@ -14,26 +14,17 @@ name: Playground Pages
 #
 # The site lives in its own repository so it never fights with the docs Pages
 # deployment in this repository (one Pages site per repository).
+# DISABLED 2026-11-26: the Playground application moved to
+# `zeus-ecosystem/apps/playground`. This workflow builds from
+# `examples/playground-editor`, which no longer exists here.
+#
+# Disabled rather than deleted for the same reason as `playground-image.yml`:
+# it publishes the static site that is currently live at the `zeus-playground`
+# repository. Nothing in the ecosystem builds a Pages bundle yet, and the rule
+# is that the old delivery path stays until the new one is proven.
+# Delete this file once the ecosystem publishes an equivalent site.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'examples/playground-editor/**'
-      - 'packages/**'
-      - 'crates/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.github/workflows/playground-pages.yml'
   workflow_dispatch:
-
-permissions:
-  contents: read
-
-concurrency:
-  group: playground-pages
-  cancel-in-progress: true
 
 env:
   PAGES_REPO: ${{ github.repository_owner }}/zeus-playground

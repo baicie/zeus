@@ -10,12 +10,11 @@ const testProjects = [
     include: [
       'packages/**/*.{test,spec}.{ts,tsx}',
       'examples/headless/**/*.{test,spec}.{ts,tsx}',
-      // Pure modules of the Playground editor. The browser behaviour is covered
-      // by `check:playground-ux` and `check:playground-editor`, which need real
-      // engines; these tests cover the logic those gates cannot reach —
-      // specifically the async highlighter's loading, failure and staleness
-      // states, which a happy-path browser check never exercises.
-      'examples/playground-editor/src/playground/__tests__/**/*.{test,spec}.{ts,tsx}',
+      // The Playground's editor-level specs moved with the app to
+      // `zeus-ecosystem/apps/playground`, where its own test runner covers the
+      // highlighter's loading, failure and staleness states. Nothing in this
+      // repository's `examples/` has unit specs any more; `examples/headless`
+      // above is kept because its fixture asserts package behaviour.
       'scripts/**/*.{test,spec}.{ts,tsx}',
     ],
   },

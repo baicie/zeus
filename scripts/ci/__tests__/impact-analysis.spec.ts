@@ -304,8 +304,8 @@ describe('planJobs', () => {
     // #250 shipped `gallery.tsx` with `rust-compiler` skipped and main went
     // red on the first full run.
     for (const file of [
-      'examples/admin/src/pages.tsx',
-      'examples/playground-editor/src/App.tsx',
+      'examples/project-board/src/main.tsx',
+      'examples/react-wrapper/src/main.tsx',
       'scripts/bench/fixtures/component-host/src/entries/wc-single.ts',
       'scripts/playground/fixtures/counter.tsx',
     ]) {

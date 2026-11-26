@@ -134,18 +134,6 @@ async function runStage1(options: Stage1Options): Promise<void> {
       uiCommit,
       allowedHosts: ['127.0.0.1', 'localhost'],
       products: [
-        product(
-          'webc-studio',
-          'http://127.0.0.1:8080/webc.html',
-          coreCommit,
-          images.playground,
-        ),
-        product(
-          'native-lab',
-          'http://127.0.0.1:8080/',
-          coreCommit,
-          images.playground,
-        ),
         {
           ...product(
             'ai-workbench',
@@ -220,11 +208,7 @@ async function runStage1(options: Stage1Options): Promise<void> {
         ? `${process.env.GITHUB_SERVER_URL ?? 'https://github.com'}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
         : 'local://stage1',
     createdAt: builtAt,
-    products: [
-      provenanceProduct('webc-studio', images.playground),
-      provenanceProduct('native-lab', images.playground),
-      provenanceProduct('ai-workbench', images.workbench),
-    ],
+    products: [provenanceProduct('ai-workbench', images.workbench)],
   }
   fs.writeFileSync(
     path.join(options.output, 'provenance.json'),
@@ -282,7 +266,7 @@ function buildImages(input: {
   readonly reuseImages: boolean
   readonly sandboxUrl: string
   readonly hostOrigins: string
-}): Record<'playground' | 'aiHost' | 'workbench', ImageRecord> {
+}): Record<'aiHost' | 'workbench', ImageRecord> {
   const common = [
     '--build-arg',
     `ZEUS_CORE_COMMIT=${input.coreCommit}`,
@@ -296,18 +280,12 @@ function buildImages(input: {
     `ZEUS_BUILD_TIME=${input.builtAt}`,
   ]
   const specs = {
-    playground: {
-      image: 'zeus-playground:stage1',
-      context: input.coreRoot,
-      dockerfile: 'examples/playground-editor/Dockerfile',
-      extra: [
-        '--build-arg',
-        `VITE_ZEUS_SANDBOX_URL=${input.sandboxUrl}`,
-        '--build-arg',
-        `VITE_ZEUS_PLAYGROUND_HOST_ORIGINS=${input.hostOrigins}`,
-      ],
-      buildInfoPath: '/usr/share/nginx/html/build-info.json',
-    },
+    /*
+     * Playground is not built here either. It moved to
+     * `zeus-ecosystem/apps/playground` and its Dockerfile went with it, so this
+     * repository has nothing to build it from. Its image is built there by
+     * `app-images.yml`.
+     */
     /*
      * Admin is not built here. It moved to `zeus-ecosystem/apps/admin`, and
      * `examples/admin` was deleted with it (#418), so there is no Dockerfile in
@@ -499,10 +477,8 @@ function writeEnvFile(
     fs.chmodSync(directory, 0o777)
   }
   const lines = [
-    `ZEUS_PLAYGROUND_IMAGE=${images.playground.image}`,
     `ZEUS_AI_HOST_IMAGE=${images.aiHost.image}`,
     `ZEUS_AI_WORKBENCH_IMAGE=${images.workbench.image}`,
-    `ZEUS_PLAYGROUND_CONTAINER=zeus-stage1-playground`,
     `ZEUS_AI_HOST_CONTAINER=zeus-stage1-ai-host`,
     `ZEUS_AI_WORKBENCH_CONTAINER=zeus-stage1-ai-workbench`,
     'ZEUS_PLAYGROUND_BIND=127.0.0.1',

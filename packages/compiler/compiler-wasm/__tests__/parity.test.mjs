@@ -46,7 +46,7 @@ const corpusRoots = [
  * corpus silently, and the `> 60` total was too coarse to notice it.
  */
 const expectedCorpusCounts = {
-  examples: 56,
+  examples: 52,
   'scripts/bench/fixtures': 9,
   'scripts/playground/fixtures': 2,
 }

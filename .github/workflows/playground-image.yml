@@ -12,57 +12,18 @@ name: Playground Image
 # Credentials live only in repository secrets; this workflow never writes a
 # key to disk outside the runner's own temporary homedir and removes it in an
 # `always()` step.
+# DISABLED 2026-11-26: the Playground application moved to
+# `zeus-ecosystem/apps/playground`. Its source no longer exists here, so every
+# run of this workflow would fail on the first COPY.
+#
+# It is disabled rather than deleted on purpose: this workflow is what builds
+# the Playground image that production runs. The replacement
+# (`zeus-ecosystem/.github/workflows/app-images.yml`, matrix entry `playground`)
+# exists but has not produced a verified image yet, and the rule for this
+# migration is that the old delivery path stays until the new one is proven.
+# Delete this file once that image is built, deployed and accepted.
 on:
-  push:
-    branches: [main]
-    paths:
-      # Mirrors `examples/playground-editor/Dockerfile`. The Dockerfile copies
-      # `scripts` wholesale and the build scripts import `scripts/shared/**`,
-      # so the directory is an input rather than just the entry points.
-      - 'examples/playground-editor/**'
-      - 'packages/**'
-      - 'crates/**'
-      - 'scripts/**'
-      - 'package.json'
-      - 'pnpm-workspace.yaml'
-      - 'pnpm-lock.yaml'
-      - 'tsconfig.json'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.dockerignore'
-      - '.github/workflows/playground-image.yml'
-  pull_request:
-    paths:
-      - 'examples/playground-editor/**'
-      - 'packages/**'
-      - 'crates/**'
-      - 'scripts/**'
-      - 'package.json'
-      - 'pnpm-workspace.yaml'
-      - 'pnpm-lock.yaml'
-      - 'tsconfig.json'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.dockerignore'
-      - '.github/workflows/playground-image.yml'
   workflow_dispatch:
-    inputs:
-      deploy:
-        description: Roll the production container onto the built image
-        type: boolean
-        default: false
-
-permissions:
-  contents: read
-  packages: write
-
-concurrency:
-  group: playground-image-${{ github.ref }}
-  cancel-in-progress: false
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE: ghcr.io/${{ github.repository_owner }}/zeus-playground
 
 jobs:
   build-and-publish:
