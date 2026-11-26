@@ -16,7 +16,6 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const root = path.resolve(import.meta.dirname, '../../..')
-const docPath = path.join(root, 'docs/api/packages.md')
 
 const DOMAINS = ['core', 'compiler', 'features', 'web-c', 'tooling', 'create']
 
@@ -123,9 +122,29 @@ function committedVersions(): Map<string, string> {
   return versions
 }
 
-/** Rows as the document states them. */
+/**
+ * Rows as the document states them.
+ *
+ * Read from `HEAD` for the same reason `committedVersions` is: the two sides of
+ * the comparison below must come from one tree. A release rewrites the working
+ * manifests *and* regenerates the working `docs/api/packages.md`, so comparing
+ * the working document against the committed manifests reports every row of
+ * the fixed group as a mismatch — the canary's own staging read as a defect.
+ * `write-package-table.spec.ts` owns the working copy.
+ */
 function documentedRows(): Row[] {
-  const document = fs.readFileSync(docPath, 'utf-8')
+  /*
+   * No `catch` returning `[]`. An empty document parses to zero rows, and both
+   * assertions over it would then pass while checking nothing — the failure
+   * mode this repository keeps finding. A repository with no readable HEAD is
+   * itself the finding.
+   */
+  const document = execFileSync('git', ['show', 'HEAD:docs/api/packages.md'], {
+    cwd: root,
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  expect(document.trim().length).toBeGreaterThan(0)
   const rows: Row[] = []
   for (const line of document.split('\n')) {
     // | `name` | `path` | version | type | description |
