@@ -923,6 +923,15 @@ jobs:
         run: pnpm check:playground-loop-budget
       - name: Playground theme and language switching in Chromium, Firefox and WebKit
         run: pnpm check:playground-theme-i18n
+      # The sandbox boundary is a response-header contract, and nothing
+      # verified the headers a browser actually receives: `deploy/nginx.conf`
+      # warns that a stale copy in the image "would silently weaken the CSP",
+      # and the only way to catch that is to read the response.
+      #
+      # Cheap: static servers and one browser, no build. The Playground dist
+      # is not needed because the check serves `sandbox.html` directly.
+      - name: Playground sandbox CSP and origin isolation
+        run: pnpm check:playground-sandbox-csp
       - name: Preserve Playground browser reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -932,6 +941,7 @@ jobs:
             temp/playground
             temp/playground-ux
             temp/playground-theme-i18n
+            temp/playground-sandbox-csp
             temp/compiler-wasm
 
   create-zeus-candidates:
