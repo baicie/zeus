@@ -21,6 +21,17 @@ export const CANARY_PRECHECK_COMMANDS: readonly ReleaseCommand[] = [
   ['pnpm', 'check:sbom'],
   ['pnpm', 'check:native-packages'],
   ['pnpm', 'check:native-binaries'],
+  /*
+   * `pnpm build` does not produce `zeus-compiler.wasm`: it is a cargo artifact
+   * and `.gitignore` excludes it, so `check:exports` fails on a fresh canary
+   * worktree with "points to missing file" — the export is correct and the file
+   * was simply never built.
+   *
+   * Everywhere else that needs it builds it explicitly (the `build` and
+   * `browser-playground` CI jobs, the standalone release, the Pages workflow);
+   * this list was the one path that did not.
+   */
+  ['pnpm', '--filter', '@zeus-js/compiler-wasm', 'build:wasm'],
   ['pnpm', 'build'],
   ['pnpm', 'check:runtime-interop'],
   ['pnpm', 'check:cjs'],
