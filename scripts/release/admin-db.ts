@@ -7,18 +7,42 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 
-import {
-  backupAdminDatabase,
-  openAdminDatabase,
-  restoreAdminDatabase,
-  verifyAdminDatabase,
-} from '../../examples/admin/server/database'
+/*
+ * The database helpers now come from the application that ships.
+ *
+ * This imported `examples/admin/server/database` until that app was removed.
+ * The migrated Admin keeps the same four functions in
+ * `apps/admin/server/database.ts`; this script stays here because it is the CLI
+ * entry point for backup and restore, and the ecosystem has none of its own.
+ *
+ * The path crosses repository boundaries and is absent in a bare clone of
+ * `zeus`. That is acceptable for an operator tool — it runs from a developer
+ * checkout where both repositories sit side by side — and it fails loudly with
+ * a missing-module error rather than silently doing nothing.
+ */
+/*
+ * Imported dynamically, through the path as a string.
+ *
+ * A static import of `../../zeus-ecosystem/...` does not typecheck: that
+ * repository is outside this one's program, so TypeScript reports the module
+ * as missing even when the file is present. Naming the path as a value keeps
+ * `tsc` clean and moves the resolution to run time, where an absent sibling
+ * checkout produces a clear error instead of a compile error for everyone who
+ * only has this repository.
+ */
+const DATABASE_MODULE = '../../zeus-ecosystem/apps/admin/server/database.ts'
 
 function timestamp(): string {
   return new Date().toISOString().replace(/:/g, '-').replace(/\./g, '-')
 }
 
-function main(): void {
+async function main(): Promise<void> {
+  const {
+    backupAdminDatabase,
+    openAdminDatabase,
+    restoreAdminDatabase,
+    verifyAdminDatabase,
+  } = await import(new URL(DATABASE_MODULE, import.meta.url).href)
   const { values } = parseArgs({
     options: {
       database: { type: 'string' },
@@ -94,5 +118,8 @@ function main(): void {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  main()
+  main().catch(error => {
+    console.error(error instanceof Error ? error.message : error)
+    process.exitCode = 1
+  })
 }
