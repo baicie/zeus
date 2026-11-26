@@ -214,3 +214,48 @@ const directory = path.join(root, 'docs/public/playground')
 
 **结论**：这个脚本留在 core，或随文档站一起处理——但不能算作 Playground 产品测试。
 P7 的清单里它应当被单独标注。
+
+## 九、P7 — 每个检查测的是框架还是产品
+
+判断依据不是文件名，是**断言对象**。下表逐条读了断言之后得出。
+
+| 脚本                              | 断言对象                                                                                                                                                                              | 归属                                | 证据                                                                                                                    |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `check-playground.ts`             | 编译器输出：`counter.tsx` 经 `transformModule` 得到 dom/ssr 两份产物，与 `counter.ir.json` 快照比对，再分别用 rolldown 打成 bundle 量体积，写入 `docs/public/playground/counter.json` | **框架**（编译器 + 文档站静态示例） | `import { transformModule } from '../../packages/compiler/compiler/src/index.ts'`；产物给文档站，与 Playground 应用无关 |
+| `check-playground-browser.ts`     | `docs/public/playground` 静态页在三个引擎里的行为                                                                                                                                     | **框架**（文档站）                  | `:12 const directory = path.join(root, 'docs/public/playground')`                                                       |
+| `check-playground-loop-budget.ts` | 无限循环在三个引擎里被终止                                                                                                                                                            | **框架**（沙箱协议）                | 与 engine 的 `loop-budget.spec.ts` 同一契约，浏览器层复验                                                               |
+| `check-playground-sandbox-csp.ts` | 响应头与 origin 隔离                                                                                                                                                                  | **框架**（安全边界）                | 本次新增；读 nginx.conf 的响应契约                                                                                      |
+| `check-playground-i18n-keys.ts`   | `examples/playground-editor/src/playground/locales/` 的 en/zh 键表是否同步                                                                                                            | **产品**                            | 读的是应用自己的 locale 文件                                                                                            |
+| `check-playground-theme-i18n.ts`  | Playground 产品的主题/语言切换、持久化、首屏主题                                                                                                                                      | **产品**                            | 驱动构建后的应用 UI                                                                                                     |
+| `check-playground-ux.ts`          | Playground 产品的布局、快捷键、文件切换                                                                                                                                               | **产品**                            | 同上                                                                                                                    |
+| `check-playground-editor.ts`      | **混合**：产品编辑流程 + 沙箱隔离 + WebC studio + 框架宿主                                                                                                                            | **需拆分**                          | 见下                                                                                                                    |
+| `check-playground-performance.ts` | Playground 应用的首屏、懒加载块、WASM 编译、自动运行合并                                                                                                                              | **产品**                            | 读 `examples/playground-editor/dist`                                                                                    |
+| `check-playground-drag-online.ts` | 生产站点 `playground.moonbyte.top` 的分隔条拖拽                                                                                                                                       | **产品**（线上验收）                | 默认参数是生产 URL                                                                                                      |
+| `check-pages-site.mjs`            | Pages 产物：三个页面都存在、资源不越 base                                                                                                                                             | **产品交付**                        | 由 `playground-pages.yml:113` 调用                                                                                      |
+| `generate-api-completions.ts`     | 从 `packages/core/zeus/dist/zeus.d.ts` 的类型检查器提取导出与重载                                                                                                                     | **框架**（P6 要改数据源）           | 见 §4                                                                                                                   |
+
+### `check-playground-editor.ts` 需要拆成三份
+
+731 行、57 个断言，混了三种职责：
+
+| 函数                     | 断言                                         | 归属                            |
+| ------------------------ | -------------------------------------------- | ------------------------------- |
+| `runEditorChecks`        | 编辑、编译、预览、导出下载                   | 产品                            |
+| `runWebCStudioChecks`    | WebC studio 的 manifest 组件标签             | 产品                            |
+| `runFrameworkHostChecks` | `host.html` 里 React/Vue 挂载 Zeus 元素      | 产品（宿主页随应用迁走，见 §8） |
+| `runSandboxOriginChecks` | opaque origin 门禁、第三方 embed 被拒        | **框架**（安全契约）            |
+| 内联的 `securityProbe`   | DOM / localStorage / cookie / fetch 四项隔离 | **框架**（安全契约）            |
+
+`runSandboxOriginChecks` 与 `securityProbe` 这两块是框架契约，迁走应用后仍要在 core 有对应物——
+但**不能靠保留一个 Playground 应用实例来验证**（P7 的原话）。它们的归宿是
+`check-playground-sandbox-csp.ts` 所在的这一层：用最小的静态服务器 + `sandbox.html`
+验证协议与隔离，不需要构建整个应用。
+
+### 一个真孤儿
+
+`check-playground-drag-online.ts`（102 行）没有任何调用者：不在 `package.json`、
+不在任何 workflow、也不被别的脚本引用。它断言的是生产站点
+`playground.moonbyte.top` 的分隔条拖拽行为，需要真实部署才能跑，所以从未进 CI。
+
+按 P7「禁止简单删除」，它应当随 Playground 迁到 ecosystem 并接进那里的
+线上验收，而不是留在 core 里继续当孤儿。

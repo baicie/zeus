@@ -35,6 +35,22 @@ const corpusRoots = [
   'scripts/playground/fixtures',
 ]
 
+/*
+ * Expected contribution per root, measured when this list was last
+ * audited. The per-root `> 0` check below catches a root that vanished;
+ * these counts catch a root that simply got smaller.
+ *
+ * A migration moving directories out of `examples/` changes this
+ * contribution and must update the expected number in the same commit.
+ * That is the point: the earlier design let a moved tree shrink the
+ * corpus silently, and the `> 60` total was too coarse to notice it.
+ */
+const expectedCorpusCounts = {
+  examples: 58,
+  'scripts/bench/fixtures': 9,
+  'scripts/playground/fixtures': 2,
+}
+
 function collectSources(directory, sources = []) {
   for (const entry of readdirSync(directory)) {
     if (entry === 'node_modules' || entry === 'dist') continue
@@ -123,6 +139,17 @@ for (const directory of corpusRoots) {
   assert.ok(
     contributed > 0,
     `corpus root "${directory}" contributed no .tsx modules; the parity corpus would silently shrink`,
+  )
+  const expected = expectedCorpusCounts[directory]
+  assert.ok(
+    typeof expected === 'number',
+    `no expected count recorded for corpus root "${directory}"; add one so a shrink is visible`,
+  )
+  assert.equal(
+    contributed,
+    expected,
+    `corpus root "${directory}" contributes ${contributed} .tsx modules, expected ${expected}. ` +
+      'A migration that moved or removed directories here must update this count.',
   )
 }
 
