@@ -170,7 +170,7 @@ assert.ok(corpus.length > 60, `corpus has ${corpus.length} modules`)
 | `use-headless-{cli,react,vue}`                     | 2/1/0 | 复杂 Demo                                               | 迁 ecosystem demos |
 | `registry-{react,vue}`                             | 7/0   | 复杂 Demo                                               | 迁 ecosystem demos |
 | `project-board`                                    | 1     | 复杂 Demo（单文件 Kanban 演示）                         | 迁 ecosystem demos |
-| `stencil-wrapper`                                  | 2     | 零 Zeus 使用                                            | 退役，不迁移       |
+| `stencil-wrapper`                                  | 2     | 零 Zeus 使用（组件用 `@stencil/core`）                  | **已删除**         |
 | `admin`                                            | 0     | 已空                                                    | 已删（#418）       |
 
 ## 八、两条矛盾结论的亲自核实
@@ -259,3 +259,46 @@ P7 的清单里它应当被单独标注。
 
 按 P7「禁止简单删除」，它应当随 Playground 迁到 ecosystem 并接进那里的
 线上验收，而不是留在 core 里继续当孤儿。
+
+## 十、P10 执行状态
+
+### 已做：`stencil-wrapper` 退役
+
+审计两轮都指向它，第二轮推翻得更彻底：该目录的组件全部用 `@stencil/core` 定义，
+**零 Zeus 使用**。它演示的是 Stencil 的 output targets，不是 Zeus 的任何能力。
+
+核实过的删除依据：
+
+- 不在 `pnpm-workspace.yaml` 里，`pnpm-lock.yaml` 因此不受影响（删后确认未变）。
+- 没有任何 workflow 构建它。
+- 除 `docs/release/` 与 `docs/internal/` 的历史记录外，无任何引用。
+
+删掉后 `examples/` 的 `.tsx` 从 58 降到 56，`parity.test.mjs` 的期望计数在同一提交里
+同步改成 56 —— 这正是上一节新增的约束所要求的：迁移导致的语料变化必须是显式改动。
+
+### 已做：parity 语料的精确计数
+
+见 §7。原来的守卫有两个缺口，都已补上：
+
+| 缺口               | 后果                                                              | 现在                   |
+| ------------------ | ----------------------------------------------------------------- | ---------------------- |
+| 只有总数 `> 60`    | `benchmarks/` 移走后少 9 个仍通过（文件自己的注释记录了这次事故） | —                      |
+| 每 root 只要 `> 0` | 从 `examples/` 迁走目录，该 root 仍远大于 0，总数仍 > 61          | 每个 root 有精确期望值 |
+
+### 未做：其余目录的迁移
+
+P10 的 Category C/D 迁移（`playground-editor`、`headless-demo`、`use-headless-*`、
+`registry-*`、`project-board`）**依赖 P2 的应用迁移先落地**。现在搬走它们，
+它们在新家还不存在，等于把示例从树里删掉。
+
+顺序应当是：先让 Playground 在 ecosystem 里跑起来（P2/P8），再回头从 core 移除。
+在 P2 完成之前，本节只固定分类与约束，不动目录。
+
+### 一个需要人工判断的边界
+
+`examples/headless`（23 个 `.tsx`，6 个消费示例）是 `examples/` 里最大的一块。
+第二轮审计指出它「stay in core」与 `docs/audit/phase1` 记录的「move to zeus-ui」
+双轨冲突。它既是框架测试 fixture 又是消费示例，**两轮 agent 没有给出同一个答案**。
+
+我不在这一轮替它做决定：它属于 P10 里「需要人判断」的那一类，而且 23 个模块
+占语料的三分之一，动它必须和语料策略一起考虑。
