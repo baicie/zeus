@@ -1,3 +1,5 @@
+import path from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -5,23 +7,24 @@ import {
   evaluateCanaryReport,
   isAllowedCanaryRewritePath,
   isCreateZeusTemplatePackage,
+  takeCanaryRewritePolicy,
   type CanaryReadinessInput,
-  type CanaryRewritePolicy,
 } from '../canary-readiness'
 
 const commit = 'a'.repeat(40)
 const pass = (evidence: string) => ({ status: 'pass' as const, evidence })
-const policy: CanaryRewritePolicy = {
-  exactPaths: [
-    'package.json',
-    'pnpm-lock.yaml',
-    'packages/compiler/compiler-native/index.js',
-    'packages/core/zeus/package.json',
-    'packages/create/create-zeus/templates/basic-ts/package.json',
-  ],
-  prefixes: ['.changeset/'],
-  suffixes: ['CHANGELOG.md'],
-}
+/*
+ * The real policy, not a copy of it.
+ *
+ * This used to be a hand-written literal listing the same paths. It drifted:
+ * `docs/api/packages.md` was added to the policy a canary run actually uses
+ * and the copy here did not change, so the test kept passing while a real run
+ * reported `NOT_READY: unexpected changed paths`. A test that restates the
+ * thing it tests cannot notice the thing changing.
+ */
+const policy = takeCanaryRewritePolicy(
+  path.resolve(import.meta.dirname, '../../..'),
+)
 
 const ready: CanaryReadinessInput = {
   sourceCommit: commit,
@@ -118,6 +121,31 @@ describe('evaluateCanaryReadiness', () => {
     ])
   })
 
+  it('accepts the full set of paths a canary run rewrites', () => {
+    /*
+     * Not a unit test of the predicate: this is the set of paths a real run
+     * produces, checked as a whole. The run before this test existed passed
+     * every path individually and still failed, because one path the release
+     * writes was missing from the policy — the check and its caller disagreed
+     * and only the caller's list was complete.
+     */
+    const report = evaluateCanaryReadiness({
+      ...ready,
+      changedPaths: [
+        'package.json',
+        'pnpm-lock.yaml',
+        'packages/compiler/compiler-native/index.js',
+        'packages/compiler/compiler-native/index.d.ts',
+        'docs/api/packages.md',
+        'packages/core/zeus/package.json',
+      ],
+    })
+
+    const worktree = report.checks.find(c => c.id === 'worktree')
+    expect(worktree?.status).toBe('pass')
+    expect(report.decision).toBe('READY_FOR_CANARY_PUBLISH')
+  })
+
   it('fails a source edit disguised as a release rewrite', () => {
     const report = evaluateCanaryReadiness({
       ...ready,
@@ -172,6 +200,14 @@ describe('evaluateCanaryReadiness', () => {
     expect(
       isAllowedCanaryRewritePath('packages/core/zeus/src/index.ts', policy),
     ).toBe(false)
+    /*
+     * The regenerated version table. `release-canary.ts` rewrites it after
+     * `release:version-packages`, and it has to be allowed or every run ends
+     * `NOT_READY` on a file the release itself wrote.
+     */
+    expect(isAllowedCanaryRewritePath('docs/api/packages.md', policy)).toBe(
+      true,
+    )
     expect(
       isAllowedCanaryRewritePath(
         'packages/create/create-zeus/templates/basic-ts/package.json',

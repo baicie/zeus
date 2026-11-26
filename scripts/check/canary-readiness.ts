@@ -295,6 +295,19 @@ export function takeCanaryRewritePolicy(
     'pnpm-lock.yaml',
     'packages/compiler/compiler-native/index.js',
     'packages/compiler/compiler-native/index.d.ts',
+    /*
+     * `docs/api/packages.md` carries a version table derived from the
+     * manifests, and `release-canary.ts` regenerates it right after
+     * `release:version-packages` rewrites them. It is derived data, so the
+     * rewrite is part of the release rather than an edit to review — the same
+     * reason `pnpm-lock.yaml` is listed above.
+     *
+     * Leaving it out made every canary run end with
+     * `NOT_READY: worktree: unexpected changed paths: docs/api/packages.md`,
+     * which surfaced only after `package-table.spec.ts` stopped failing first
+     * on the same file and hid this behind its own error.
+     */
+    'docs/api/packages.md',
   ])
   for (const pkg of findWorkspacePackages()) {
     if (!zeusFixedPackages.includes(pkg.name)) continue
