@@ -2,9 +2,9 @@
  * Generates the Playground editor's Zeus API completion table.
  *
  * The table must never drift from the real API, so nothing here is hand
- * listed. The script loads the public entry declaration `@zeus-js/zeus`
- * publishes (`packages/core/zeus/dist/zeus.d.ts`) through the TypeScript
- * compiler and asks it for the module's value exports. Adding an export,
+ * listed. The script resolves the `@zeus-js/zeus` package and loads the entry
+ * declaration it publishes (`exports["."].types`) through the TypeScript
+ * compiler, then asks it for the module's value exports. Adding an export,
  * renaming one, changing an overload or editing a doc comment all flow through
  * on the next run, and `pnpm api:check` runs this in `--check` mode so a
  * signature change cannot land without the editor following.
@@ -20,8 +20,9 @@
  *   useful (`createSignal<T>(initialValue: T): [Accessor<T>, Setter<T>]`).
  *
  * Usage:
- *   tsx scripts/playground/generate-api-completions.ts           # write
- *   tsx scripts/playground/generate-api-completions.ts --check   # verify
+ *   tsx scripts/playground/generate-api-completions.ts                # write
+ *   tsx scripts/playground/generate-api-completions.ts --check        # verify
+ *   tsx scripts/playground/generate-api-completions.ts --out <file>   # elsewhere
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -32,12 +33,68 @@ import ts from 'typescript'
 const repoRoot = path.resolve(import.meta.dirname, '../..')
 
 /** The package whose `exports["."].types` is the completion surface. */
-const ENTRY_PACKAGE_DIR = path.join(repoRoot, 'packages/core/zeus')
+const PACKAGE_NAME = '@zeus-js/zeus'
 
-const outputFile = path.join(
+/**
+ * Where this repository's Playground editor keeps the table.
+ *
+ * A consumer repository passes `--out` instead: the generated file belongs to
+ * the editor, not to the package being described, so its location cannot be
+ * derived from the installed package.
+ */
+const DEFAULT_OUTPUT_FILE = path.join(
   repoRoot,
   'examples/playground-editor/src/playground/zeus-api.generated.ts',
 )
+
+/**
+ * Locates the installed `@zeus-js/zeus` package directory.
+ *
+ * The package is looked up in each `node_modules` on the path from the file
+ * being written up to the filesystem root, then from the working directory and
+ * the repository root. This is done by walking directories rather than with
+ * `require.resolve` on purpose: the repository's `tsconfig.json` maps
+ * `@zeus-js/*` back into `src`, and runners that honour those paths (tsx does)
+ * would resolve to the source tree instead of the published declarations this
+ * table has to describe.
+ *
+ * In this repository the package is a workspace member, so
+ * `examples/playground-editor/node_modules/@zeus-js/zeus` is a symlink to
+ * `packages/core/zeus`; in the migrated repository the same lookup finds a
+ * real install. The workspace path is only a fallback for a checkout that has
+ * not been linked yet.
+ */
+function resolvePackageDir(outputFile: string): string {
+  const anchors = [path.dirname(outputFile), process.cwd(), repoRoot]
+  for (const anchor of anchors) {
+    const packageDir = findInstalledPackage(anchor)
+    if (packageDir) return packageDir
+  }
+
+  const workspaceDir = path.join(repoRoot, 'packages/core/zeus')
+  if (fs.existsSync(path.join(workspaceDir, 'package.json'))) {
+    return workspaceDir
+  }
+  throw new Error(
+    `Could not resolve ${PACKAGE_NAME}: it is not installed and ` +
+      `${path.relative(repoRoot, workspaceDir)} is not part of this checkout.`,
+  )
+}
+
+/**
+ * Walks `anchor` and its ancestors looking for
+ * `node_modules/@zeus-js/zeus/package.json`.
+ */
+function findInstalledPackage(anchor: string): string | null {
+  let directory = path.resolve(anchor)
+  while (true) {
+    const candidate = path.join(directory, 'node_modules', PACKAGE_NAME)
+    if (fs.existsSync(path.join(candidate, 'package.json'))) return candidate
+    const parent = path.dirname(directory)
+    if (parent === directory) return null
+    directory = parent
+  }
+}
 
 /** What the editor shows after a value name. */
 export interface ApiCompletion {
@@ -59,9 +116,9 @@ export interface ApiCompletion {
  */
 const RENDER_RETURN_TYPES = new Set(['JSXValue', 'DocumentFragment', 'Comment'])
 
-function resolveDtsEntry(): string {
+function resolveDtsEntry(packageDir: string): string {
   const manifest = JSON.parse(
-    fs.readFileSync(path.join(ENTRY_PACKAGE_DIR, 'package.json'), 'utf8'),
+    fs.readFileSync(path.join(packageDir, 'package.json'), 'utf8'),
   ) as {
     exports?: Record<string, unknown>
   }
@@ -70,7 +127,7 @@ function resolveDtsEntry(): string {
   if (!types) {
     throw new Error('@zeus-js/zeus does not declare a types entry for ".".')
   }
-  const file = path.resolve(ENTRY_PACKAGE_DIR, types)
+  const file = path.resolve(packageDir, types)
   if (!fs.existsSync(file)) {
     throw new Error(
       `Declaration entry ${path.relative(repoRoot, file)} is missing. ` +
@@ -193,8 +250,8 @@ function kindOf(
   return RENDER_RETURN_TYPES.has(name) ? 'component' : 'function'
 }
 
-function collect(): ApiCompletion[] {
-  const entry = resolveDtsEntry()
+function collect(outputFile: string): ApiCompletion[] {
+  const entry = resolveDtsEntry(resolvePackageDir(outputFile))
   const configPath = ts.findConfigFile(
     repoRoot,
     ts.sys.fileExists,
@@ -280,9 +337,35 @@ ${body}
   })
 }
 
+/**
+ * Reads `--out <file>` / `--out=<file>`, or returns null for the default path.
+ *
+ * An explicit output is resolved against the working directory: a consumer
+ * repository names a path in its own tree, not one relative to this script.
+ */
+function parseOutFlag(argv: readonly string[]): string | null {
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index]
+    if (argument === '--out') {
+      const value = argv[index + 1]
+      if (!value || value.startsWith('--')) {
+        throw new Error('--out requires a file path.')
+      }
+      return path.resolve(process.cwd(), value)
+    }
+    if (argument.startsWith('--out=')) {
+      const value = argument.slice('--out='.length)
+      if (!value) throw new Error('--out requires a file path.')
+      return path.resolve(process.cwd(), value)
+    }
+  }
+  return null
+}
+
 async function main(): Promise<void> {
   const check = process.argv.includes('--check')
-  const entries = collect()
+  const outputFile = parseOutFlag(process.argv.slice(2)) ?? DEFAULT_OUTPUT_FILE
+  const entries = collect(outputFile)
 
   if (entries.length === 0) {
     throw new Error(
@@ -307,6 +390,7 @@ async function main(): Promise<void> {
     return
   }
 
+  fs.mkdirSync(path.dirname(outputFile), { recursive: true })
   fs.writeFileSync(outputFile, next)
   console.log(
     `wrote ${entries.length} completions to ${path.relative(repoRoot, outputFile)}`,
