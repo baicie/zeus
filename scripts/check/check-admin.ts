@@ -50,15 +50,18 @@ for (const name of selectedBrowsers.map(([name]) => name)) {
   }
 }
 /*
- * Before anything builds or launches: prove the dialog Admin installs is the
- * build this repository vendored. The browser assertions below are only
- * meaningful on that build, and a re-install can quietly swap it back.
+ * The dialog is no longer vendored.
+ *
+ * `@zeus-web/dialog@0.1.0-beta.35` is published, and byte-comparison showed the
+ * vendored copy and the registry tarball carry the same chunks — the commit
+ * that built it is on `zeus-ui`'s main and the version exists on npm. Keeping a
+ * second copy meant `check:vendored-dialog` had a job that could only ever say
+ * "these are still equal", and a re-install could silently swap the build the
+ * browser assertions below were written against.
+ *
+ * Admin now installs the published version like every other `@zeus-web/*`
+ * package, so the same lockfile integrity pins it.
  */
-execFileSync('pnpm', ['check:vendored-dialog'], {
-  cwd: root,
-  stdio: 'inherit',
-  shell: process.platform === 'win32',
-})
 execFileSync('pnpm', ['-F', '@zeus-js/example-admin', 'check'], {
   cwd: root,
   stdio: 'inherit',
