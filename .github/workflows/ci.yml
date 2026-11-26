@@ -21,9 +21,10 @@ on:
   #
   # Limiting this to `main` meant a stacked pull request — one whose base is
   # another feature branch — ran no CI at all. R6-C is exactly that shape: it
-  # targets R6-A's branch, and its `packed-consumers` gate (which is where
-  # `check:admin` lives) therefore never executed on a pull request. The gap
-  # was invisible because `workflow_dispatch` does run on any branch: a
+  # targets R6-A's branch, and its `packed-consumers` gate therefore never
+  # executed on a pull request. (That gate held `check:admin` at the time;
+  # both the app and the check have since been removed.) The gap was invisible
+  # because `workflow_dispatch` does run on any branch: a
   # deliberate run passed, and nothing said the ordinary path was skipping it.
   #
   # Cost is bounded by the impact classifier, which already decides job by job
@@ -626,18 +627,20 @@ jobs:
         with:
           name: rc-readiness
           path: temp/release/rc-readiness.json
-      # `check:admin` drives the Admin example in three engines. It survives
-      # the legacy workflow removal because it starts the app itself — the
-      # `Verify UI provenance` step that preceded it did not, and it was
-      # deleted with the image workflow it belonged to.
+      # `check:admin` and `examples/admin` are gone.
       #
-      # What that step covered, and where it went: it built a `build-info.json`
-      # and ran `verify-ui-provenance --read-attestations` against it. The
-      # migrated Admin lives in `zeus-ecosystem` and writes its own build-info
-      # through `scripts/release/build-image.mjs`, so the same binding is
-      # checked where that artifact is produced rather than from here.
-      - name: Admin navigation in Chromium, Firefox and WebKit
-        run: pnpm check:admin
+      # The app was migrated to `zeus-ecosystem/apps/admin`, which runs 14
+      # browser scenarios, 16 permission assertions and 8 visual comparisons in
+      # `AI Apps / Admin / Browser gates`. What `check:admin` added on top was
+      # the `gallery-*` component block — and that is `zeus-ui`'s subject, not
+      # this repository's: `check-dialog-interaction` there covers focus
+      # trapping, Escape and ARIA in all three engines.
+      #
+      # The `Verify UI provenance` step that once preceded it went earlier,
+      # with the image workflow it belonged to. The migrated Admin writes its
+      # own build-info through `zeus-ecosystem/scripts/release/build-image.mjs`
+      # and verifies it with `check:provenance`, so the binding is checked where
+      # the artefact is produced.
       - name: Candidate packed HMR in Chromium, Firefox and WebKit
         run: pnpm check:hmr-packed
       - name: Explicit SSR hydration in Chromium, Firefox and WebKit

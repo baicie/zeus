@@ -36,7 +36,18 @@ import {
   isLoopbackHostname as isLoopbackHost,
   isPrivateAddress,
 } from './network-policy'
-import { CSRF_COOKIE, SESSION_COOKIE } from '../../examples/admin/server/auth'
+/*
+ * The cookie names are a deployment contract, not an implementation detail.
+ *
+ * They were imported from `examples/admin/server/auth` until that app was
+ * removed. Restating them here is deliberate: the names are what an external
+ * acceptance run looks for on the wire, so the assertion should name them
+ * directly rather than inherit them from an application this repository no
+ * longer ships. `apps/admin/server/auth.ts` in `zeus-ecosystem` uses the same
+ * two strings.
+ */
+const CSRF_COOKIE = 'zeus_admin_csrf'
+const SESSION_COOKIE = 'zeus_admin_session'
 
 export { isPrivateAddress } from './network-policy'
 

@@ -371,8 +371,31 @@ function readUiCoreConstraints(
   return constraints
 }
 
+/*
+ * The UI pins now come from the ecosystem's Admin.
+ *
+ * This read `examples/admin/package.json` until that app was removed. The
+ * migrated application installs the same `@zeus-web/*` packages at the same
+ * versions, so the question — "which UI versions does a consumer of this Core
+ * pin" — has the same answer from its manifest, and asking the application
+ * that actually ships is a better source than the one that was replaced.
+ */
+const UI_PIN_MANIFEST = path.join(
+  '..',
+  'zeus-ecosystem',
+  'apps',
+  'admin',
+  'package.json',
+)
+
 function readUiRegistryPins(root: string): Record<string, string> {
-  const manifestPath = path.join(root, 'examples/admin/package.json')
+  const manifestPath = path.join(root, UI_PIN_MANIFEST)
+  /*
+   * Absent in a bare clone of this repository, which is fine: the caller treats
+   * an empty map as "no constraint to check", and a sibling checkout is a
+   * developer convenience rather than a release input. Saying so here rather
+   * than throwing keeps `rc-dry-run` usable from `zeus` alone.
+   */
   if (!fs.existsSync(manifestPath)) return {}
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as {
     dependencies?: Record<string, string>

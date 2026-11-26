@@ -311,6 +311,20 @@ function buildImages(input: {
       ],
       buildInfoPath: '/usr/share/nginx/html/build-info.json',
     },
+    /*
+     * Admin moved to `zeus-ecosystem/apps/admin`, and this build has not moved
+     * with it.
+     *
+     * `examples/admin` is gone, so this entry cannot build. Pointing it at the
+     * migrated Dockerfile is not a rename: that image has a different build
+     * context (the ecosystem repository), a different runtime port and a
+     * different build-info path, so the swap belongs in a change that also
+     * exercises `host-deployment-prepare.yml` end to end. Measured, that
+     * workflow last succeeded on 2026-11-07 and has not run since.
+     *
+     * Left failing on purpose: a stage1 run that cannot build Admin should say
+     * so, rather than silently produce a plan with no Admin image in it.
+     */
     admin: {
       image: 'zeus-admin:stage1',
       context: input.coreRoot,
