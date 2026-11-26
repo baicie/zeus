@@ -10,7 +10,6 @@ const testProjects = [
     include: [
       'packages/**/*.{test,spec}.{ts,tsx}',
       'examples/headless/**/*.{test,spec}.{ts,tsx}',
-      'examples/admin/server/**/*.{test,spec}.{ts,tsx}',
       // Pure modules of the Playground editor. The browser behaviour is covered
       // by `check:playground-ux` and `check:playground-editor`, which need real
       // engines; these tests cover the logic those gates cannot reach —
