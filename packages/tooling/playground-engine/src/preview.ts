@@ -191,6 +191,29 @@ export async function createPlaygroundPreview(
     )
   }
 
+  /*
+   * Every runtime module the generated code destructures must be one the host
+   * put on `globalThis.__ZEUS_PLAYGROUND_RUNTIME__`.
+   *
+   * `findEdge` accepts a specifier from the compiler's allow-list even when the
+   * caller passed no `runtimeModules` — a host that registers the defaults need
+   * not restate them. That default is only safe when the list is accurate, so
+   * the check belongs here, where the payload is about to name the modules the
+   * sandbox will look up. Without it, a listed-but-unregistered module becomes
+   * `Cannot destructure property ... of undefined` inside the user's module.
+   */
+  const unregistered = [...runtimeKeys].filter(
+    key =>
+      !Object.prototype.hasOwnProperty.call(runtimeModules, key) &&
+      Object.keys(runtimeModules).length > 0,
+  )
+  if (unregistered.length > 0) {
+    throw new PlaygroundPreviewError(
+      `The host did not register runtime module(s): ${unregistered.join(', ')}. ` +
+        'Pass them in `runtimeModules` so the preview can link them.',
+    )
+  }
+
   return Object.freeze({
     entryPath: build.entryPath,
     modules: Object.freeze(modules),

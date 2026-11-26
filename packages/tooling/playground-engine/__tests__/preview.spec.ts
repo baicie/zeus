@@ -104,6 +104,59 @@ describe('playground preview linker', () => {
     )
   })
 
+  it('links a runtime module the host registered', async () => {
+    const build = await buildPreviewProject(
+      "import { createSignal } from '@zeus-js/zeus'\nexport const App = () => null\n",
+    )
+
+    const linked = await createPlaygroundPreview(build, {
+      runtimeModules: { '@zeus-js/zeus': '@zeus-js/zeus' },
+    })
+
+    expect(linked.runtimeModules).toEqual(['@zeus-js/zeus'])
+    expect(linked.modules[linked.modules.length - 1]?.code).toContain(
+      'const { createSignal } = globalThis.__ZEUS_PLAYGROUND_RUNTIME__["@zeus-js/zeus"]',
+    )
+  })
+
+  it('refuses a runtime module a caller left out of its registry', async () => {
+    /*
+     * A host that names some modules but not others gets an error naming what
+     * was missing, rather than generated code that destructures `undefined`
+     * inside the sandbox — which surfaces as an opaque TypeError from the
+     * user's own module with no mention of which module was at fault.
+     *
+     * The Playground host passes no registry at all and relies on the default
+     * list, which is why that path is covered by the case above.
+     */
+    const build = await buildPreviewProject(
+      "import { createQuery } from '@zeus-js/query'\nexport const App = () => null\n",
+    )
+
+    await expect(
+      createPlaygroundPreview(build, {
+        runtimeModules: { '@zeus-js/zeus': '@zeus-js/zeus' },
+      }),
+    ).rejects.toThrow(/@zeus-js\/query/)
+  })
+
+  it('does not offer a runtime module no browser preview can link', async () => {
+    /*
+     * `@zeus-js/runtime-ssr` was in the default list while no host registered
+     * it. It is not a browser-preview capability — it belongs to the SSR
+     * target — so it is not in the list, and importing it from user code is a
+     * compiler diagnostic naming the module rather than a runtime TypeError.
+     */
+    const build = await buildPreviewProject(
+      "import { renderToString } from '@zeus-js/runtime-ssr'\nexport const App = () => null\n",
+    )
+
+    expect(build.diagnostics.map(d => d.message).join('\n')).toMatch(
+      /@zeus-js\/runtime-ssr/,
+    )
+    await expect(createPlaygroundPreview(build)).rejects.toThrow(/diagnostic/)
+  })
+
   it('instruments loops with the sandbox CPU budget', async () => {
     const build = await buildPreviewProject(
       'export const App = () => { while (true) {} }\n',

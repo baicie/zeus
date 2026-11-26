@@ -104,12 +104,22 @@ export interface CompileProjectOptions {
   readonly allowedRuntimeModules?: readonly string[]
 }
 
+/*
+ * Bare specifiers the compiler may leave unresolved, so the preview can link
+ * them from the host's runtime registry.
+ *
+ * Every entry here must be a module the Playground host actually registers.
+ * `@zeus-js/runtime-ssr` used to be listed and no host ever registered it, so
+ * importing it from user code produced a destructure of `undefined` inside the
+ * sandbox instead of a diagnostic. Server-side rendering is not something a
+ * browser preview can run, so the honest list does not include it; a host that
+ * does provide it passes `allowedRuntimeModules`.
+ */
 export const DEFAULT_PLAYGROUND_RUNTIME_MODULES = Object.freeze([
   '@zeus-js/zeus',
   '@zeus-js/zeus/jsx-dev-runtime',
   '@zeus-js/zeus/jsx-runtime',
   '@zeus-js/runtime-dom',
-  '@zeus-js/runtime-ssr',
   '@zeus-js/router',
   '@zeus-js/query',
   '@zeus-js/signal',
