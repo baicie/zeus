@@ -137,7 +137,16 @@ async function main(): Promise<void> {
 
   let browser: Browser | undefined
   try {
-    browser = await chromium.launch({ headless: true })
+    /*
+     * `channel: 'chromium'` is required, not a preference.
+     *
+     * CI installs browsers with `playwright install --no-shell`, which skips the
+     * headless shell to save the apt round trip. A plain `chromium.launch()`
+     * looks for that shell and fails with "Executable doesn't exist" before any
+     * check runs. Every other script in this directory passes the channel for
+     * the same reason.
+     */
+    browser = await chromium.launch({ headless: true, channel: 'chromium' })
 
     // 1) Headers as the browser receives them, not as the file states them.
     const hostResponse = await fetch(`${HOST_ORIGIN}:${hostPort}/sandbox.html`)
