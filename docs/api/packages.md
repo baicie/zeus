@@ -18,7 +18,7 @@
 
 ## 1. 包总览
 
-下表由各 `package.json` 派生（`scripts/check/check-package-table.ts` 校验）。可发布包 = 工作区中 `private` 不为 `true` 的包；`compiler-wasm` 仍为 private，故不在表内。`devtools-consumer` 自 `0.1.1-beta.15` 起可发布。
+下表由各 `package.json` 派生（`scripts/check/check-package-table.ts` 校验）。可发布包 = 工作区中 `private` 不为 `true` 的包。`devtools-consumer` 自 `0.1.1-beta.15` 起可发布；`compiler-wasm` 自 `0.1.1-beta.20` 起可发布（Playground 迁到 zeus-ecosystem 后只能装发布包），走自己的版本线。
 
 修改 manifest 的版本后，运行 `pnpm tsx scripts/check/write-package-table.ts` 重写这张表，不要手工改版本号。
 
@@ -61,6 +61,7 @@
 | `@zeus-js/output-wc`                        | `packages/web-c/output-wc`                           | 0.2.0-rc.5    | web-c    | Web Component 输出插件                        |
 | `@zeus-js/web-c`                            | `packages/web-c/web-c`                               | 0.2.0-rc.5    | web-c    | Web-C 聚合入口与组件库预设                    |
 | `@zeus-js/web-c-runtime`                    | `packages/web-c/web-c-runtime`                       | 0.2.0-rc.5    | web-c    | Web Component 懒加载 runtime                  |
+| `@zeus-js/compiler-wasm`                    | `packages/compiler/compiler-wasm`                    | 0.1.1-beta.20 | compiler | 浏览器与 Worker 中的 Rust 编译器 (WASM)       |
 
 **不推荐直接引入的内部包**（无 `main`/`exports`，仅供 workspace 内部使用）：
 

@@ -88,8 +88,20 @@
       "package": "@zeus-js/compiler-wasm",
       "format": "wasm",
       "metric": "raw",
-      "tolerancePercent": 15,
-      "reason": "The browser compiler. Raw bytes matter because the browser downloads the .wasm body; 15% is one dependency bump in the oxc/parser stack. A larger change must come with a wasm-opt measurement."
+      "reason": "The browser compiler. 1600 KiB is above the measured 1516 KiB raw body with room for one oxc/parser bump; the browser downloads this, so a jump must come with a wasm-opt measurement rather than a silent regression.",
+      "limitKiB": 1600
+    },
+    {
+      "artifact": "@zeus-js/compiler-wasm/index.js",
+      "metric": "gzip",
+      "limitKiB": 4,
+      "reason": "The loader. It only marshals JSON across linear memory; every transform runs the Rust compiler, so a jump here means bundler-level code leaked in."
+    },
+    {
+      "artifact": "@zeus-js/compiler-wasm/worker.js",
+      "metric": "gzip",
+      "limitKiB": 2,
+      "reason": "The Worker entry. It is a message loop over the loader; a jump means the postMessage protocol grew, which belongs in a reviewed change rather than a silent one."
     },
     {
       "format": "native",

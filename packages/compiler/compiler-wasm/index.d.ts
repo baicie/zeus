@@ -1,5 +1,12 @@
+/// <reference lib="dom" />
 // Mirrors the `@zeus-js/compiler-native` contract; `__tests__/types.ts` keeps
 // the two declarations mutually assignable.
+//
+// `lib="dom"` is required, not decorative: the public API is typed with
+// `BufferSource`, `WebAssembly.Module`, `Response` and `Worker`, none of which
+// exist without it. A Node-only consumer with `skipLibCheck: false` saw seven
+// TS2304/TS2503 errors before this line was added — the package declares no
+// `dependencies`, so it cannot rely on a DOM-typed package pulling the lib in.
 
 export interface SourcePosition {
   offset: number

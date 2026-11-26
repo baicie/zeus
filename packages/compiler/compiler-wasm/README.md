@@ -5,8 +5,32 @@ Workers and other hosts without native Node.js addons. It runs the same
 `crates/zeus_compiler` parser, lowering and code generation as
 `@zeus-js/compiler-native`, and returns the same `TransformModuleResult`.
 
-This package is private while the playground (design kit PR-27) settles its
-consumption shape.
+It is published on its own version line rather than with the fixed release
+group, because its version tracks the Rust compiler build rather than the
+runtime. It used to be `private: true` and ship inside the Playground's own
+build; that stopped working when the Playground moved to `zeus-ecosystem`,
+which installs from npm.
+
+## Content Security Policy
+
+The compiler is a WebAssembly module, so a page that loads it needs
+`'wasm-unsafe-eval'` in `script-src`. Without it the module fails to
+instantiate at runtime — there is no build-time signal:
+
+```
+Content-Security-Policy: script-src 'self' 'wasm-unsafe-eval';
+```
+
+`worker-src` must also allow the worker entry if you use
+`createWorkerCompiler`.
+
+## Not for consumers to run
+
+The published manifest keeps `build:wasm` and `test:wasm` because they are how
+this package is built in its own repository. Their inputs (`scripts/build.mjs`,
+`__tests__/`) are not in the tarball, so both fail in an installed copy. That is
+intentional: the `.wasm` ships prebuilt, and nothing here needs to be rebuilt by
+a consumer.
 
 ## Use
 
