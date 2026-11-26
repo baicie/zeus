@@ -302,3 +302,37 @@ P10 的 Category C/D 迁移（`playground-editor`、`headless-demo`、`use-headl
 
 我不在这一轮替它做决定：它属于 P10 里「需要人判断」的那一类，而且 23 个模块
 占语料的三分之一，动它必须和语料策略一起考虑。
+
+## 十一、迁移时必须带过去的两件事（P4.2 的补充）
+
+发布后由一个独立复核发现、并由我核实的两点。它们不会在构建期报错，
+只会在迁移完成后运行时暴露——所以写在这里，而不是留给人去想起来。
+
+### 1. CSP 必须有 `'wasm-unsafe-eval'`
+
+Playground 的编译器是 WebAssembly 模块。`script-src` 没有 `'wasm-unsafe-eval'`
+时模块**实例化失败**，表现为运行时错误，构建与类型检查都不会报。
+
+当前状态对比：
+
+| 位置                                                    | `script-src`                         | 可用                          |
+| ------------------------------------------------------- | ------------------------------------ | ----------------------------- |
+| zeus `examples/playground-editor/deploy/nginx.conf:21`  | `'self' 'wasm-unsafe-eval' sha256-…` | ✅                            |
+| zeus-ecosystem `apps/ai-workbench/deploy/nginx.conf:22` | `'self'`                             | ❌ 照抄会让 Playground 起不来 |
+
+迁移时新建的 `apps/playground/deploy/nginx.conf` 必须从 core 这份复制，
+**不要**从同仓库的 ai-workbench 复制。`@zeus-js/compiler-wasm` 的 README 也已记录
+这条要求，消费者不必去翻 core 的 nginx 配置。
+
+### 2. `compiler-wasm` 不在任何 latest-tag 策略覆盖内
+
+`scripts/release/check-latest-tags.ts:483` 只遍历 `zeusFixedPackages`，
+而 `compiler-wasm` 走独立版本线，不在那个列表里。结果是：
+
+- 首次发布后 npm 的 `latest` 与 `beta` 都指向 `0.1.1-beta.20`（npm 首次发布的固有行为）；
+- `pnpm repair:latest-tags --check` 列出 16 个包，不含它；
+- 因此这个偏差不会有任何门禁记录或修正。
+
+`@zeus-js/devtools-consumer` 有同样的情况（`latest` 也指向 beta），所以这不是
+`compiler-wasm` 独有的问题，而是独立版本线整体的缺口。修复它属于发布策略的改动，
+不在本轮范围内——但迁移后如果 ecosystem 按 `latest` 取版本，会取到一个 beta。
