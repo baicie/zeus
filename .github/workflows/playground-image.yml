@@ -24,6 +24,11 @@ name: Playground Image
 # Delete this file once that image is built, deployed and accepted.
 on:
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: Roll the production container onto the built image
+        type: boolean
+        default: false
 
 jobs:
   build-and-publish:

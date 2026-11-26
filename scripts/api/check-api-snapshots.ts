@@ -58,10 +58,15 @@ try {
     process.exit(1)
   }
 
-  // The Playground editor's API completion table is generated from these same
-  // declarations. Checking it here means a public signature change cannot land
-  // without the editor following, in the command CI already runs.
-  execSync('pnpm playground:api --check', { stdio: 'inherit' })
+  /*
+   * The Playground editor's API completion table used to be checked here,
+   * because it is generated from these same declarations and a signature change
+   * could otherwise land without the editor following.
+   *
+   * The editor moved to `zeus-ecosystem/apps/playground` with its generator, so
+   * that check now runs in that repository against the installed package. What
+   * stays here is the snapshot half: this repository owns the declarations.
+   */
 
   console.log('API snapshots are up to date.')
 } catch (err) {
