@@ -210,7 +210,6 @@ pipeline.rs    阶段顺序与早退形状（transform_module 委托给它）
   这是对不可移动标签的读取兼容，不是旧目录的复活。
 - `meta/contracts/golden-components.json` 是 Golden Components 契约的唯一来源，
   由 `check-golden-components.ts` 按路径读取。
-- `vendor/` 产物必须保持 provenance（`provenance.json` 校验其来源提交）。
 - 不得执行 `npm publish`、`npm dist-tag` 或创建 Release Tag，除非任务明确授权。
 
 **Git 历史（强制）：**

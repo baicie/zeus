@@ -180,8 +180,6 @@
     "check:sbom:write": "tsx scripts/check/check-sbom.ts",
     "check:sbom": "tsx scripts/check/check-sbom.ts --check",
     "check:i18n": "tsx scripts/check/check-i18n.ts",
-    "admin:link-dialog": "tsx scripts/check/link-local-dialog.ts",
-    "check:vendored-dialog": "tsx scripts/check/verify-vendored-dialog.ts",
     "check:ui-provenance": "tsx scripts/release/verify-ui-provenance.ts",
     "drill:rc-recovery": "tsx scripts/release/drill-rc-recovery.ts",
     "drill:isolated-registry": "tsx scripts/release/run-isolated-registry-drill.ts",
