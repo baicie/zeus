@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   CANDIDATE_TEMPLATES,
   addPeerEdges,
+  candidateArchiveProblems,
   applyCandidateManifest,
   collectWorkspaceClosure,
   discoverWorkspacePackages,
@@ -141,6 +142,78 @@ describe('create-zeus candidate matrix', () => {
         '@zeus-js/signal': 'file:/tmp/signal.tgz',
       },
     })
+  })
+
+  /*
+   * What the declared archives must satisfy. Three failure modes, three
+   * different wrong answers if they pass: a package nobody built gets published,
+   * verified bytes are not the recorded bytes, or the tarball disagrees with the
+   * manifest about which version it is.
+   */
+  it('accepts archives whose digest and version both match', () => {
+    const problems = candidateArchiveProblems(
+      new Map([['@zeus-js/zeus', '0.2.0-rc.7']]),
+      new Map([
+        [
+          '@zeus-js/zeus',
+          { sha256: 'abc', version: '0.2.0-rc.7', exists: true },
+        ],
+      ]),
+      new Map([['@zeus-js/zeus', 'abc']]),
+    )
+
+    expect(problems).toEqual([])
+  })
+
+  it('reports a missing candidate archive by name', () => {
+    const problems = candidateArchiveProblems(
+      new Map([['@zeus-js/zeus', '0.2.0-rc.7']]),
+      new Map([
+        [
+          '@zeus-js/zeus',
+          { sha256: undefined, version: undefined, exists: false },
+        ],
+      ]),
+      new Map(),
+    )
+
+    expect(problems).toStrictEqual([
+      'candidate archive is missing for @zeus-js/zeus',
+    ])
+  })
+
+  it('reports a digest mismatch, not just a missing file', () => {
+    const problems = candidateArchiveProblems(
+      new Map([['@zeus-js/zeus', '0.2.0-rc.7']]),
+      new Map([
+        [
+          '@zeus-js/zeus',
+          { sha256: 'expected', version: '0.2.0-rc.7', exists: true },
+        ],
+      ]),
+      new Map([['@zeus-js/zeus', 'actual']]),
+    )
+
+    expect(problems).toStrictEqual([
+      'candidate archive digest mismatch for @zeus-js/zeus',
+    ])
+  })
+
+  it('reports a version mismatch between archive and manifest', () => {
+    const problems = candidateArchiveProblems(
+      new Map([['@zeus-js/zeus', '0.2.0-rc.7']]),
+      new Map([
+        [
+          '@zeus-js/zeus',
+          { sha256: 'abc', version: '0.2.0-rc.6', exists: true },
+        ],
+      ]),
+      new Map([['@zeus-js/zeus', 'abc']]),
+    )
+
+    expect(problems).toStrictEqual([
+      'candidate archive version mismatch for @zeus-js/zeus',
+    ])
   })
 
   /*

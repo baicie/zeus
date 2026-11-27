@@ -26,6 +26,7 @@ import {
   assertCandidateInputsBuilt,
   assertCurrentNativeBinary,
   addPeerEdges,
+  candidateArchiveProblems,
   collectWorkspaceClosure,
   discoverWorkspacePackages,
   templateOutputs,
@@ -168,21 +169,46 @@ try {
     const entries = new Map(
       document.packages.map(entry => [entry.name ?? '', entry]),
     )
+    const expected = new Map(
+      coreCandidateNames.map(name => [name, corePackages.get(name)!.version]),
+    )
+    const declared = new Map(
+      coreCandidateNames.map(name => {
+        const entry = entries.get(name)
+        return [
+          name,
+          {
+            sha256: entry?.sha256,
+            version: entry?.version,
+            exists: Boolean(entry?.file && fs.existsSync(entry.file)),
+          },
+        ] as const
+      }),
+    )
+    const digests = new Map(
+      coreCandidateNames.flatMap(name => {
+        const entry = entries.get(name)
+        if (!entry?.file || !fs.existsSync(entry.file)) return []
+        return [
+          [
+            name,
+            createHash('sha256')
+              .update(fs.readFileSync(entry.file))
+              .digest('hex'),
+          ] as const,
+        ]
+      }),
+    )
+    const archiveProblems = candidateArchiveProblems(
+      expected,
+      declared,
+      digests,
+    )
+    if (archiveProblems.length > 0) {
+      throw new Error(archiveProblems.join('; '))
+    }
     for (const name of coreCandidateNames) {
-      const entry = entries.get(name)
-      if (!entry?.file || !entry.sha256 || !fs.existsSync(entry.file)) {
-        throw new Error(`candidate archive is missing for ${name}`)
-      }
-      const digest = createHash('sha256')
-        .update(fs.readFileSync(entry.file))
-        .digest('hex')
-      if (digest !== entry.sha256) {
-        throw new Error(`candidate archive digest mismatch for ${name}`)
-      }
-      if (entry.version !== corePackages.get(name)!.version) {
-        throw new Error(`candidate archive version mismatch for ${name}`)
-      }
-      coreCandidates.set(name, toFileSpec(entry.file))
+      coreCandidates.set(name, toFileSpec(entries.get(name)!.file!))
     }
   } else {
     for (const name of coreCandidateNames) {

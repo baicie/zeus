@@ -212,6 +212,48 @@ export function applyCandidateManifest(
 }
 
 /**
+ * What the declared candidate archives must satisfy before anything is packed.
+ *
+ * Three separate facts, and each failure mode produces a different wrong
+ * answer downstream:
+ *
+ * - a missing archive means the release would publish a package nobody built;
+ * - a digest mismatch means the bytes being verified are not the bytes the
+ *   record describes, so every later statement about this candidate is about a
+ *   different artifact;
+ * - a version mismatch means the tag, the manifest, and the tarball disagree,
+ *   and the one users install is whichever npm happens to pick.
+ *
+ * Returning the problems rather than throwing keeps the decision inspectable;
+ * the caller turns them into the failure it wants.
+ */
+export function candidateArchiveProblems(
+  expected: ReadonlyMap<string, string>,
+  entries: ReadonlyMap<
+    string,
+    { sha256?: string; version?: string; exists: boolean }
+  >,
+  digests: ReadonlyMap<string, string>,
+): string[] {
+  const problems: string[] = []
+  for (const [name, version] of expected) {
+    const entry = entries.get(name)
+    if (!entry?.sha256 || !entry.exists) {
+      problems.push(`candidate archive is missing for ${name}`)
+      continue
+    }
+    const digest = digests.get(name)
+    if (digest !== entry.sha256) {
+      problems.push(`candidate archive digest mismatch for ${name}`)
+    }
+    if (entry.version !== version) {
+      problems.push(`candidate archive version mismatch for ${name}`)
+    }
+  }
+  return problems
+}
+
+/**
  * Gives a template a concrete edge to every peer its candidates declare.
  *
  * An override rewrites an edge that already exists. A *peer* is resolved by the
