@@ -614,3 +614,19 @@ fixture 未被触碰，`ZEUS_UPDATE_GOLDEN=1` 未使用。
 
 新增的断言全部是**运行时行为**断言，放在 `check-packed-interop.mjs` 与
 `config.spec.ts` 里，用真实的包安装与真实的 Vite 配置验证，不依赖任何快照。
+
+### 14.7 一条测试为什么在本机绿、在 CI 红
+
+新增的 signal alias 测试两次在 CI 上失败，报 `expected [] to have a length of 2`，
+本机却一直通过。两次原因相同，但第二次藏得更深：
+
+1. fixture 没写 signal 包 → 本机的真实 `@zeus-js/signal` 安装替它兜了底。
+2. 补了 fixture，但只声明了 `import` 条件；而 `resolveRuntimeEntry` 走
+   `createRequire`，读的是 `require` 条件 → 本机仍被真实安装兜底。
+
+验证方式不是「再跑一遍本机」，而是**把 `node_modules/@zeus-js/signal` 移走再跑**：
+测试仍 15 个全过，才说明 fixture 真正自给自足。
+
+这类缺陷的形状值得记住：**测试断言的对象来自环境而不是 fixture 时，本机绿没有
+任何信息量**。CI 是唯一能验证「测试是否自足」的地方，而它的失败信息（空数组）与
+真正的原因（导出条件不匹配）相距很远。
