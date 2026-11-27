@@ -121,14 +121,22 @@ CI 的 `release` job 通过 `native-prebuild` → `download native platform arti
 
 ---
 
-## 7. 发布后的核对（待填）
+## 7. 发布后的核对
 
-- [ ] 32 包精确版本 = 0.2.0-rc.6
-- [ ] `rc` dist-tag 指向 0.2.0-rc.6
-- [ ] `latest` 对 16 条历史豁免外无新偏差
-- [ ] tarball integrity 与 provenance 通过
-- [ ] 8 个平台二进制齐备
-- [ ] 真实下游安装（fixtures/published-consumer）
+核对对象是 Registry 的实际状态，不是本地清单。脚本按 `release.config.ts` 的
+32 个固定包逐个查询，检查四项：精确版本存在、`rc` tag 指向 rc.6、`latest` 的
+预发布集合恰好等于基线的 16 条、无新增偏差；另外单独核对每个包的 SLSA
+provenance（恰好 1 个 bundle，且其 subject 摘要与 Registry 记录的 integrity 一致）、
+7 个平台二进制，以及真实下游安装。
+
+| 项目                                        | 状态 |
+| ------------------------------------------- | ---- |
+| 32 包精确版本 = 0.2.0-rc.6                  | 待填 |
+| `rc` dist-tag 指向 0.2.0-rc.6               | 待填 |
+| `latest` 预发布集合 = 基线 16 条，无新增    | 待填 |
+| tarball integrity 与 provenance             | 待填 |
+| 7 个平台二进制齐备                          | 待填 |
+| 真实下游安装（fixtures/published-consumer） | 待填 |
 
 ---
 
@@ -285,3 +293,102 @@ GH006: Protected branch update failed for refs/heads/main.
 | tag `v0.2.0-rc.6` | `7cc5f31d`（可从 origin/main 到达）        |
 | 配对 uiCommit     | `6aaef8ca70f42dcf923b51cc5c2e78d3d65ebda5` |
 | Release run       | `45964301625`                              |
+
+---
+
+## 12. 第一次 Release run 被 `ci-evidence` 拒绝
+
+第 11.5 节的 Release run `45964301625` **失败**了。失败点不是 `latest` 豁免，
+也不是配对——这次失败与它们无关，而且恰好证明了门禁在工作。
+
+### 12.1 结果
+
+`Authorise the release` 步骤输出 `release authorization (zeus.release-policy/v2): REFUSED`，
+13 条规则中 1 条拒绝：
+
+```
+REFUSED ci-evidence: .github/workflows/ci.yml: run 45964255390 attempt 1 concluded cancelled
+```
+
+其余全部通过，包括本任务最关键的两条：
+
+| 规则                | 结果        | 说明                                             |
+| ------------------- | ----------- | ------------------------------------------------ |
+| `core-ui-pairing`   | ok          | Core 与 UI 都是 0.2.0-rc.6，UI 在 `6aaef8ca`     |
+| `native-evidence`   | ok          | 1 个 native matrix run 成功                      |
+| `registry-state`    | ok          | 没有任何包已经存在 0.2.0-rc.6                    |
+| `tarball-integrity` | ok          | 打包产物不含 `workspace:` / `catalog:` / `file:` |
+| `sbom`              | ok          | 本树的 SBOM 已生成并校验                         |
+| `tag-unmoved`       | ok          | tag 仍指向 `7cc5f31d`                            |
+| `ci-evidence`       | **REFUSED** | 见 12.2                                          |
+
+`Release precheck` 步骤本身是 **success**——`latest` 历史豁免在真实 CI 里被接受，
+这是本任务第 8 点要求的结果。
+
+### 12.2 根因：并发组取消了 tag 提交的 CI
+
+`.github/workflows/ci.yml` 声明：
+
+```yaml
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+```
+
+打 tag 之后我又推了一次文档提交 `0bf6a438`（第 11 节的记录）。两次推送的
+`github.ref` 都是 `refs/heads/main`，属于同一个并发组，于是后一次把前一次**取消**了：
+
+| run           | head_sha   | 事件 | 结论                       |
+| ------------- | ---------- | ---- | -------------------------- |
+| `45964255390` | `7cc5f31d` | push | cancelled                  |
+| `45964443722` | `0bf6a438` | push | success                    |
+| `45964254973` | `7cc5f31d` | push | success（compiler-native） |
+
+`ci-evidence` 的判定（`scripts/release/release-authorization.ts`）是：对每个必需
+workflow，取**同一 commit 上 run_attempt 最大的一次**，其 `conclusion` 必须是
+`success`。`7cc5f31d` 上 ci.yml 只有那一次 cancelled，所以拒绝。
+
+这是正确行为，不是误报：发布确实没有得到 tag 提交自身的验证。
+
+### 12.3 为什么新提交上的绿不能替代
+
+`0bf6a438` 的 CI 是绿的，但授权把证据绑定在 `workflowSha`（即 tag 提交）上，理由
+写在 `find-release-evidence.ts` 的 `TRUSTED_EVENTS` 与 `headSha` 过滤里：一个在
+**别的**提交上跑绿的 CI 不能证明 tag 指向的树通过了检查。用新提交冒充旧提交，
+正是这条规则要挡的事。
+
+### 12.4 补救：重跑 tag 提交上的 CI
+
+没有改门禁、没有改授权脚本、没有绕过。执行的是一次 re-run：
+
+```
+POST /repos/baicie/zeus/actions/runs/45964255390/rerun
+```
+
+re-run 保留原 `event: push` 与原 `head_sha: 7cc5f31d`，只把 `run_attempt` 从 1 提到 2。
+`ci-evidence` 取 attempt 最大者，因此 attempt 2 的结论才是这次发布的证据——这正是
+规则设计里「后一次是产物对应的那一次」的含义。
+
+触发前确认过三件事：
+
+1. `TRUSTED_EVENTS` 包含 `push`，re-run 不会改变事件类型；
+2. 该 workflow 上没有任何 in-progress 的 run，重跑不会被同一个 `cancel-in-progress` 再取消；
+3. `45964254973`（compiler-native，同样在 `7cc5f31d`）已经是 success，不必重跑。
+
+### 12.5 教训
+
+打 tag 之后**不要**再向同一分支推送提交。tag 触发的 Release 依赖 tag 提交上的 CI
+证据，而同分支的后续推送会因 `cancel-in-progress: true` 把它取消。文档类提交应在
+打 tag **之前**合并，或放在另一个分支。
+
+### 12.6 补救结果
+
+| 项目                          | 值                                                      |
+| ----------------------------- | ------------------------------------------------------- |
+| ci.yml on `7cc5f31d`          | run `45964255390`, event `push`, attempt 2, **success** |
+| compiler-native on `7cc5f31d` | run `45964254973`, event `push`, attempt 1, success     |
+| Release run                   | `45964301625`, re-run attempt 2                         |
+| attempt 2 的授权结果          | 待填                                                    |
+
+attempt 2 成功后，`ci-evidence` 取该 workflow 上 attempt 最大的 run，读到的是
+attempt 2 的 success，规则成立。释放路径没有触碰任何门禁代码。
