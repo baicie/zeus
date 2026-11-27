@@ -145,19 +145,23 @@ export default defineReleaseConfig({
       ['pnpm', 'check:create-zeus-candidate'],
       ['pnpm', 'check:create-zeus-versions'],
       /*
-       * Publishing a scaffold whose template names a version nobody can
-       * install is a broken release that no later step repairs: `create-zeus`
-       * ships on its own train, and once a template leaves this repository
-       * pinned to an unpublished `@zeus-web/*` version, every `create-zeus`
-       * user who scaffolds that template gets `ETARGET`.
+       * `check:template-dependencies` is deliberately NOT here.
        *
-       * The candidate gate covers this template during the release, but only
-       * with tarballs built from the paired UI checkout. This asks the
-       * question the release itself has to answer: is the pin installable from
-       * the registry *now*? A registry that cannot answer fails the step rather
-       * than being read as "not published".
+       * It asks whether every pin a scaffold ships is installable from the
+       * registry *now* — which is the right question for a development branch,
+       * and the wrong one for a paired release. A Core RC and its UI are
+       * published on separate trains: the UI necessarily lands after the Core,
+       * so at Core precheck time the template's `@zeus-web/*` pin names a
+       * version that cannot be on the registry yet. Requiring it here made the
+       * release fail on the very condition it was meant to describe.
+       *
+       * The question still gets answered, at the point where the answer can be
+       * true: ordinary CI runs it on every change, and the release runs
+       * `check:create-zeus-registry` after publishing, which scaffolds every
+       * template straight from the registry with no tarball, no link and no
+       * override, then typechecks, builds and drives each in three browsers.
+       * That gate fails the release if any pin is still not installable.
        */
-      ['pnpm', 'check:template-dependencies'],
       ['pnpm', 'bench:component-host:ci'],
       ['pnpm', 'docs:build'],
       ['pnpm', 'size:ci'],

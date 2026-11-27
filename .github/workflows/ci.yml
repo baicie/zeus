@@ -590,6 +590,18 @@ jobs:
           ZEUS_CREATE_DEFER_TO_CANDIDATE: '1'
         run: pnpm check:create-zeus
 
+      # The deferral above says "the candidate gate covers this template". This
+      # is the other half of the same question, asked where it can be answered:
+      # a development branch must not ship a scaffold pinned to a version that
+      # nobody can install. It cannot run in the release precheck — a paired
+      # Core publishes before its UI, so the pin is legitimately unpublished at
+      # that moment — and the post-publish registry gate is what finally
+      # confirms the published scaffold installs.
+      - name: Verify shipped template pins are installable
+        env:
+          ZEUS_CREATE_DEFER_TO_CANDIDATE: '1'
+        run: pnpm check:template-dependencies
+
       # A server process renders, a browser hydrates what it produced. This is
       # the consumer question the packed-consumers gates do not ask: they check
       # that a packed install can *call* `renderToString`, not that its output

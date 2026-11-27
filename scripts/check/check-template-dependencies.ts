@@ -170,14 +170,36 @@ export async function checkTemplateDependencies(
   )
 
   if (unpublished.length > 0) {
-    throw new Error(
-      `Template dependencies have no published match:\n${unpublished
-        .map(
-          requirement =>
-            `  - ${requirement.template}: ${requirement.packageName}@${requirement.range}`,
-        )
-        .join('\n')}`,
+    const detail = unpublished
+      .map(
+        requirement =>
+          `  - ${requirement.template}: ${requirement.packageName}@${requirement.range}`,
+      )
+      .join('\n')
+    /*
+     * Deferring has to be claimed, exactly as in `check:create-zeus`.
+     *
+     * The claim means "the Release Candidate gate covers this template with
+     * real tarballs, and the post-publish registry gate will confirm the
+     * published scaffold". Without it, an unpublished pin is a failure: a
+     * development branch that cannot be installed is a broken scaffold, not a
+     * pending release.
+     *
+     * It cannot run in the release precheck at all — a paired Core publishes
+     * before its UI — which is why this lives in ordinary CI and why the
+     * post-publish `check:create-zeus-registry` is the gate that finally
+     * accepts it.
+     */
+    if (process.env.ZEUS_CREATE_DEFER_TO_CANDIDATE !== '1') {
+      throw new Error(
+        `Template dependencies have no published match:\n${detail}\n` +
+          'Run with ZEUS_CREATE_DEFER_TO_CANDIDATE=1 when the Release Candidate gate covers them.',
+      )
+    }
+    console.log(
+      `Template dependencies deferred to the candidate and registry gates:\n${detail}`,
     )
+    return
   }
 
   console.log(
