@@ -24,7 +24,7 @@
     "explanation": "Authentication and package ACL succeeded (baicie2, 29 published packages with read-write access) before every DELETE was refused. The same token succeeds for dist-tag add (PUT). This is a platform-side restriction on the delete operation, not a configuration error in this repository."
   },
   "scope": "Limited to the exact package/version pairs below. Adding a package, changing a version, or re-observing the registry must never widen this list automatically.",
-  "risk": "These 13 packages resolve an unversioned install to an old canary. Consumers who need a stable or current version must pin explicitly. The state predates every 0.2.0 release and is unrelated to whether a given release published correctly.",
+  "risk": "These 16 packages resolve an unversioned install to an old canary or to a prerelease. Consumers who need a stable or current version must pin explicitly. The state predates every 0.2.0 release and is unrelated to whether a given release published correctly.",
   "exitStrategy": "Each entry leaves the baseline when its `latest` is repaired by a mechanism that permits deletion, or when a stable version supersedes it. Because `latest` cannot be deleted with the current credential, the durable exit is a stable release whose `latest` is advanced normally. An entry whose observed value no longer matches is refused from that moment on; the baseline is never silently re-pointed.",
   "packages": [
     {
@@ -116,6 +116,13 @@
       "latest": "0.1.1-canary.20261020.188.1.02f2975b",
       "firstObserved": "2026-10-20",
       "group": "runtime"
+    },
+    {
+      "name": "@zeus-js/i18n",
+      "latest": "0.2.0-rc.5",
+      "firstObserved": "2026-11-23",
+      "group": "runtime",
+      "authorization": "Approved by maintainer:baicie on 2026-11-27. @zeus-js/i18n was a first publication in rc.5, and npm binds `latest` to a prerelease on a first publication regardless of --tag. The tag cannot be deleted with any available credential (see evidence.repairFailure), and the package has no stable version to move `latest` onto, so no mechanism in this repository can clear it. A historical exemption is the only honest record. It authorises exactly @zeus-js/i18n@0.2.0-rc.5 and nothing else."
     }
   ]
 }

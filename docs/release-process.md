@@ -539,11 +539,30 @@ smoke；stable 发布会正常推进并核验 `latest`，因此历史 tag 不能
 
 #### 5.4.1 已批准的历史偏差基线
 
-上面那个决定由 `meta/release/historical-latest.json` 承载。它记录 13 条精确的
-`包名@latest 版本`（8 个 native + `runtime-ssr` / `router` / `resource` / `query` /
-`testing`），并引用本节的决策作为依据。加载器会拒绝重复项、固定发布组之外的包、
+上面那个决定由 `meta/release/historical-latest.json` 承载。它记录 16 条精确的
+`包名@latest 版本`：8 个 native、`runtime-ssr` / `router` / `resource` / `query` /
+`testing` 五个 canary 时代的 runtime 包、`eslint-plugin` 与 `playground-engine`
+（rc.3 首发）、以及 `i18n`（rc.5 首发）。加载器会拒绝重复项、固定发布组之外的包、
 stable 版本，以及缺少 `approvedBy` 或 `decisionReference` 的文件；路径是常量，
 没有参数能指向别的文件。
+
+条目构成两类，来源必须分清：
+
+| 类别        | 成因                                                 | 包                                                                        |
+| ----------- | ---------------------------------------------------- | ------------------------------------------------------------------------- |
+| canary 污染 | canary 发布把 `latest` 留在预发布版本上              | 8 个 native + `runtime-ssr` / `router` / `resource` / `query` / `testing` |
+| 首发绑定    | npm 对**首次发布**无条件把 `latest` 绑到该预发布版本 | `eslint-plugin` / `playground-engine`（rc.3）、`i18n`（rc.5）             |
+
+首发绑定这一类不是配置错误：`--tag rc` 不改变首次发布对 `latest` 的绑定，且删除该
+标签需要 `DELETE /-/package/<pkg>/dist-tags/latest`，npm 对同样的读写凭据返回 E403。
+`i18n` 尤其没有稳定版本可把 `latest` 指过去（只有 `0.0.0-stage` 与 `0.2.0-rc.5`，
+前者同样是预发布），所以仓库内没有任何机制能清除它。维护者于 2026-11-27 授权将其
+按精确版本记入基线，**不**把它当作 rc.6 发布的前置条件；该授权只覆盖
+`@zeus-js/i18n@0.2.0-rc.5` 这一条，不扩大任何其他范围，也不改变门禁逻辑。
+
+这两类条目的退出策略相同：`latest` 一旦前移到任意稳定版本，对应条目立即失效并从
+基线移除；基线内容一旦与 Registry 不符，`judgeHistorical` 报 drift 并阻塞发布，
+不会静默跟随。
 
 豁免**只在值精确相等**时成立：换成另一个 canary、beta 或 rc 都会离开豁免并被拒绝，
 查询失败返回 `UNKNOWN` 而不是 `accepted`，等于本次发布版本时也不算历史。所以新增的
