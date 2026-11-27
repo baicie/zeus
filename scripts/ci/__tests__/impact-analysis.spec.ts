@@ -304,7 +304,13 @@ describe('planJobs', () => {
     // #250 shipped `gallery.tsx` with `rust-compiler` skipped and main went
     // red on the first full run.
     for (const file of [
-      'examples/project-board/src/main.tsx',
+      /*
+       * A representative example, not the one that motivated the rule. It was
+       * `examples/project-board/src/main.tsx` until that app moved to the
+       * ecosystem; this test is about "an example can change the parity
+       * corpus", and any example with JSX proves that.
+       */
+      'examples/todo/src/main.tsx',
       'examples/react-wrapper/src/main.tsx',
       'scripts/bench/fixtures/component-host/src/entries/wc-single.ts',
       'scripts/playground/fixtures/counter.tsx',

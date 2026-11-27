@@ -116,7 +116,6 @@
     "example:headless-demo": "pnpm -C examples/headless-demo dev",
     "example:react-wrapper": "pnpm -C examples/react-wrapper dev",
     "example:vue-wrapper": "pnpm -C examples/vue-wrapper dev",
-    "example:project-board": "pnpm -C examples/project-board dev",
     "example:light-dom-slots": "pnpm -C examples/light-dom-slots dev",
     "example:use-headless-cli": "pnpm -C examples/use-headless-cli dev",
     "example:use-headless-react": "pnpm -C examples/use-headless-react dev",

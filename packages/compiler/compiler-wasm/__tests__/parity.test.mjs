@@ -46,7 +46,10 @@ const corpusRoots = [
  * corpus silently, and the `> 60` total was too coarse to notice it.
  */
 const expectedCorpusCounts = {
-  examples: 52,
+  // 51: `examples/project-board` moved to `zeus-ecosystem/demos/project-board`,
+  // where a complete application belongs. The exact count is the point — a
+  // range would not have noticed the move, and would not notice the next one.
+  examples: 51,
   'scripts/bench/fixtures': 9,
   'scripts/playground/fixtures': 2,
 }

@@ -27,13 +27,17 @@ pnpm examples:check:all --build-first
 
 ## 基础 Zeus 示例
 
-| 示例            | 说明                                        |
-| --------------- | ------------------------------------------- |
-| `counter`       | `createSignal` + `render` 入门示例          |
-| `todo`          | 列表、事件与基础状态更新                    |
-| `context`       | `createContext` / `inject` 依赖注入         |
-| `project-board` | 综合 Kanban 示例，覆盖核心交互能力          |
-| `admin`         | 嵌套路由、loader、权限、错误与 history 导航 |
+| 示例      | 说明                                        |
+| --------- | ------------------------------------------- |
+| `counter` | `createSignal` + `render` 入门示例          |
+| `todo`    | 列表、事件与基础状态更新                    |
+| `context` | `createContext` / `inject` 依赖注入         |
+| `admin`   | 嵌套路由、loader、权限、错误与 history 导航 |
+
+综合型应用不在这里。`project-board` 已迁到
+[`zeus-ecosystem/demos/project-board`](https://github.com/baicie/zeus-ecosystem/tree/main/demos/project-board)，
+用已发布包构建：本仓库保留框架本身与它自己的测试需要的 fixture，完整产品在
+生态仓库。判断标准是「core 的测试是否需要它」，不是「写得好不好看」。
 
 `admin` 通过公开的 Router API 消费当前 workspace 包。构建后运行 `pnpm check:admin`，
 可在 Chromium、Firefox、WebKit 中检查生产产物的客户端导航、前进后退、预加载、
