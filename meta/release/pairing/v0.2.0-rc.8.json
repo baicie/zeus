@@ -1,11 +1,11 @@
 {
   "schema": "zeus.release-pairing/v1",
   "coreVersion": "0.2.0-rc.8",
-  "uiCommit": "01b0778a9cab1e5c5265e98ea51412750cb69c3f",
+  "uiCommit": "62f75be750d05bcccdde5fdf8ec94bc8590da4de",
   "uiVersion": "0.2.0-rc.8",
   "verifiedAt": "2026-11-27T00:00:00.000Z",
   "firstPublish": [],
-  "note": "rc.8 is rc.7 rebuilt after a gate-placement defect stopped that release before it published anything. rc.7's own defects — the duplicate signal engine, the candidate gate's three failures, the template pin — are all fixed in this tree; what rc.7 additionally carried was a `check:template-dependencies` step in the release precheck that required the template's @zeus-web pin to be installable from the registry. A paired Core publishes before its UI, so that pin cannot exist at precheck time; the step blocked the release on the condition the release exists to create. It now runs in ordinary CI, where the question is answerable, and the post-publish check:create-zeus-registry gate accepts the published scaffold. Nothing was published for rc.7 — no package, no dist-tag change — so this is a version number moving past an abandoned attempt, not a republish. firstPublish is empty: all 32 fixed packages have been published before. Both Core and UI are at 0.2.0-rc.8 because check:release-pairing requires the pair to be one version; zeus-ui's rc.8 branch moves the same 170 pins and 46 package versions one step further, on the same UI commit. That branch's lockfile cannot resolve until rc.8 is on the registry.",
+  "note": "rc.8 is rc.7 rebuilt after a gate-placement defect stopped that release before it published anything. rc.7's own defects — the duplicate signal engine, the candidate gate's three failures, the template pin — are all fixed in this tree; what rc.7 additionally carried was a `check:template-dependencies` step in the release precheck that required the template's @zeus-web pin to be installable from the registry. A paired Core publishes before its UI, so that pin cannot exist at precheck time; the step blocked the release on the condition the release exists to create. It now runs in ordinary CI, where the question is answerable, and the post-publish check:create-zeus-registry gate accepts the published scaffold. Nothing was published for rc.7 — no package, no dist-tag change — so this is a version number moving past an abandoned attempt, not a republish. firstPublish is empty: all 32 fixed packages have been published before. Both Core and UI are at 0.2.0-rc.8 because check:release-pairing requires the pair to be one version; zeus-ui's rc.8 branch moves the same 170 pins and 46 package versions one step further, on the same UI commit. That branch's lockfile cannot resolve until rc.8 is on the registry. The UI commit was corrected on 2026-11-28: the record named 01b0778a, the tip of the zeus-ui release branch, and merging that branch squashed it into 62f75be7 — identical tree, different hash. The pairing contract treats the commit as immutable and a squash rewrites it, so the record now names the commit that exists. Core's packages are unaffected: they were built from this tree and published before the correction.",
   "states": {
     "CANDIDATE_VERIFIED": {
       "at": "2026-11-27",
@@ -28,7 +28,7 @@
         "rcTag": 32,
         "latestBaselineHold": true,
         "tarballIntegrity": true,
-        "provenance": "32 SLSA bundles, subject digests match registry integrity",
+        "provenance": "32 SLSA bundles match registry integrity",
         "platformBinaries": "7/7"
       }
     },
