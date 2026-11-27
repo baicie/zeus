@@ -64,6 +64,25 @@ export function resolveRuntimeDOMEntry(
   )
 }
 
+/**
+ * The one file both signal specifiers must resolve to.
+ *
+ * The package re-exports `internal` from its root, so `@zeus-js/signal` and
+ * `@zeus-js/signal/internal` are one module with two names. They are still
+ * resolved separately, from different importers, and when those importers sit
+ * at different depths the resolver can return two ids for the same file — the
+ * engine then exists twice in one bundle.
+ *
+ * Resolving the subpath here and aliasing both specifiers to it makes the
+ * identity explicit. `internal.js` is the implementation; the root entry is a
+ * re-export of it.
+ */
+export function resolveSignalInternalEntry(
+  root: string | undefined,
+): string | undefined {
+  return resolveRuntimeEntry('@zeus-js/signal/internal', 'internal.js', root)
+}
+
 export function resolveRuntimeSSREntry(
   root: string | undefined,
 ): string | undefined {

@@ -4,6 +4,7 @@ import { compilerVersion, transformModule, type HmrPlan } from './native'
 import {
   resolveRuntimeDOMEntry,
   resolveRuntimeSSREntry,
+  resolveSignalInternalEntry,
 } from './runtime-resolution'
 
 import type { ExistingRawSourceMap, SourceMapInput } from 'rollup'
@@ -107,10 +108,56 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
     async config(userConfig) {
       const runtimeDomEntry = resolveRuntimeDOMEntry(userConfig.root)
       const runtimeSSREntry = resolveRuntimeSSREntry(userConfig.root)
-      const alias: Record<string, string> = {}
+      const signalInternalEntry = resolveSignalInternalEntry(userConfig.root)
+      const alias: Array<{ find: string | RegExp; replacement: string }> = []
 
-      if (runtimeDomEntry) alias['@zeus-js/runtime-dom'] = runtimeDomEntry
-      if (runtimeSSREntry) alias['@zeus-js/runtime-ssr'] = runtimeSSREntry
+      if (runtimeDomEntry) {
+        alias.push({
+          find: '@zeus-js/runtime-dom',
+          replacement: runtimeDomEntry,
+        })
+      }
+      if (runtimeSSREntry) {
+        alias.push({
+          find: '@zeus-js/runtime-ssr',
+          replacement: runtimeSSREntry,
+        })
+      }
+
+      /*
+       * Both signal entries must land on one file.
+       *
+       * `@zeus-js/signal` is a re-export of `@zeus-js/signal/internal`, so the
+       * two specifiers name the same module — but they are resolved from
+       * different importers. `runtime-dom` imports the package root while the
+       * runtime imports the subpath, and a resolver that walks up from each
+       * importer can land on two module ids for one file. The engine is then
+       * bundled twice and every app throws "Cannot track a reactive value with
+       * a different Zeus signal engine" at run time, while its build and
+       * typecheck pass.
+       *
+       * `resolve.dedupe` cannot fix this: it matches package names and has no
+       * way to collapse a subpath specifier onto its package root. An alias
+       * can, and pointing both at the resolved file makes the identity a
+       * property of the config rather than of the resolver's mood.
+       */
+      if (signalInternalEntry) {
+        /*
+         * The longer specifier first, and both anchored.
+         *
+         * A Vite alias matches by prefix unless the key is a RegExp ending in
+         * `$`. With the plain string form the short key rewrote the long one
+         * too, producing `<file>/internal` and failing the build with
+         * UNLOADABLE_DEPENDENCY.
+         */
+        alias.push(
+          {
+            find: /^@zeus-js\/signal\/internal$/,
+            replacement: signalInternalEntry,
+          },
+          { find: /^@zeus-js\/signal$/, replacement: signalInternalEntry },
+        )
+      }
 
       return {
         ...((await isRolldownVite())
@@ -125,13 +172,25 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
               },
             }),
         resolve: {
-          alias: Object.keys(alias).length > 0 ? alias : undefined,
+          alias: alias.length > 0 ? alias : undefined,
           dedupe: [...runtimePackages],
         },
         optimizeDeps: {
-          // Compiler-injected imports appear after dependency scanning. Keep
-          // these ESM packages together, including linked workspace entries and
-          // signal's public/internal imports, instead of mixing optimized copies.
+          /*
+           * Kept deliberately: the runtime entries stay unoptimized so a
+           * consumer's graph does not mix a pre-bundled copy with the aliased
+           * one.
+           *
+           * It is not sufficient on its own, and that is the point of the
+           * signal aliases above. An excluded package is resolved from each
+           * importer's own path, so `@zeus-js/signal` (reached through
+           * `runtime-dom`) and `@zeus-js/signal/internal` (imported directly)
+           * became two module ids for one file, and the engine was bundled
+           * twice — every app threw "Cannot track a reactive value with a
+           * different Zeus signal engine" while its build and typecheck
+           * passed. `exclude` protects the graph's shape; the alias fixes the
+           * identity. Both are needed.
+           */
           exclude: [...runtimePackages],
         },
       } satisfies UserConfig

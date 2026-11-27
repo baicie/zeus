@@ -341,6 +341,90 @@ export function assertCandidateInputsBuilt(
       `candidate inputs are not built; run Core pnpm build && pnpm build-dts and UI build button first:\n${missing.join('\n')}`,
     )
   }
+
+  assertBuiltArtifactsMatchTheirManifests(coreRoot, uiRoot)
+}
+
+/**
+ * The built files must belong to the versions their manifests now declare.
+ *
+ * "The file exists" is not the claim the candidate matrix makes. It packs
+ * whatever is in `dist/`, so a tree whose version was bumped after its last
+ * build produces tarballs named `0.2.0-rc.7` containing `0.2.0-rc.6` code —
+ * measured exactly that on this repository: a version switch ran at 17:44 and
+ * every `dist/*.esm-bundler.js` still carried the `v0.2.0-rc.6` banner from a
+ * 15:50 build.
+ *
+ * The failure it caused was expensive to read: the candidate gate verified the
+ * pair, the templates installed, built, and then failed at run time with
+ * "Cannot track a reactive value with a different Zeus signal engine", because
+ * a stale bundle carried a second copy of the signal engine. Every symptom
+ * pointed at the templates.
+ *
+ * Only the version banner is checked. Comparing whole files would need a build
+ * to compare against; the banner is written from the manifest at build time, so
+ * a mismatch means the artifact predates the bump.
+ */
+export function assertBuiltArtifactsMatchTheirManifests(
+  coreRoot: string,
+  uiRoot?: string,
+): void {
+  const checks: Array<{ label: string; manifest: string; artifact: string }> = [
+    {
+      label: '@zeus-js/zeus',
+      manifest: path.join(coreRoot, 'packages/core/zeus/package.json'),
+      artifact: path.join(
+        coreRoot,
+        'packages/core/zeus/dist/zeus.esm-bundler.js',
+      ),
+    },
+    {
+      label: '@zeus-js/signal',
+      manifest: path.join(coreRoot, 'packages/core/signal/package.json'),
+      artifact: path.join(
+        coreRoot,
+        'packages/core/signal/dist/signal.esm-bundler.js',
+      ),
+    },
+    {
+      label: '@zeus-js/runtime-dom',
+      manifest: path.join(coreRoot, 'packages/core/runtime-dom/package.json'),
+      artifact: path.join(
+        coreRoot,
+        'packages/core/runtime-dom/dist/runtime-dom.esm-bundler.js',
+      ),
+    },
+  ]
+
+  const stale: string[] = []
+  for (const check of checks) {
+    if (!fs.existsSync(check.manifest) || !fs.existsSync(check.artifact))
+      continue
+    const version = (
+      JSON.parse(fs.readFileSync(check.manifest, 'utf8')) as {
+        version?: string
+      }
+    ).version
+    if (!version) continue
+    /*
+     * The banner is the first block of the file. Reading a fixed prefix keeps
+     * this cheap — the bundles are megabytes and the banner is 200 bytes.
+     */
+    const head = fs.readFileSync(check.artifact, 'utf8').slice(0, 512)
+    if (!head.includes(`v${version}`)) {
+      const found =
+        /v\d+\.\d+\.\d+[0-9A-Za-z.-]*/.exec(head)?.[0] ?? 'no version banner'
+      stale.push(
+        `${check.label}: manifest says ${version}, the built file says ${found}`,
+      )
+    }
+  }
+
+  if (stale.length > 0) {
+    throw new Error(
+      `candidate inputs are stale; rebuild before packing them:\n${stale.join('\n')}`,
+    )
+  }
 }
 
 /** Fails unless the host platform package contains a native binary. */

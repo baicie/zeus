@@ -436,7 +436,21 @@ try {
         pinMatch: pinMismatches.length === 0,
         pinMismatches,
         tested: Boolean(manifest.scripts?.test),
-        passed: true,
+        /*
+         * A failed probe is a failed template.
+         *
+         * The probe used to be recorded and ignored, with `passed` meaning only
+         * "the build wrote files". That is how the duplicate signal engine
+         * reached a candidate acceptance that reported success: every bundle
+         * built, every typecheck passed, and every app threw on load. A
+         * template that cannot render is not verified, whatever its `dist`
+         * contains.
+         *
+         * `blocked` — no browser on this machine — is not a failure. It is
+         * also not a pass: the report carries the status, and the release
+         * workflow runs where the browsers are installed.
+         */
+        passed: loadProbe?.status !== 'failed',
         ...(loadProbe ? { loadProbe } : {}),
       })
     } catch (error) {
@@ -454,6 +468,21 @@ try {
       })
       throw error
     }
+  }
+  /*
+   * The run passes only when every template passed.
+   *
+   * This was `passed = true`, unconditionally: reaching the end of the loop was
+   * the whole claim, so a template recorded with `passed: false` still produced
+   * a passing report as long as nothing threw. The probe made that visible —
+   * four templates were `passed: false` with a failed load probe and the report
+   * still said `passed: true`.
+   */
+  const failedTemplates = templateResults.filter(result => !result.passed)
+  if (failedTemplates.length > 0) {
+    throw new Error(
+      `candidate templates failed: ${failedTemplates.map(result => result.template).join(', ')}`,
+    )
   }
   passed = true
 } catch (error) {
@@ -604,19 +633,30 @@ async function probeBuiltTemplate(target: string): Promise<{
     })
     page.setDefaultTimeout(30_000)
     await page.goto(origin)
-    // The scaffold mounts into `#app`. Waiting for it to have children is the
-    // cheapest claim that the bundle ran and rendered, without knowing which
-    // template this is.
+    /*
+     * Assert that the page rendered *something*, without naming the container.
+     *
+     * This used to look for `#app` specifically, and the comment above it
+     * claimed the check did not need to know which template it was — but the
+     * templates disagree: `webc-consumer-ts` mounts into `#app`, and the five
+     * Vite templates mount into `#root`. Four of them therefore reported "the
+     * bundle loaded but mounted nothing" while rendering correctly.
+     *
+     * The defect was invisible until the signal engine stopped being bundled
+     * twice, because that failure came first and short-circuited this one.
+     *
+     * No container is named now: whatever the template renders lands in
+     * `body`, so its text content is the claim. Bytes of markup, not a
+     * particular element.
+     */
     await page
       .waitForFunction(
-        () => (document.getElementById('app')?.children.length ?? 0) > 0,
+        () => (document.body?.textContent ?? '').trim().length > 0,
         undefined,
         { timeout: 15_000 },
       )
       .catch(() => undefined)
-    const rendered = await page.evaluate(
-      () => document.getElementById('app')?.innerHTML ?? '',
-    )
+    const rendered = await page.evaluate(() => document.body?.innerHTML ?? '')
     if (pageErrors.length > 0) {
       return {
         status: 'failed',
@@ -632,12 +672,12 @@ async function probeBuiltTemplate(target: string): Promise<{
     if (rendered.trim().length === 0) {
       return {
         status: 'failed',
-        detail: 'the bundle loaded but mounted nothing into #app',
+        detail: 'the bundle loaded but rendered nothing into the page',
       }
     }
     return {
       status: 'passed',
-      detail: `rendered ${rendered.length} characters into #app`,
+      detail: `rendered ${rendered.length} characters into the page`,
       rendered: rendered.slice(0, 200),
     }
   } finally {
@@ -717,5 +757,28 @@ function run(command: string, args: readonly string[], cwd: string): void {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
     shell,
+    env: {
+      ...process.env,
+      /*
+       * `NODE_PATH` must not reach the child.
+       *
+       * This script runs under `tsx`, which sets `NODE_PATH` to this
+       * repository's `node_modules` so its own loader can be found. Node then
+       * adds those directories to every module lookup the child performs, and
+       * Vite honours `NODE_PATH` too. The effect on a candidate project is that
+       * `@zeus-js/signal` resolved through the repository while
+       * `@zeus-js/signal/internal` resolved through the project — two module
+       * ids for one file, so the engine was bundled twice and every template
+       * threw "Cannot track a reactive value with a different Zeus signal
+       * engine" at run time while its build and typecheck passed.
+       *
+       * Measured: the same directory and the same `vite build` command
+       * produced two engine copies under `tsx` and one under plain Node. CI
+       * runs the precheck through `tsx` as well, so this was not a
+       * workstation-only shape.
+       */
+      NODE_PATH: '',
+      NODE_OPTIONS: '',
+    },
   })
 }

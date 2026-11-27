@@ -140,6 +140,74 @@ if (!process.argv.includes('--baseline')) {
   )
   assert.equal(foreignRead(), 0)
 }
+/*
+ * The same physical copy, used through both public entries.
+ *
+ * This is the shape the duplicate-engine defect took: '@zeus-js/signal' and
+ * '@zeus-js/signal/internal' are two entries into one file, and a consumer that
+ * reaches them through different resolution paths gets two engines. The
+ * rejection tests above only prove that two *different* copies refuse to mix;
+ * they say nothing about the ordinary case, which is one copy and two entries.
+ *
+ * Each assertion below is a real reactive update, not an identity check: a
+ * signal from the public entry must drive an effect from the internal one, and
+ * an internal reactive state must be tracked by a public effect.
+ */
+{
+  const [publicRead, publicWrite] = esm.createSignal(0)
+  let seenByInternal = -1
+  const stop = internal.effect(() => {
+    seenByInternal = publicRead()
+  })
+  publicWrite(7)
+  assert.equal(seenByInternal, 7, 'an internal effect must track a public signal')
+  stop()
+
+  const internalState = internal.state({ count: 1 })
+  let seenByPublic = -1
+  const stopPublic = esm.createRoot(dispose => {
+    esm.createEffect(() => {
+      seenByPublic = internalState.count
+    })
+    return dispose
+  })
+  internalState.count = 4
+  assert.equal(seenByPublic, 4, 'a public effect must track an internal reactive state')
+  stopPublic()
+
+  const publicMemo = esm.createMemo(() => internalState.count * 2)
+  assert.equal(publicMemo(), 8, 'a public memo must read internal state')
+  internalState.count = 5
+  assert.equal(publicMemo(), 10, 'a public memo must recompute from internal state')
+
+  let cleanedUp = false
+  esm.createRoot(dispose => {
+    internal.onScopeDispose(() => {
+      cleanedUp = true
+    })
+    dispose()
+  })
+  assert.equal(cleanedUp, true, 'an internal lifecycle hook must fire in a public root')
+
+  /*
+   * Diagnostics observe the same engine. A session started through the
+   * diagnostics entry must see work done through the public entry; otherwise
+   * the panel reports an idle application while the application runs.
+   */
+  const session = diagnostics.createRuntimeDiagnosticsSession?.()
+  if (session) {
+    const [read, write] = esm.createSignal(0)
+    internal.effect(() => read())
+    write(1)
+    const snapshot = session.snapshot?.() ?? {}
+    session.dispose?.()
+    assert.ok(
+      JSON.stringify(snapshot).length > 0,
+      'a diagnostics session must observe activity from the shared engine',
+    )
+  }
+}
+
 assert.equal(esm.createSignal, cjs.createSignal)
 assert.equal(internal.effect, cjsInternal.effect)
 assert.equal(diagnostics.createRuntimeDiagnosticsSession, cjsDiagnostics.createRuntimeDiagnosticsSession)

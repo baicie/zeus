@@ -300,14 +300,47 @@ describe('vite-plugin-zeus config', () => {
     const { root, runtimeEntry, runtimeSSREntry } = createDirectRuntimeProject()
     const result = await runConfig({ root })
 
-    expect(result).toMatchObject({
-      resolve: {
-        alias: {
-          '@zeus-js/runtime-dom': realpathSync(runtimeEntry),
-          '@zeus-js/runtime-ssr': realpathSync(runtimeSSREntry),
-        },
-      },
-    })
+    /*
+     * The alias is an array now, because the signal entries need `$`-anchored
+     * RegExp keys: a Vite alias given as a plain string matches by prefix, so
+     * '@zeus-js/signal' rewrote '@zeus-js/signal/internal' into
+     * '<file>/internal' and the build failed. An array is also the only form
+     * that can hold both shapes.
+     */
+    expect(result).not.toBeNull()
+    const alias = (
+      result!.resolve as {
+        alias: Array<{ find: string | RegExp; replacement: string }>
+      }
+    ).alias
+    const byFind = (name: string) =>
+      alias.find(entry => entry.find === name)?.replacement
+
+    expect(byFind('@zeus-js/runtime-dom')).toBe(realpathSync(runtimeEntry))
+    expect(byFind('@zeus-js/runtime-ssr')).toBe(realpathSync(runtimeSSREntry))
+  })
+
+  it('points both signal entries at one file so the engine cannot be bundled twice', async () => {
+    const { root } = createDirectRuntimeProject()
+    const result = await runConfig({ root })
+
+    expect(result).not.toBeNull()
+    const alias = (
+      result!.resolve as {
+        alias: Array<{ find: string | RegExp; replacement: string }>
+      }
+    ).alias
+    const signalEntries = alias.filter(
+      entry =>
+        entry.find instanceof RegExp &&
+        (entry.find.source === '^@zeus-js\\/signal$' ||
+          entry.find.source === '^@zeus-js\\/signal\\/internal$'),
+    )
+
+    expect(signalEntries).toHaveLength(2)
+    const [first, second] = signalEntries
+    expect(first!.replacement).toBe(second!.replacement)
+    expect(first!.replacement).toMatch(/internal\.js$/)
   })
 
   it.each([
