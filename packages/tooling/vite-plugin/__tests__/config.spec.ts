@@ -357,26 +357,47 @@ describe('vite-plugin-zeus config', () => {
   })
 
   it('points both signal entries at one file so the engine cannot be bundled twice', async () => {
-    const { root } = createDirectRuntimeProject()
-    const result = await runConfig({ root })
+    /*
+     * The resolver's answer is asserted directly, and the alias construction
+     * gets it by injection.
+     *
+     * Resolving it through the real fixture is not reproducible here: under
+     * `tsx` the module loader answers `@zeus-js/signal/internal` from this
+     * repository's source, ignoring the fixture's `node_modules` entirely — so
+     * the assertion held locally and produced an empty alias list on CI, where
+     * the repository layout at the time of resolution differed. The question
+     * this test asks is "do both specifiers receive the same replacement", which
+     * does not depend on where that replacement came from.
+     */
+    const internal =
+      '/tmp/zeus-fixture/node_modules/@zeus-js/signal/dist/internal.js'
+    const spy = vi
+      .spyOn(runtimeResolution, 'resolveSignalInternalEntry')
+      .mockReturnValue(internal)
+    try {
+      const { root } = createDirectRuntimeProject()
+      const result = await runConfig({ root })
 
-    expect(result).not.toBeNull()
-    const alias = (
-      result!.resolve as {
-        alias: Array<{ find: string | RegExp; replacement: string }>
-      }
-    ).alias
-    const signalEntries = alias.filter(
-      entry =>
-        entry.find instanceof RegExp &&
-        (entry.find.source === '^@zeus-js\\/signal$' ||
-          entry.find.source === '^@zeus-js\\/signal\\/internal$'),
-    )
+      expect(result).not.toBeNull()
+      const alias = (
+        result!.resolve as {
+          alias: Array<{ find: string | RegExp; replacement: string }>
+        }
+      ).alias
+      const signalEntries = alias.filter(
+        entry =>
+          entry.find instanceof RegExp &&
+          (entry.find.source === '^@zeus-js\\/signal$' ||
+            entry.find.source === '^@zeus-js\\/signal\\/internal$'),
+      )
 
-    expect(signalEntries).toHaveLength(2)
-    const [first, second] = signalEntries
-    expect(first!.replacement).toBe(second!.replacement)
-    expect(first!.replacement).toMatch(/internal\.js$/)
+      expect(signalEntries).toHaveLength(2)
+      const [first, second] = signalEntries
+      expect(first!.replacement).toBe(internal)
+      expect(second!.replacement).toBe(internal)
+    } finally {
+      spy.mockRestore()
+    }
   })
 
   it.each([
