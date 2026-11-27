@@ -68,7 +68,18 @@ async function readPublishedTemplateVersions(
   return new Map(entries)
 }
 
-export async function checkCreateZeus(): Promise<void> {
+/** One template's outcome, and why when it is not a pass. */
+export interface CreateZeusTemplateResult {
+  readonly template: string
+  readonly status: string
+  readonly detail?: string
+}
+
+export async function checkCreateZeus(): Promise<{
+  templates: readonly CreateZeusTemplateResult[]
+  deferred: readonly string[]
+  passed: boolean
+}> {
   const smokeRoot = mkdtempSync(path.join(os.tmpdir(), 'zeus-create-smoke-'))
   const report: Array<{ template: string; status: string; detail?: string }> =
     []
@@ -215,6 +226,16 @@ export async function checkCreateZeus(): Promise<void> {
     )
   } finally {
     rmSync(smokeRoot, { recursive: true, force: true })
+  }
+
+  return {
+    templates: report,
+    deferred: report
+      .filter(item => item.status === 'deferred-to-candidate-gate')
+      .map(item => item.template),
+    passed:
+      report.every(item => item.status === 'passed') &&
+      report.length === createZeusTemplates.length,
   }
 }
 

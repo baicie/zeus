@@ -44,7 +44,7 @@ assertCodeBlock(quickStart, 'ts', "import './dist/wc/auto.js'\n", code =>
 
 assertEveryCodeBlockCovered(quickStart, 5)
 
-await checkCreateZeus()
+const templates = await checkCreateZeus()
 
 const elapsedMs = Math.round(performance.now() - startedAt)
 if (elapsedMs > 15 * 60 * 1000) {
@@ -94,6 +94,17 @@ writeFileSync(
             'exact match plus component-library dist/wc/auto.js existence and template test',
         },
       ],
+      /*
+       * A template the candidate gate covers is not part of this journey's
+       * evidence, and the report has to say so. Without this, a run where
+       * `webc-consumer-ts` never installed would read exactly like one where it
+       * did — the same defect the `passed` flag exists to prevent.
+       */
+      templates: {
+        statuses: templates.templates,
+        deferred: templates.deferred,
+        passed: templates.passed,
+      },
       route: [
         'read Quick Start',
         'scaffold Component Library TypeScript template',
