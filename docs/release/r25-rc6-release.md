@@ -177,3 +177,44 @@ rc.5 → rc.6 不属于「同版本线内 pins 不变」的情况：它跨 rc，
 - 方案 B：先不发布 rc.6，改为让 rc.6 也走 recovery/bootstrap 之外的其他授权路径（需要新增机制，本记录不假设存在）。
 
 在决定之前，rc.6 **未**提交 tag、**未**触发发布。
+
+---
+
+## 9. 本机预检的实测结果（补第 6 节）
+
+逐条执行了预检的 33 条命令。结论按"真实跑过"与"本机无法满足"分开：
+
+| 结果         | 数量 | 说明                                                                  |
+| ------------ | ---- | --------------------------------------------------------------------- |
+| 通过         | 31   | 含 `check:latest-tags`（ACCEPTED_HISTORICAL）、`test-unit`            |
+| 跳过（平台） | 2    | `check:native-binaries`、`check:release-artifacts --require-binaries` |
+| 失败         | 0    |                                                                       |
+
+`test-unit` 的全量结果：**275 个文件 / 3349 个测试通过，0 失败，15 skip**。
+
+首次运行时有 1 个测试失败：
+`packages/web-c/output-wc/__tests__/public-declarations.spec.ts` 报
+`Test timed out in 30000ms`。单独重跑通过（21.4s），全量重跑也通过。
+该测试用 `dts-bundle-generator` + TypeScript 在内存里生成声明文件，不涉及版本号，
+失败原因是并发负载下的超时抖动——属既有缺陷，不是本次改动引入。
+
+`check:release-worktree --capture/--verify` 必须在同一轮内成对执行：
+我在 capture 之后新增了本文件，verify 因此正确地报告了意外变更。提交后再跑即通过。
+
+---
+
+## 10. 配对方案 A 的技术验证
+
+在不改动真实 zeus-ui 工作树的前提下，用 `git archive HEAD` 导出副本、把 170 处
+pin 从 rc.5 改成 rc.6，然后跑：
+
+```
+pnpm exec tsx scripts/check/check-ui-pairing.ts \
+  --ui-root <probe> --core-version 0.2.0-rc.6 --ui-version 0.1.0-beta.35
+```
+
+结果：`UI pairing PASS`。
+
+**这只证明校验能通过，不证明配对有效。** 该副本没有 lockfile 更新，
+而 rc.6 在发布前无法从 registry 解析。方案 A 的代价是：
+产生一个 lockfile 无法安装的 UI commit，并把它记为 rc.6 的配对对象。
