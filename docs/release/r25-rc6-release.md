@@ -520,3 +520,86 @@ CI 永远不会复现。这类缺陷只能靠本机跑真配对验收发现。
 | `test-unit`                                                  | 待填                                                                         |
 | Core main CI                                                 | 待填                                                                         |
 | Release run                                                  | 待填                                                                         |
+
+---
+
+## 14. P0 运行时缺陷：每个应用都打包了两份 signal 引擎
+
+联合候选验收跑通后，浏览器 probe 仍然失败：
+
+```
+Cannot track a reactive value with a different Zeus signal engine.
+```
+
+这不是模板问题，也不是候选机制的问题——**任何 Zeus 应用都会在第一次响应式更新时崩溃**，
+而它的 typecheck 与 production build 都通过。
+
+### 14.1 机制
+
+`@zeus-js/signal` 的根入口只是 `@zeus-js/signal/internal` 的 re-export，所以两个
+说明符指向同一个模块。但它们从**不同的导入方**解析：
+
+- `runtime-dom` 导入包根 `@zeus-js/signal`
+- runtime 导入子路径 `@zeus-js/signal/internal`
+
+`optimizeDeps.exclude` 把运行时包排除在预打包之外，于是每个包都沿着**自己导入方的
+路径**解析——同一个文件得到两个 module id，引擎被内联两次。
+
+实测：用候选 tarball 脚手架出的 `basic-ts` 项目，`dist/assets/*.js` 里
+`Symbol.for('@zeus-js/signal/execution-context')` 出现 **2 次**。
+
+`resolve.dedupe` 修不了它：它按包名匹配，无法把子路径说明符归并到包根。
+
+### 14.2 修复
+
+在 vite-plugin 里把两条说明符都 alias 到解析出的 `internal.js`：
+
+```ts
+alias.push(
+  { find: /^@zeus-js\/signal\/internal$/, replacement: signalInternalEntry },
+  { find: /^@zeus-js\/signal$/, replacement: signalInternalEntry },
+)
+```
+
+**必须用 `$` 锚定的正则键**：Vite 的 alias 若是普通字符串，会按前缀匹配，
+`@zeus-js/signal` 会把 `@zeus-js/signal/internal` 也改写成 `<file>/internal`，
+构建直接以 `UNLOADABLE_DEPENDENCY` 失败。
+
+`optimizeDeps.exclude` **保留**。它保护的是图的结构，alias 修的是模块身份，
+两者都需要——插件配置的 5 个既有测试仍然锁定 `exclude`。
+
+### 14.3 为什么它一直没被发现
+
+三层报告缺陷叠在一起：
+
+| 缺陷                                   | 效果                                                               |
+| -------------------------------------- | ------------------------------------------------------------------ |
+| 候选 probe 失败被记录但不影响 `passed` | 4 个模板「验证通过」却什么都没渲染                                 |
+| `passed = true` 无条件设置             | 模板级 `passed: false` 也不会让整轮失败                            |
+| probe 硬编码 `#app`                    | 6 个模板里有 5 个挂到 `#root`，正确的渲染被读成「mounted nothing」 |
+
+三者都已修复：probe 失败 → 模板失败 → 整轮失败；probe 改为断言 `body` 有内容，
+不再假定容器 id。
+
+### 14.4 检查脚本自己也在制造同一缺陷
+
+probe 通过 `tsx` 运行，而 `tsx` 把 `NODE_PATH` 设为本仓库的 `node_modules`。
+Node 与 Vite 都会遵守它，于是候选项目里 `@zeus-js/signal` 从**仓库**解析、
+`@zeus-js/signal/internal` 从**项目**解析——同一个分裂，由检查脚本造成，
+而不是框架。子进程现在以空的 `NODE_PATH` 启动。
+
+这个差异实测可复现：同一目录、同一条 `vite build`，在 `tsx` 下产出 2 份引擎，
+在普通 Node 下产出 1 份。CI 的 precheck 也走 `tsx`，所以这不是本机特例。
+
+### 14.5 验证
+
+| 项目                          | 结果                                    |
+| ----------------------------- | --------------------------------------- |
+| 单元测试                      | 276 文件 / 3372 通过 / 15 跳过          |
+| `check:runtime-interop`       | ESM / CJS / mixed，dev 与 prod 全过     |
+| `check-packed-interop`        | 通过，含新增的 Public↔Internal 正向断言 |
+| 浏览器清理 / HMR 生命周期     | 3 引擎全过                              |
+| hydration 响应式              | 3 引擎全过                              |
+| Web Components / DOM 精确更新 | 3 引擎全过                              |
+| devtools GC                   | 1 次强制回收后仅保留图数据              |
+| 联合候选验收                  | 6/6 模板，probe 全部 passed             |
