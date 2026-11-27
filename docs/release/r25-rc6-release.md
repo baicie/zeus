@@ -792,3 +792,21 @@ rehearsal 子进程无限递归的守卫。而 dry-run 会给它运行的**一�
 
 修复方式一致：先证明失败条件可复现（`ZEUS_RELEASE_REHEARSAL=1` 下跑），
 再修，再在两个方向上验证。
+
+### 16.6 dry-run 是唯一会走到这些路径的地方
+
+UI 的发布链有一个 dry-run 阶段（`pnpm release "$VERSION" --tag "$TAG" --dry`），
+它在 `release.yml` 的 `dry-run` job 里跑，**真正的 `release` job 不跑 test-unit**。
+所以 dry-run 是唯一能暴露「rehearsal 环境特有缺陷」的地方，而它连着两次各暴露一批：
+
+| 轮次    | 失败                             | 根因                                                           |
+| ------- | -------------------------------- | -------------------------------------------------------------- |
+| 第 1 次 | `release-rehearsal.spec.ts` 3 个 | 测试未隔离 `ZEUS_RELEASE_REHEARSAL` 环境变量                   |
+| 第 2 次 | `unit-jsdom` 6 个                | rehearsal 只 link 根 `node_modules`，未 link 各 workspace 包的 |
+
+两次都不是产品缺陷，而是**验证环境自身的缺陷**：一个测试没隔离环境，一个工作树
+没装全依赖。它们的共同点是——本机与普通 CI 都不会复现，因为它们恰好具备 rehearsal
+所缺的条件（前者无该变量，后者有完整的 workspace 链接）。
+
+这提示一件值得记住的事：**dry-run 不只是「演练发布」，它同时是唯一会跑
+rehearsal 环境的测试**。把它当作可选的预演而跳过，就等于这三类缺陷永远不会被发现。
