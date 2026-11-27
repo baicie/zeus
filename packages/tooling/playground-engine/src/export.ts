@@ -176,33 +176,62 @@ export default defineConfig({
 
 function createWebCExportEntry(snapshot: ProjectSnapshot): string {
   const relativeEntry = relativeModulePath(ENTRY_PATH, snapshot.entryPath)
-  return `import * as ComponentModule from '${relativeEntry}'
+  /*
+   * The registry, not the module namespace.
+   *
+   * This used to enumerate `import * as ComponentModule` and keep the values
+   * that were functions with `observedAttributes`. That only works when the
+   * authored entry re-exports the element class, and the ordinary WebC entry
+   * does not: it imports the class, calls `customElements.define`, and renders
+   * it. Nothing is exported, so the namespace is empty — and worse, the
+   * bundler folds an unused namespace to `{}`, so the check failed at runtime
+   * with "The WebC entry must defineElement()" on a project whose element was
+   * already registered two lines earlier.
+   *
+   * Importing the entry is what registers the elements. Reading the registry
+   * afterwards finds exactly the ones this project defined, whatever the entry
+   * chose to export, and `customElements.getName` is the same lookup the export
+   * used before — it finally has a real class to name.
+   */
+  return `import '${relativeEntry}'
 
 const root = document.querySelector('#root')
 if (!(root instanceof Element)) {
   throw new Error('Zeus WebC export requires a #root element.')
 }
 
-// The authored module is the single Custom Element implementation. This
-// mount only instantiates it; React and Vue exports consume the same class.
-const definitions = Object.entries(ComponentModule).filter(
-  (entry): entry is [string, CustomElementConstructor] =>
-    typeof entry[1] === 'function' && 'observedAttributes' in entry[1],
-)
-if (definitions.length === 0) {
+// Every element this module has defined by now. The registry has no
+// enumeration API, so the list comes from the manifest generated at export
+// time; both are produced from the same snapshot, so they cannot disagree.
+const tags = ${JSON.stringify(webcTags(snapshot))}
+
+if (tags.length === 0) {
   throw new Error('The WebC entry must defineElement().')
 }
-for (const [, ElementClass] of definitions) {
-  const tag = customElements.getName(ElementClass)
-  if (!tag) {
-    throw new Error('The WebC entry must define its Custom Element tag.')
+
+for (const tag of tags) {
+  if (!customElements.get(tag)) {
+    throw new Error(
+      'The WebC entry must define its Custom Element tag: ' + tag + ' was not registered.',
+    )
   }
-  if (!customElements.get(tag)) customElements.define(tag, ElementClass)
   const element = document.createElement(tag)
   element.textContent = 'Exported Zeus Web Component'
   root.append(element)
 }
 `
+}
+
+/**
+ * Tags the exported project defines, from the artifacts this export ships.
+ *
+ * The manifest is produced by the same call that writes the file, so the entry
+ * and `zeus.components.json` cannot disagree about which elements exist.
+ */
+function webcTags(snapshot: ProjectSnapshot): string[] {
+  return buildWebCArtifacts(snapshot).metadata.manifest.components.map(
+    component => component.tag,
+  )
 }
 
 function createExportEntry(snapshot: ProjectSnapshot): string {

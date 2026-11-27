@@ -57,6 +57,66 @@ export const ZeCounter = defineElement('z-counter', {
     )
   })
 
+  /*
+   * The WebC entry must not depend on the authored module exporting its class.
+   *
+   * An ordinary WebC entry imports the element, calls `customElements.define`
+   * and renders it — nothing is exported. The entry template used to enumerate
+   * `import * as ComponentModule`, which is empty in that case, and the bundler
+   * folds the unused namespace to `{}`. A project whose element was registered
+   * two lines earlier then threw "The WebC entry must defineElement()" at
+   * runtime, and only in a browser: every metadata assertion passed.
+   */
+  it('mounts a WebC entry that registers its element without exporting it', async () => {
+    const webc = parseProjectSnapshot({
+      schemaVersion: 2,
+      entryPath: 'src/main.tsx',
+      frameworkTarget: 'webc',
+      compilerVersion: 'wasm:test',
+      dependencies: [],
+      options: {
+        delegateEvents: true,
+        sourceMap: true,
+        sandboxTimeoutMs: 2_000,
+      },
+      files: [
+        {
+          path: 'src/counter.tsx',
+          content: `import { defineElement, Host } from '@zeus-js/zeus'
+export const ZeCounter = defineElement('z-counter', {
+  shadow: false,
+  props: { count: Number },
+}, () => <Host><button>{'x'}</button></Host>)
+`,
+        },
+        {
+          path: 'src/main.tsx',
+          content: `import { render } from '@zeus-js/zeus'
+import { ZeCounter } from './counter'
+
+if (!customElements.get('z-counter')) customElements.define('z-counter', ZeCounter)
+render(() => <z-counter count={0} />, document.querySelector('#root')!)
+`,
+        },
+      ],
+    })
+    const exported = await exportProject(webc, { compress: false })
+    const entry = exported.files.find(
+      file => file.path === 'src/__zeus_playground_entry.ts',
+    )
+    expect(entry).toBeDefined()
+    const source = entry!.content
+
+    // The entry imports the module for its side effect — the registration —
+    // and finds the tag through the manifest, not through the namespace.
+    expect(source).toMatch(
+      /^import '\/src\/main\.tsx'|^import '\.\/main'|from '\.\/main'/,
+    )
+    expect(source).not.toMatch(/import \* as ComponentModule/)
+    expect(source).toContain('"z-counter"')
+    expect(source).toContain('customElements.get')
+  })
+
   it('creates a deterministic installable project tar archive', async () => {
     const exported = await exportProject(snapshot, { compress: false })
     const paths = exported.files.map(file => file.path)
