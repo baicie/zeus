@@ -832,3 +832,43 @@ rehearsal 里构建出的 `dist` 在工作树，而 import 解析到 checkout �
 **验证方式**：本地用 `createRehearsalWorktree` + `linkDependencies` + `pnpm build`
 跑完整流程，得到 `BUILD OK`。这比等 CI 快得多，也是唯一能确认修复对 prod 有效的
 方式——CI 的 dry-run 一次要十几分钟。
+
+---
+
+## 17. rc.9：squash merge 改写了配对提交的身份
+
+### 17.1 发生了什么
+
+Core rc.8 **已成功发布**（32 包、`rc` tag、7 平台二进制、SLSA provenance 全部核对通过）。
+随后 UI 发布被直接拒绝：
+
+```
+Core record at v0.2.0-rc.8 names UI commit 01b0778a9cab1e5c5265e98ea51412750cb69c3f,
+but this release is 62f75be750d05bcccdde5fdf8ec94bc8590da4de
+```
+
+配对记录写的是 `01b0778a` —— zeus-ui 发布分支的顶端。而该分支经 **squash merge**
+合入 main 后产生了新提交 `62f75be7`：**树完全相同，哈希不同**。
+
+`squash` 会重写提交身份，而配对契约恰恰把 commit 当作不可变的锚点。这不是契约
+过严——它防的正是「记录的提交与实际发布的提交不是同一个」这件事。
+
+### 17.2 为什么改版本号而不是改记录
+
+rc.8 的 Core 包**已经发布**，其 tag 指向的树里写着 `01b0778a`。让 UI 发布通过的唯一
+方式，是让 tag 指向一个写着 `62f75be7` 的树——也就是换一个 tag。
+
+与前几轮一致：**已发布版本的 tag 不动**。rc.9 是 rc.8 的代码加一条指向真实 UI 提交的
+配对记录，没有其他改动。
+
+### 17.3 一个操作层面的教训
+
+**配对提交必须直接落在它将要发布的分支上，不能先推功能分支再 squash 合入。**
+squash merge 的产物是一个新 SHA，配对记录无法预先知道它。
+
+正确做法有两种：
+
+- 让配对提交本身走 squash 合并，然后**用合并后的 SHA 更新配对记录并重新打 tag**；
+- 或者确保发布分支与 main 的提交身份一致（例如 fast-forward 合并）。
+
+本轮选择了前者（rc.9），因为 rc.8 的 tag 已经发布、不能移动。
