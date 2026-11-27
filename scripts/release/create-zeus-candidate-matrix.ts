@@ -180,6 +180,21 @@ export function templatePinMismatches(
  * direct edge and every transitive edge, so the template keeps its realistic
  * version pins while the install resolves every copy to the same tarball.
  * (npm refuses this shape with EOVERRIDE; the gate uses pnpm deliberately.)
+ *
+ * ## Peers are a separate edge
+ *
+ * An override rewrites an edge that already exists. A *peer* is not resolved
+ * by the package that declares it — pnpm looks for a satisfying version in the
+ * dependent's own graph — so an override on the peer's name does not point it
+ * at a candidate tarball.
+ *
+ * That matters for the one template this gate exists for: `@zeus-web/button`
+ * declares `@zeus-js/zeus` as a peer, and without an explicit edge npm resolves
+ * `@zeus-js/zeus@<rc>` from the registry, where by construction it is not
+ * published. Adding the candidate as a direct dependency gives the peer a
+ * version it can satisfy, from the tarball, without weakening anything: the
+ * template's own declared pins are untouched.
+ *
  * Returns a new manifest; the input is not mutated.
  */
 export function applyCandidateManifest(
@@ -206,6 +221,24 @@ export function applyCandidateManifest(
     ...Object.fromEntries(candidates),
   }
   next.pnpm = { ...existingPnpm, overrides }
+
+  /*
+   * Give every peer a concrete edge to the candidate tarball.
+   *
+   * Only names that are already candidates are added, so this cannot pull in a
+   * package the release is not building; and only peers that the manifest does
+   * not already declare, so a template's own choice is never overwritten.
+   */
+  const peers = Object.keys(next.peerDependencies ?? {}).filter(
+    name => candidates.has(name) && !(next.dependencies ?? {})[name],
+  )
+  if (peers.length > 0) {
+    next.dependencies = {
+      ...(next.dependencies ?? {}),
+      ...Object.fromEntries(peers.map(name => [name, candidates.get(name)!])),
+    }
+  }
+
   return { manifest: next, direct, overrides }
 }
 

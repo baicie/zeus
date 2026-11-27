@@ -65,6 +65,8 @@ fs.mkdirSync(output, { recursive: true })
 let passed = false
 let failure: string | undefined
 let candidateUiVersion: string | undefined
+/** The version the fixed group carries, read once and reported. */
+let candidateCoreVersion: string | undefined
 const candidateCounts = { core: 0, ui: 0 }
 const templateResults: Array<{
   template: string
@@ -119,6 +121,7 @@ try {
   }
 
   const corePackages = discoverWorkspacePackages(root)
+  candidateCoreVersion = corePackages.get('@zeus-js/zeus')?.version
   const coreCandidateNames = [...zeusFixedPackages, '@zeus-js/vite-plugin']
   candidateCounts.core = coreCandidateNames.length
   const missingCore = coreCandidateNames.filter(name => !corePackages.has(name))
@@ -190,6 +193,8 @@ try {
   }
 
   let uiCandidates: Map<string, string> | undefined
+  /** Peer names any candidate package declares, with the range it asked for. */
+  const candidatePeers = new Map<string, string>()
   if (uiRoot) {
     const uiPackages = discoverWorkspacePackages(uiRoot)
     const uiRoots = [
@@ -220,6 +225,21 @@ try {
           workspacePackage.name,
           toFileSpec(pack(workspacePackage.directory, archives)),
         )
+        /*
+         * Peers are collected while the directory is in hand, because the
+         * packed tarball keeps them and the template never sees them.
+         */
+        const workspaceManifest = JSON.parse(
+          fs.readFileSync(
+            path.join(workspacePackage.directory, 'package.json'),
+            'utf8',
+          ),
+        ) as PackageManifest
+        for (const [name, range] of Object.entries(
+          workspaceManifest.peerDependencies ?? {},
+        )) {
+          candidatePeers.set(name, range)
+        }
       }
       candidateCounts.ui = uiCandidates.size
       candidateUiVersion = uiVersion
@@ -270,16 +290,62 @@ try {
       )
     }
     const applied = applyCandidateManifest(manifest, candidates)
+
+    /*
+     * A peer declared by a candidate package is not reachable through the
+     * template's own `pnpm.overrides`: the template never declares it, and an
+     * override only rewrites edges that exist in the graph.
+     *
+     * `@zeus-web/button` peers on `@zeus-js/zeus`, which at this point in the
+     * release is deliberately unpublished. Without a concrete edge the install
+     * reaches for it on the registry and fails with ERR_PNPM_NO_MATCHING_VERSION
+     * — the template then looks broken for a dependency it does not name.
+     * Declaring the candidate as a direct dependency gives the peer something
+     * to resolve to, and the tarball spec makes it the candidate, not the
+     * registry.
+     */
+    const peerEdges = [...candidatePeers.entries()].filter(
+      ([name]) =>
+        candidates.has(name) &&
+        !applied.manifest.dependencies?.[name] &&
+        !applied.manifest.devDependencies?.[name],
+    )
+    if (peerEdges.length > 0) {
+      applied.manifest.dependencies = {
+        ...(applied.manifest.dependencies ?? {}),
+        ...Object.fromEntries(
+          peerEdges.map(([name]) => [name, candidates.get(name)!]),
+        ),
+      }
+    }
+
     fs.writeFileSync(
       manifestPath,
       `${JSON.stringify(applied.manifest, null, 2)}\n`,
     )
 
     try {
+      /*
+       * `--ignore-workspace` is not optional here.
+       *
+       * Each candidate project is its own install root: its manifest carries a
+       * `pnpm.overrides` map pointing every Core and UI package at a local
+       * tarball, and `--require-pin-match` has just asserted the pins that map
+       * replaces. Without this flag pnpm walks up from the temporary project
+       * looking for a workspace, and when `TMPDIR` happens to sit inside a
+       * checkout that has one, it resolves against that workspace's lockfile
+       * instead — the overrides are ignored and the install reaches for a
+       * registry version that by design is not published yet.
+       *
+       * It surfaced on a workstation whose `TMPDIR` is under the repository; CI
+       * installs to `/tmp`, outside any workspace, so the flag changed nothing
+       * there and the defect stayed hidden.
+       */
       run(
         'pnpm',
         [
           'install',
+          '--ignore-workspace',
           '--ignore-scripts',
           '--no-frozen-lockfile',
           '--config.confirmModulesPurge=false',
@@ -393,6 +459,15 @@ try {
         schema: 'zeus.create-zeus-candidate/v2',
         sourceCommit,
         registry,
+        /*
+         * Both versions, always.
+         *
+         * The report is the evidence that a specific Core and a specific UI
+         * build together, and a reader should not have to infer either from the
+         * tarball names. `coreVersion` was missing entirely, so a report that
+         * had verified a pair named only half of it.
+         */
+        coreVersion: candidateCoreVersion,
         ...(uiRoot ? { uiRoot, uiVersion: candidateUiVersion } : {}),
         candidatePackages: candidateCounts,
         templates: templateResults,
