@@ -810,3 +810,25 @@ UI 的发布链有一个 dry-run 阶段（`pnpm release "$VERSION" --tag "$TAG" 
 
 这提示一件值得记住的事：**dry-run 不只是「演练发布」，它同时是唯一会跑
 rehearsal 环境的测试**。把它当作可选的预演而跳过，就等于这三类缺陷永远不会被发现。
+
+### 16.7 rehearsal 的工作树必须重写 workspace 依赖的解析目标
+
+第三次修复才真正解决 dry-run 的构建失败，前两次都只走到了下一层错误：
+
+| 尝试                                         | 症状                                   | 真实原因                                       |
+| -------------------------------------------- | -------------------------------------- | ---------------------------------------------- |
+| 只 link 根 `node_modules`                    | `Cannot resolve "@vue/test-utils"`     | 每个 workspace 包有自己的 `node_modules`       |
+| link 每个包的 `node_modules`（整体 symlink） | `Cannot find module '@zeus-web/input'` | 链接指向 checkout，Node 按**目标真实路径**解析 |
+| 逐条重写 workspace 边的目标                  | 通过                                   | —                                              |
+
+第二版的关键细节：pnpm 把 workspace 依赖写成**相对 symlink**
+（`@zeus-web/input -> ../../../primitives/input`），而 Node 解析相对 symlink 时用的是
+**链接目标的真实路径**。所以把 `node_modules` 整体 symlink 到 checkout 之后，
+rehearsal 里构建出的 `dist` 在工作树，而 import 解析到 checkout —— 那里没有 `dist`。
+
+正确做法是逐条重建：workspace 依赖指向工作树自己的一份，其余（store 链接、`.bin`）
+透传到 checkout。
+
+**验证方式**：本地用 `createRehearsalWorktree` + `linkDependencies` + `pnpm build`
+跑完整流程，得到 `BUILD OK`。这比等 CI 快得多，也是唯一能确认修复对 prod 有效的
+方式——CI 的 dry-run 一次要十几分钟。
