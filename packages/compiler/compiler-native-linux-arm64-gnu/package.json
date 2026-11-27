@@ -1,6 +1,6 @@
 {
   "name": "@zeus-js/compiler-native-linux-arm64-gnu",
-  "version": "0.2.0-rc.5",
+  "version": "0.2.0-rc.6",
   "description": "Zeus Rust compiler native binary for Linux arm64 glibc",
   "license": "MIT",
   "repository": {

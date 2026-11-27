@@ -24,43 +24,43 @@
 
 | 包名                                        | 路径                                                 | 版本          | 类型     | 说明                                          |
 | ------------------------------------------- | ---------------------------------------------------- | ------------- | -------- | --------------------------------------------- |
-| `@zeus-js/compiler`                         | `packages/compiler/compiler`                         | 0.2.0-rc.5    | compiler | Rust-native JSX/TSX 编译器                    |
-| `@zeus-js/compiler-native`                  | `packages/compiler/compiler-native`                  | 0.2.0-rc.5    | compiler | Node native loader                            |
-| `@zeus-js/compiler-native-darwin-arm64`     | `packages/compiler/compiler-native-darwin-arm64`     | 0.2.0-rc.5    | compiler | macOS arm64 原生二进制（安装可选依赖）        |
-| `@zeus-js/compiler-native-darwin-x64`       | `packages/compiler/compiler-native-darwin-x64`       | 0.2.0-rc.5    | compiler | macOS x64 原生二进制（安装可选依赖）          |
-| `@zeus-js/compiler-native-linux-arm64-gnu`  | `packages/compiler/compiler-native-linux-arm64-gnu`  | 0.2.0-rc.5    | compiler | Linux arm64 glibc 原生二进制（安装可选依赖）  |
-| `@zeus-js/compiler-native-linux-x64-gnu`    | `packages/compiler/compiler-native-linux-x64-gnu`    | 0.2.0-rc.5    | compiler | Linux x64 glibc 原生二进制（安装可选依赖）    |
-| `@zeus-js/compiler-native-linux-x64-musl`   | `packages/compiler/compiler-native-linux-x64-musl`   | 0.2.0-rc.5    | compiler | Linux x64 musl 原生二进制（安装可选依赖）     |
-| `@zeus-js/compiler-native-win32-arm64-msvc` | `packages/compiler/compiler-native-win32-arm64-msvc` | 0.2.0-rc.5    | compiler | Windows arm64 MSVC 原生二进制（安装可选依赖） |
-| `@zeus-js/compiler-native-win32-x64-msvc`   | `packages/compiler/compiler-native-win32-x64-msvc`   | 0.2.0-rc.5    | compiler | Windows x64 MSVC 原生二进制（安装可选依赖）   |
-| `@zeus-js/compiler-shared`                  | `packages/compiler/compiler-shared`                  | 0.2.0-rc.5    | compiler | 编译器 IR 与共享协议                          |
-| `@zeus-js/runtime-dom`                      | `packages/core/runtime-dom`                          | 0.2.0-rc.5    | core     | DOM runtime helpers                           |
-| `@zeus-js/runtime-ssr`                      | `packages/core/runtime-ssr`                          | 0.2.0-rc.5    | core     | 服务端字符串渲染 runtime                      |
-| `@zeus-js/shared`                           | `packages/core/shared`                               | 0.2.0-rc.5    | core     | 内部工具函数，无外部依赖                      |
-| `@zeus-js/signal`                           | `packages/core/signal`                               | 0.2.0-rc.5    | core     | 响应式核心，Zeus 自有 signal/effect 引擎      |
-| `@zeus-js/zeus`                             | `packages/core/zeus`                                 | 0.2.0-rc.5    | core     | 统一入口，导出所有公共 API                    |
+| `@zeus-js/compiler`                         | `packages/compiler/compiler`                         | 0.2.0-rc.6    | compiler | Rust-native JSX/TSX 编译器                    |
+| `@zeus-js/compiler-native`                  | `packages/compiler/compiler-native`                  | 0.2.0-rc.6    | compiler | Node native loader                            |
+| `@zeus-js/compiler-native-darwin-arm64`     | `packages/compiler/compiler-native-darwin-arm64`     | 0.2.0-rc.6    | compiler | macOS arm64 原生二进制（安装可选依赖）        |
+| `@zeus-js/compiler-native-darwin-x64`       | `packages/compiler/compiler-native-darwin-x64`       | 0.2.0-rc.6    | compiler | macOS x64 原生二进制（安装可选依赖）          |
+| `@zeus-js/compiler-native-linux-arm64-gnu`  | `packages/compiler/compiler-native-linux-arm64-gnu`  | 0.2.0-rc.6    | compiler | Linux arm64 glibc 原生二进制（安装可选依赖）  |
+| `@zeus-js/compiler-native-linux-x64-gnu`    | `packages/compiler/compiler-native-linux-x64-gnu`    | 0.2.0-rc.6    | compiler | Linux x64 glibc 原生二进制（安装可选依赖）    |
+| `@zeus-js/compiler-native-linux-x64-musl`   | `packages/compiler/compiler-native-linux-x64-musl`   | 0.2.0-rc.6    | compiler | Linux x64 musl 原生二进制（安装可选依赖）     |
+| `@zeus-js/compiler-native-win32-arm64-msvc` | `packages/compiler/compiler-native-win32-arm64-msvc` | 0.2.0-rc.6    | compiler | Windows arm64 MSVC 原生二进制（安装可选依赖） |
+| `@zeus-js/compiler-native-win32-x64-msvc`   | `packages/compiler/compiler-native-win32-x64-msvc`   | 0.2.0-rc.6    | compiler | Windows x64 MSVC 原生二进制（安装可选依赖）   |
+| `@zeus-js/compiler-shared`                  | `packages/compiler/compiler-shared`                  | 0.2.0-rc.6    | compiler | 编译器 IR 与共享协议                          |
+| `@zeus-js/runtime-dom`                      | `packages/core/runtime-dom`                          | 0.2.0-rc.6    | core     | DOM runtime helpers                           |
+| `@zeus-js/runtime-ssr`                      | `packages/core/runtime-ssr`                          | 0.2.0-rc.6    | core     | 服务端字符串渲染 runtime                      |
+| `@zeus-js/shared`                           | `packages/core/shared`                               | 0.2.0-rc.6    | core     | 内部工具函数，无外部依赖                      |
+| `@zeus-js/signal`                           | `packages/core/signal`                               | 0.2.0-rc.6    | core     | 响应式核心，Zeus 自有 signal/effect 引擎      |
+| `@zeus-js/zeus`                             | `packages/core/zeus`                                 | 0.2.0-rc.6    | core     | 统一入口，导出所有公共 API                    |
 | `@zeus-ui/registry`                         | `packages/create/registry`                           | 0.0.1         | create   | UI 组件注册表（copyable 源码）                |
 | `create-zeus`                               | `packages/create/create-zeus`                        | 0.1.5         | create   | 项目脚手架生成器（CLI）                       |
 | `zeus-ui`                                   | `packages/create/zeus-ui`                            | 0.0.1         | create   | CLI 工具添加 UI 组件到项目                    |
-| `@zeus-js/i18n`                             | `packages/features/i18n`                             | 0.2.0-rc.5    | features | 类型安全、响应式、ICU 国际化运行时（opt-in）  |
-| `@zeus-js/query`                            | `packages/features/query`                            | 0.2.0-rc.5    | features | @tanstack/query-core 细粒度适配器             |
-| `@zeus-js/resource`                         | `packages/features/resource`                         | 0.2.0-rc.5    | features | 异步资源、取消与 stale cache 原语             |
-| `@zeus-js/router`                           | `packages/features/router`                           | 0.2.0-rc.5    | features | 基于 data-router core 的细粒度路由适配器      |
-| `@zeus-js/eslint-plugin`                    | `packages/tooling/eslint-plugin`                     | 0.2.0-rc.5    | tooling  | Zeus 源码与编译器内置节点 ESLint 规则         |
-| `@zeus-js/playground-engine`                | `packages/tooling/playground-engine`                 | 0.2.0-rc.5    | tooling  |                                               |
-| `@zeus-js/testing`                          | `packages/tooling/testing`                           | 0.2.0-rc.5    | tooling  | 官方测试工具：渲染、事件、查询与 effect 刷新  |
+| `@zeus-js/i18n`                             | `packages/features/i18n`                             | 0.2.0-rc.6    | features | 类型安全、响应式、ICU 国际化运行时（opt-in）  |
+| `@zeus-js/query`                            | `packages/features/query`                            | 0.2.0-rc.6    | features | @tanstack/query-core 细粒度适配器             |
+| `@zeus-js/resource`                         | `packages/features/resource`                         | 0.2.0-rc.6    | features | 异步资源、取消与 stale cache 原语             |
+| `@zeus-js/router`                           | `packages/features/router`                           | 0.2.0-rc.6    | features | 基于 data-router core 的细粒度路由适配器      |
+| `@zeus-js/eslint-plugin`                    | `packages/tooling/eslint-plugin`                     | 0.2.0-rc.6    | tooling  | Zeus 源码与编译器内置节点 ESLint 规则         |
+| `@zeus-js/playground-engine`                | `packages/tooling/playground-engine`                 | 0.2.0-rc.6    | tooling  |                                               |
+| `@zeus-js/testing`                          | `packages/tooling/testing`                           | 0.2.0-rc.6    | tooling  | 官方测试工具：渲染、事件、查询与 effect 刷新  |
 | `@zeus-js/devtools-consumer`                | `packages/tooling/consumer`                          | 0.1.1-beta.15 | tooling  | DevTools 事件消费与面板模型（仅开发期）       |
 | `@zeus-js/vite-plugin`                      | `packages/tooling/vite-plugin`                       | 0.0.6         | tooling  | Vite 集成插件                                 |
-| `@zeus-js/bundler-plugin`                   | `packages/web-c/bundler-plugin`                      | 0.2.0-rc.5    | web-c    | bundler 插件宿主（Vite / Rollup / Rolldown）  |
-| `@zeus-js/component-analyzer`               | `packages/web-c/component-analyzer`                  | 0.2.0-rc.5    | web-c    | 组件分析器（解析 JSX）                        |
-| `@zeus-js/component-dts`                    | `packages/web-c/component-dts`                       | 0.2.0-rc.5    | web-c    | manifest DTS 生成器                           |
-| `@zeus-js/output-css`                       | `packages/web-c/output-css`                          | 0.2.0-rc.5    | web-c    | CSS 资源输出插件                              |
-| `@zeus-js/output-icons`                     | `packages/web-c/output-icons`                        | 0.2.0-rc.5    | web-c    | 图标输出插件                                  |
-| `@zeus-js/output-react-wrapper`             | `packages/web-c/output-react-wrapper`                | 0.2.0-rc.5    | web-c    | React wrapper 输出插件                        |
-| `@zeus-js/output-vue-wrapper`               | `packages/web-c/output-vue-wrapper`                  | 0.2.0-rc.5    | web-c    | Vue wrapper 输出插件                          |
-| `@zeus-js/output-wc`                        | `packages/web-c/output-wc`                           | 0.2.0-rc.5    | web-c    | Web Component 输出插件                        |
-| `@zeus-js/web-c`                            | `packages/web-c/web-c`                               | 0.2.0-rc.5    | web-c    | Web-C 聚合入口与组件库预设                    |
-| `@zeus-js/web-c-runtime`                    | `packages/web-c/web-c-runtime`                       | 0.2.0-rc.5    | web-c    | Web Component 懒加载 runtime                  |
+| `@zeus-js/bundler-plugin`                   | `packages/web-c/bundler-plugin`                      | 0.2.0-rc.6    | web-c    | bundler 插件宿主（Vite / Rollup / Rolldown）  |
+| `@zeus-js/component-analyzer`               | `packages/web-c/component-analyzer`                  | 0.2.0-rc.6    | web-c    | 组件分析器（解析 JSX）                        |
+| `@zeus-js/component-dts`                    | `packages/web-c/component-dts`                       | 0.2.0-rc.6    | web-c    | manifest DTS 生成器                           |
+| `@zeus-js/output-css`                       | `packages/web-c/output-css`                          | 0.2.0-rc.6    | web-c    | CSS 资源输出插件                              |
+| `@zeus-js/output-icons`                     | `packages/web-c/output-icons`                        | 0.2.0-rc.6    | web-c    | 图标输出插件                                  |
+| `@zeus-js/output-react-wrapper`             | `packages/web-c/output-react-wrapper`                | 0.2.0-rc.6    | web-c    | React wrapper 输出插件                        |
+| `@zeus-js/output-vue-wrapper`               | `packages/web-c/output-vue-wrapper`                  | 0.2.0-rc.6    | web-c    | Vue wrapper 输出插件                          |
+| `@zeus-js/output-wc`                        | `packages/web-c/output-wc`                           | 0.2.0-rc.6    | web-c    | Web Component 输出插件                        |
+| `@zeus-js/web-c`                            | `packages/web-c/web-c`                               | 0.2.0-rc.6    | web-c    | Web-C 聚合入口与组件库预设                    |
+| `@zeus-js/web-c-runtime`                    | `packages/web-c/web-c-runtime`                       | 0.2.0-rc.6    | web-c    | Web Component 懒加载 runtime                  |
 | `@zeus-js/compiler-wasm`                    | `packages/compiler/compiler-wasm`                    | 0.1.1-beta.20 | compiler | 浏览器与 Worker 中的 Rust 编译器 (WASM)       |
 
 **不推荐直接引入的内部包**（无 `main`/`exports`，仅供 workspace 内部使用）：

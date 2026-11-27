@@ -59,7 +59,14 @@ function tempRoot(): string {
   return directory
 }
 
-/** The 15 real packages and the versions the registry actually returns. */
+/**
+ * The 16 real packages and the versions the registry actually returns.
+ *
+ * `i18n` joined on 2026-11-27: it was a first publication in rc.5, so npm bound
+ * its `latest` to that prerelease. Unlike the two rc.3 tooling packages it has
+ * no stable version to move the tag onto, so the deviation is permanent until a
+ * stable release advances it — which is why it is recorded rather than repaired.
+ */
 const NATIVE_LATEST = '0.1.1-canary.20260812.106.1.658fe407'
 /**
  * rc.3 published these two, so npm bound their `latest` to that prerelease.
@@ -67,6 +74,8 @@ const NATIVE_LATEST = '0.1.1-canary.20260812.106.1.658fe407'
  * `docs/release-process.md` §5.4 stopped cleaning historical `latest` tags.
  */
 const RC3_LATEST = '0.2.0-rc.3'
+/** rc.5 published `i18n` for the first time; npm bound `latest` to it. */
+const RC5_I18N_LATEST = '0.2.0-rc.5'
 const ROUTER_LATEST = '0.1.1-canary.20261020.188.1.02f2975b'
 const SSR_LATEST = '0.1.0-canary.20260805.97.1.fa5d9cef'
 
@@ -86,6 +95,7 @@ const REAL_ENTRIES: readonly HistoricalEntry[] = [
   { name: '@zeus-js/testing', latest: ROUTER_LATEST },
   { name: '@zeus-js/eslint-plugin', latest: RC3_LATEST },
   { name: '@zeus-js/playground-engine', latest: RC3_LATEST },
+  { name: '@zeus-js/i18n', latest: RC5_I18N_LATEST },
 ]
 
 const RC = '0.2.0-rc.2'
@@ -101,7 +111,7 @@ function recordsWith(
   }))
 }
 
-/** The registry as it actually is: the 15 historical deviations, rest stable. */
+/** The registry as it actually is: the 16 historical deviations, rest stable. */
 function realRegistryRecords(): LatestTagRecord[] {
   const overrides: Record<string, LatestTagState> = {}
   for (const entry of REAL_ENTRIES) {
@@ -111,14 +121,13 @@ function realRegistryRecords(): LatestTagRecord[] {
     }
   }
   /*
-   * Only `@zeus-js/i18n` is still unpublished. rc.3 got `eslint-plugin` and
-   * `playground-engine` out before it stopped, so those two now carry a
-   * prerelease `latest` — which is the deviation REAL_ENTRIES records, and why
-   * they must not be overridden back to LATEST_ABSENT here.
+   * Every fixed package has now been published at least once. rc.3 got
+   * `eslint-plugin` and `playground-engine` out before it stopped, rc.5
+   * published `i18n` for the first time, and each of those first publications
+   * bound `latest` to its prerelease. Those three are exactly the deviations
+   * REAL_ENTRIES records, so none of them may be overridden back to
+   * LATEST_ABSENT here.
    */
-  for (const name of ['@zeus-js/i18n']) {
-    overrides[name] = { status: 'LATEST_ABSENT' }
-  }
   return recordsWith(overrides)
 }
 
@@ -156,12 +165,12 @@ function baselineOf(
   return loaded.baseline!
 }
 
-describe('the committed baseline describes exactly the fifteen packages', () => {
+describe('the committed baseline describes exactly the sixteen packages', () => {
   it('is the real repository file, and validates', () => {
     const root = path.resolve(import.meta.dirname, '../../..')
     const loaded = loadHistoricalBaseline(root)
     expect(loaded.problems).toEqual([])
-    expect(loaded.baseline!.packages).toHaveLength(15)
+    expect(loaded.baseline!.packages).toHaveLength(16)
     expect(loaded.baseline!.approvedBy).toBe('maintainer:baicie')
     expect(loaded.baseline!.decisionReference?.document).toBe(
       'docs/release-process.md',
@@ -277,14 +286,14 @@ describe('baseline validation refuses a file that would widen itself', () => {
 })
 
 describe('judging the baseline against the registry', () => {
-  it('accepts exactly the fifteen recorded deviations', () => {
+  it('accepts exactly the sixteen recorded deviations', () => {
     const baseline = baselineOf(REAL_ENTRIES)
     const judged = judgeHistorical({
       baseline,
       records: realRegistryRecords(),
       releaseVersion: RC,
     })
-    expect(judged.accepted).toHaveLength(15)
+    expect(judged.accepted).toHaveLength(16)
     expect(judged.drifted).toEqual([])
     expect(judged.unresolved).toEqual([])
   })
@@ -421,6 +430,130 @@ describe('judging the baseline against the registry', () => {
   })
 })
 
+/*
+ * The i18n exemption, measured on its own terms.
+ *
+ * It is the only baseline entry that exists because a *first publication*
+ * bound `latest`, and the only one whose package has no stable version to
+ * move the tag onto — so it will still be here at rc.6, rc.7 and however
+ * many rc releases follow. That makes it the entry most likely to be
+ * misread as "i18n is exempt", which is not what the file says.
+ *
+ * These four cases pin the boundary: the recorded version is excused, the
+ * version this release is about to publish is not, a version a previous
+ * release legitimately bound is not, and the exemption carries nothing
+ * forward to another package.
+ */
+describe('the i18n exemption covers rc.5 and only rc.5', () => {
+  const baseline = () => baselineOf(REAL_ENTRIES)
+
+  it('accepts the exact deviation while rc.6 is the release being cut', () => {
+    const records = realRegistryRecords()
+    const judged = judgeHistorical({
+      baseline: baseline(),
+      records,
+      releaseVersion: '0.2.0-rc.6',
+    })
+    expect(judged.accepted.map(m => m.name)).toContain('@zeus-js/i18n')
+
+    const policy = evaluateLatestPolicy({
+      records,
+      version: '0.2.0-rc.6',
+      approvedFirstPublish: [],
+      acceptedHistorical: judged.accepted.map(m => m.name),
+      phase: 'precheck',
+    })
+    expect(policy.verdict).toBe('ACCEPTED_HISTORICAL')
+    expect(policy.acceptedHistorical).toContain('@zeus-js/i18n')
+    expect(policy.refused).toEqual([])
+    expect(policy.unknown).toEqual([])
+    expect(verdictBlocksRelease(policy.verdict)).toBe(false)
+  })
+
+  it('does not excuse i18n being already published at rc.6', () => {
+    /*
+     * The whole reason a precheck exists. If i18n's `latest` already points at
+     * the version this run is about to publish, something published outside
+     * this workflow — and the baseline, which records rc.5, says nothing about
+     * it.
+     */
+    const records = realRegistryRecords().map(record =>
+      record.name === '@zeus-js/i18n'
+        ? {
+            name: record.name,
+            state: {
+              status: 'LATEST_PRERELEASE' as const,
+              version: '0.2.0-rc.6',
+            },
+          }
+        : record,
+    )
+    const judged = judgeHistorical({
+      baseline: baseline(),
+      records,
+      releaseVersion: '0.2.0-rc.6',
+    })
+    expect(judged.accepted.map(m => m.name)).not.toContain('@zeus-js/i18n')
+
+    const policy = evaluateLatestPolicy({
+      records,
+      version: '0.2.0-rc.6',
+      approvedFirstPublish: [],
+      acceptedHistorical: judged.accepted.map(m => m.name),
+      phase: 'precheck',
+    })
+    expect(policy.verdict).toBe('REFUSED')
+    expect(policy.refused).toEqual(['@zeus-js/i18n'])
+    expect(verdictBlocksRelease(policy.verdict)).toBe(true)
+  })
+
+  it('does not excuse i18n carrying a different prerelease', () => {
+    const records = realRegistryRecords().map(record =>
+      record.name === '@zeus-js/i18n'
+        ? {
+            name: record.name,
+            state: {
+              status: 'LATEST_PRERELEASE' as const,
+              version: '0.2.0-rc.7',
+            },
+          }
+        : record,
+    )
+    const judged = judgeHistorical({
+      baseline: baseline(),
+      records,
+      releaseVersion: '0.2.0-rc.6',
+    })
+    expect(judged.drifted).toEqual([
+      {
+        name: '@zeus-js/i18n',
+        expected: RC5_I18N_LATEST,
+        observed: '0.2.0-rc.7',
+      },
+    ])
+    expect(judged.accepted.map(m => m.name)).not.toContain('@zeus-js/i18n')
+  })
+
+  it('leaves the exemption spent once i18n reaches a stable latest', () => {
+    const records = realRegistryRecords().map(record =>
+      record.name === '@zeus-js/i18n'
+        ? {
+            name: record.name,
+            state: { status: 'LATEST_STABLE' as const, version: '0.2.0' },
+          }
+        : record,
+    )
+    const judged = judgeHistorical({
+      baseline: baseline(),
+      records,
+      releaseVersion: '0.2.0-rc.6',
+    })
+    expect(judged.accepted.map(m => m.name)).not.toContain('@zeus-js/i18n')
+    expect(judged.drifted).toEqual([])
+    expect(judged.unresolved).toEqual([])
+  })
+})
+
 describe('the digest binds a verdict to the exemptions that produced it', () => {
   it('changes when an entry is added', () => {
     const before = digestEntries(REAL_ENTRIES)
@@ -473,7 +606,7 @@ describe('precheck phase', () => {
     expect(policy.verdict).toBe('PASS')
   })
 
-  it('accepts exactly the fifteen historical deviations', () => {
+  it('accepts exactly the sixteen historical deviations', () => {
     const baseline = baselineOf(REAL_ENTRIES)
     const records = realRegistryRecords()
     const judged = judgeHistorical({ baseline, records, releaseVersion: RC })
@@ -485,7 +618,7 @@ describe('precheck phase', () => {
       phase: 'precheck',
     })
     expect(policy.verdict).toBe('ACCEPTED_HISTORICAL')
-    expect(policy.acceptedHistorical).toHaveLength(15)
+    expect(policy.acceptedHistorical).toHaveLength(16)
     expect(verdictBlocksRelease(policy.verdict)).toBe(false)
   })
 
@@ -576,11 +709,12 @@ describe('post-publish phase', () => {
     })
     expect(policy.verdict).toBe('ACCEPTED_HISTORICAL_AND_FIRST_PUBLISH')
     /*
-     * 13 of the 15 historical entries still match the registry. The other two
-     * are `eslint-plugin` and `playground-engine`: this case moves them onto
-     * RC, which is exactly the version being released, and `judgeHistorical`
-     * refuses to let a baseline excuse a deviation the release created. They
-     * are counted as first-publish deviations instead, below.
+     * 13 of the 16 historical entries still match the registry. The other
+     * three are `i18n`, `eslint-plugin` and `playground-engine`: this case
+     * moves them onto RC, which is exactly the version being released, and
+     * `judgeHistorical` refuses to let a baseline excuse a deviation the
+     * release created. They are counted as first-publish deviations instead,
+     * below.
      */
     expect(policy.acceptedHistorical).toHaveLength(13)
     expect(policy.acceptedDeviation).toHaveLength(3)
