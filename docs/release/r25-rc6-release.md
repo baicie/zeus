@@ -764,3 +764,31 @@ zeus-ui 的 `pnpm version:packages` 改写所有 `package.json`，但
 的一个覆盖缺口，本轮以手工修正处理，未改工具（改动面越大，风险越高）。
 
 记录在此，供后续把 `registry.json` 纳入 `version:packages` 时参考。
+
+### 16.5 又一类「只在特定环境才失败」的测试
+
+UI 的 dry-run release 在 `pnpm test-unit` 失败，而同一份测试在普通 CI 与本机都是
+11/11 通过：
+
+```
+FAIL scripts/commands/__tests__/release-rehearsal.spec.ts > isRehearsal
+AssertionError: expected false to be true
+```
+
+根因：`isRehearsal` 在 `ZEUS_RELEASE_REHEARSAL === '1'` 时返回 `false`——这是防止
+rehearsal 子进程无限递归的守卫。而 dry-run 会给它运行的**一切**设置这个变量，
+**包括它自己的单元测试**。于是「`--dry` 是 rehearsal」的断言读到了守卫本身。
+
+这与 14.7/14.8 是同一类问题的第三个变体：
+
+| 变体 | 依赖了什么                         | 只在何时暴露        |
+| ---- | ---------------------------------- | ------------------- |
+| 14.7 | 仓库里真实安装的 `@zeus-js/signal` | CI 无该安装         |
+| 14.8 | `tsx` 的模块解析行为               | 加载器不同          |
+| 16.5 | 进程环境变量                       | 只有 dry-run 设置它 |
+
+三者共同的教训：**测试的输入必须来自测试自身**。来自环境、来自解析器、来自
+安装树，都会让「本机绿」失去信息量。
+
+修复方式一致：先证明失败条件可复现（`ZEUS_RELEASE_REHEARSAL=1` 下跑），
+再修，再在两个方向上验证。
