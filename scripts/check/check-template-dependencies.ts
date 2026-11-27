@@ -31,37 +31,78 @@ export function findUnpublishedTemplateDependencies(
   })
 }
 
+/**
+ * The Zeus requirements of one template manifest.
+ *
+ * `@zeus-web/*` is included deliberately. `create-zeus`'s `webc-consumer-ts`
+ * template consumes `@zeus-web/button`, whose pin follows the *paired UI*
+ * version — a separate release train from Core. Filtering to `@zeus-js/` made
+ * the one dependency most likely to be absent from the registry the one this
+ * check never looked at, so the template failed at `npm install` with ETARGET,
+ * far from the decision that caused it.
+ */
+export function readPackageDependencyRequirements(
+  template: string,
+  packageFile: string,
+): TemplateDependencyRequirement[] {
+  const packageJSON = JSON.parse(
+    readFileSync(packageFile, 'utf8'),
+  ) as TemplatePackageJSON
+  const dependencies = {
+    ...packageJSON.dependencies,
+    ...packageJSON.devDependencies,
+  }
+  return Object.entries(dependencies)
+    .filter(
+      (entry): entry is [string, string] =>
+        (entry[0].startsWith('@zeus-js/') ||
+          entry[0].startsWith('@zeus-web/')) &&
+        typeof entry[1] === 'string',
+    )
+    .map(([packageName, range]) => ({ template, packageName, range }))
+}
+
 export function readTemplateRequirements(
   packageFiles: readonly string[],
 ): TemplateDependencyRequirement[] {
-  return packageFiles.flatMap(packageFile => {
-    const packageJSON = JSON.parse(
-      readFileSync(packageFile, 'utf8'),
-    ) as TemplatePackageJSON
-    const dependencies = {
-      ...packageJSON.dependencies,
-      ...packageJSON.devDependencies,
-    }
-    const template = path.basename(path.dirname(packageFile))
-
-    return Object.entries(dependencies)
-      .filter(
-        (entry): entry is [string, string] =>
-          entry[0].startsWith('@zeus-js/') && typeof entry[1] === 'string',
-      )
-      .map(([packageName, range]) => ({ template, packageName, range }))
-  })
+  return packageFiles.flatMap(packageFile =>
+    readPackageDependencyRequirements(
+      path.basename(path.dirname(packageFile)),
+      packageFile,
+    ),
+  )
 }
 
-async function readPublishedVersions(
+/**
+ * The versions the registry actually has for one package.
+ *
+ * A 404 is not an error: it is the registry's answer for a package that has
+ * never been published, and it means "no published version" — the honest
+ * input to the unpublished check. Every other non-2xx status, and every
+ * network failure, is thrown: a 500, a 403, a rate limit or a timeout says
+ * nothing about whether the version exists, and treating any of them as
+ * "unpublished" would let a flaky registry excuse a real absence.
+ */
+export async function readPublishedVersions(
   packageName: string,
   registry: string,
 ): Promise<string[]> {
   const registryRoot = registry.endsWith('/') ? registry : `${registry}/`
-  const response = await fetch(
-    new URL(encodeURIComponent(packageName), registryRoot),
-    { signal: AbortSignal.timeout(30_000) },
-  )
+  let response: Response
+  try {
+    response = await fetch(
+      new URL(encodeURIComponent(packageName), registryRoot),
+      { signal: AbortSignal.timeout(30_000) },
+    )
+  } catch (error) {
+    throw new Error(
+      `Registry request failed for ${packageName}: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    )
+  }
+
+  if (response.status === 404) return []
 
   if (!response.ok) {
     throw new Error(

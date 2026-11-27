@@ -392,10 +392,38 @@ re-run 保留原 `event: push` 与原 `head_sha: 7cc5f31d`，只把 `run_attempt
 | ci.yml on `7cc5f31d`          | run `45964255390`, event `push`, attempt 2, **success** |
 | compiler-native on `7cc5f31d` | run `45964254973`, event `push`, attempt 1, success     |
 | Release run                   | `45964301625`, re-run attempt 2                         |
-| attempt 2 的授权结果          | 待填                                                    |
+| attempt 2 的授权结果          | **success**（13 条规则全部成立）                        |
+| attempt 2 之后失败于          | `Verify create-zeus candidate templates`（见 12.7）     |
 
 attempt 2 成功后，`ci-evidence` 取该 workflow 上 attempt 最大的 run，读到的是
 attempt 2 的 success，规则成立。释放路径没有触碰任何门禁代码。
+
+### 12.7 第三个问题：模板 pin 落后于配对 UI 版本
+
+授权通过后，流程走到 `Verify create-zeus candidate templates` 并失败：
+
+```
+Error: webc-consumer-ts has stale pins: @zeus-web/button 0.1.0-beta.34 != 0.2.0-rc.6
+```
+
+根因不是 rc.6 引入的缺陷，而是**一条此前从未被执行过的规则**：
+
+- `check-create-zeus-candidate.ts` 要求每个 `@zeus-web/*` pin 等于配对 UI 树的
+  `package.json` 版本（`uiVersion`）；
+- rc.0–rc.5 的配对记录全是 `bootstrap: true`、`uiCommit: null`，工作流因此从不
+  checkout UI 树、也不传 `--ui-root`，这条校验从未运行；
+- rc.6 是第一个真配对，规则第一次生效，立刻暴露模板里的 `0.1.0-beta.34` 自 R16.0
+  起就没动过。
+
+修复本身很小，用官方工具完成：
+
+```
+pnpm exec tsx scripts/release/create-zeus-versions.ts --ui-version 0.2.0-rc.6
+```
+
+但修复提交（`bccf9fd8`）在 tag 指向的 `7cc5f31d` **之后**，而发布授权把
+`readCoreVersions` 与 `ci-evidence` 都绑定在 tag 提交的树上。这就产生了第 13 节
+的处理方式：不移动 tag，改用 rc.7。
 
 ---
 

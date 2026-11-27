@@ -144,6 +144,20 @@ export default defineReleaseConfig({
       ['pnpm', 'check:create-zeus'],
       ['pnpm', 'check:create-zeus-candidate'],
       ['pnpm', 'check:create-zeus-versions'],
+      /*
+       * Publishing a scaffold whose template names a version nobody can
+       * install is a broken release that no later step repairs: `create-zeus`
+       * ships on its own train, and once a template leaves this repository
+       * pinned to an unpublished `@zeus-web/*` version, every `create-zeus`
+       * user who scaffolds that template gets `ETARGET`.
+       *
+       * The candidate gate covers this template during the release, but only
+       * with tarballs built from the paired UI checkout. This asks the
+       * question the release itself has to answer: is the pin installable from
+       * the registry *now*? A registry that cannot answer fails the step rather
+       * than being read as "not published".
+       */
+      ['pnpm', 'check:template-dependencies'],
       ['pnpm', 'bench:component-host:ci'],
       ['pnpm', 'docs:build'],
       ['pnpm', 'size:ci'],

@@ -573,7 +573,15 @@ jobs:
       # It used to share one step — and one `continue-on-error: true` — with
       # `check:rc-readiness`, so a failure was swallowed exactly like a
       # readiness report that could not read an environment's protection rules.
+      # A template whose pin is not on the registry yet is covered by the
+      # `create-zeus-candidates` job, which packs real candidate tarballs and
+      # runs the same templates against them. This job has no UI checkout, so it
+      # cannot satisfy such a pin itself; the variable is it saying which gate
+      # does. The template is then recorded as `deferred-to-candidate-gate` and
+      # `passed` stays false — deferral is not a pass.
       - name: Create Zeus scaffold from the workspace
+        env:
+          ZEUS_CREATE_DEFER_TO_CANDIDATE: '1'
         run: pnpm check:create-zeus
 
       # A server process renders, a browser hydrates what it produced. This is

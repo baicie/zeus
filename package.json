@@ -186,7 +186,8 @@
     "check:node-compat-matrix": "tsx scripts/check/check-node-compat-matrix.ts",
     "check:vite-show-branch-consumer": "tsx scripts/check/check-vite-show-branch-consumer.ts",
     "check:package-table": "tsx scripts/check/write-package-table.ts --check",
-    "write:package-table": "tsx scripts/check/write-package-table.ts"
+    "write:package-table": "tsx scripts/check/write-package-table.ts",
+    "check:template-dependencies": "tsx scripts/check/check-template-dependencies.ts packages/create/create-zeus/templates/webc-consumer-ts/package.json"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged && pnpm check",

@@ -13,6 +13,10 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
+import {
+  findUnpublishedTemplateDependencies,
+  readPackageDependencyRequirements,
+} from './check-template-dependencies'
 import { scaffold } from '../../packages/create/create-zeus/src/scaffold'
 
 const rootDir = path.resolve(
@@ -29,9 +33,54 @@ export const createZeusTemplates = [
   'webc-consumer-ts',
 ] as const
 
+/**
+ * The published versions of every package the templates depend on.
+ *
+ * Read once, before scaffolding, so a template whose pin is not on the
+ * registry can be classified instead of attempted. A registry failure throws
+ * out of here: "I could not ask" and "it is not there" are different answers
+ * and only the second one may defer a template.
+ */
+async function readPublishedTemplateVersions(
+  templates: readonly string[],
+  registry: string,
+): Promise<ReadonlyMap<string, readonly string[]>> {
+  const requirements = templates.flatMap(template =>
+    readPackageDependencyRequirements(
+      template,
+      path.join(
+        rootDir,
+        'packages/create/create-zeus/templates',
+        template,
+        'package.json',
+      ),
+    ),
+  )
+  const names = [...new Set(requirements.map(item => item.packageName))]
+  const { readPublishedVersions } =
+    await import('./check-template-dependencies')
+  const entries = await Promise.all(
+    names.map(
+      async name =>
+        [name, await readPublishedVersions(name, registry)] as const,
+    ),
+  )
+  return new Map(entries)
+}
+
 export async function checkCreateZeus(): Promise<void> {
   const smokeRoot = mkdtempSync(path.join(os.tmpdir(), 'zeus-create-smoke-'))
-  const report: Array<{ template: string; status: string }> = []
+  const report: Array<{ template: string; status: string; detail?: string }> =
+    []
+  const registry =
+    process.env.ZEUS_CREATE_REGISTRY ??
+    process.env.npm_config_registry ??
+    process.env.NPM_CONFIG_REGISTRY ??
+    'https://registry.npmjs.org'
+  const published = await readPublishedTemplateVersions(
+    createZeusTemplates,
+    registry,
+  )
 
   try {
     for (const template of createZeusTemplates) {
@@ -44,6 +93,58 @@ export async function checkCreateZeus(): Promise<void> {
       })
 
       if (template === 'webc-consumer-ts') {
+        /*
+         * This is the one template installed from the registry. When its pin
+         * names a version that has not been published yet — a Core RC paired
+         * with a UI RC still on the release train — there is nothing to
+         * install, and attempting it produces `ETARGET` with no statement of
+         * what it means.
+         *
+         * Deferring is not passing. The template is recorded as
+         * `deferred-to-candidate-gate`, the release precheck fails on that
+         * status unless the Release Candidate gate covers the template with
+         * real candidate tarballs, and the post-publish registry gate is what
+         * finally accepts it.
+         */
+        const unpublished = findUnpublishedTemplateDependencies(
+          readPackageDependencyRequirements(
+            template,
+            path.join(projectRoot, 'package.json'),
+          ),
+          published,
+        )
+        if (unpublished.length > 0) {
+          const detail = unpublished
+            .map(item => `${item.packageName}@${item.range}`)
+            .join(', ')
+          /*
+           * Deferring has to be claimed, not assumed.
+           *
+           * Only a caller that will actually run the Release Candidate gate
+           * may defer: that gate packs real candidate tarballs from the pinned
+           * UI commit and runs `--require-pin-match` against them. Setting the
+           * variable is that caller saying so. Without it, an unpublished pin
+           * is a failure — the ordinary path has nothing that would cover the
+           * template later, and silently deferring would report a run as
+           * acceptable because a gate somewhere else might exist.
+           */
+          if (process.env.ZEUS_CREATE_DEFER_TO_CANDIDATE !== '1') {
+            throw new Error(
+              `${template} depends on ${detail}, which is not published on ${registry}. ` +
+                'Run the Release Candidate gate with ZEUS_CREATE_DEFER_TO_CANDIDATE=1 to cover this template with candidate tarballs, ' +
+                'or publish the missing version first.',
+            )
+          }
+          console.log(
+            `[create-zeus] ${template} deferred to the candidate gate: ${detail} is not on ${registry}`,
+          )
+          report.push({
+            template,
+            status: 'deferred-to-candidate-gate',
+            detail,
+          })
+          continue
+        }
         run(projectRoot, 'npm', [
           'install',
           '--ignore-scripts',
@@ -80,9 +181,20 @@ export async function checkCreateZeus(): Promise<void> {
             cwd: rootDir,
             encoding: 'utf8',
           }).trim(),
-          registry: process.env.ZEUS_CREATE_REGISTRY ?? 'local',
+          registry,
           templates: report,
-          passed: report.length === createZeusTemplates.length,
+          /*
+           * A deferred template is not a pass. `passed` stays false so a
+           * caller reading only this field cannot mistake an incomplete run
+           * for a complete one; `deferred` names what still needs the
+           * candidate or registry gate.
+           */
+          deferred: report
+            .filter(item => item.status === 'deferred-to-candidate-gate')
+            .map(item => item.template),
+          passed:
+            report.every(item => item.status === 'passed') &&
+            report.length === createZeusTemplates.length,
         },
         null,
         2,

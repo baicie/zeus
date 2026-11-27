@@ -199,9 +199,16 @@ jobs:
       # the authorisation reads next. Order matters: `check:sbom:write` is a
       # precheck command, so authorising before this step would look for a
       # document that does not exist yet and refuse on "no SBOM was produced".
+      # `ZEUS_CREATE_DEFER_TO_CANDIDATE` is the claim that the candidate step
+      # below will cover any template whose pin is not published yet. The
+      # precheck runs before the paired UI checkout, so it cannot satisfy that
+      # pin itself; without the claim, `check:create-zeus` fails instead of
+      # deferring. The claim is only worth making because the next steps really
+      # do build the UI candidates and run `--require-pin-match` against them.
       - name: Release precheck
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ZEUS_CREATE_DEFER_TO_CANDIDATE: ${{ steps.pairing.outputs.bootstrap != 'true' && '1' || '' }}
         run: pnpm release:precheck
 
       # The release authorisation. No approver, no run id, no allow-list: it
@@ -289,6 +296,31 @@ jobs:
 
       - name: Verify published create-zeus scaffold
         run: pnpm check:create-zeus-packed
+
+      # `check:create-zeus-packed` covers one template (`basic-ts`) through the
+      # packed CLI. It does not cover the template that consumes `@zeus-web/*`,
+      # and it does not open a browser.
+      #
+      # This is the whole-template registry gate the release was missing: every
+      # supported template, installed from the registry with no local tarball,
+      # no workspace link, no override and no edit to the generated manifest,
+      # then typechecked, built and driven in Chromium, Firefox and WebKit.
+      # Before it existed, `webc-consumer-ts` was only ever checked against
+      # candidate tarballs — never against what a user actually installs.
+      #
+      # It runs after publishing because that is the first moment every pin in
+      # every template can resolve. A template whose pin is still unpublished
+      # fails here, loudly, rather than being skipped.
+      - name: Verify every template against the published registry
+        run: pnpm check:create-zeus-registry --browsers chromium,firefox,webkit
+
+      - name: Preserve the registry template report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: create-zeus-registry
+          path: temp/create-zeus-registry/report.json
+          if-no-files-found: warn
 
       - name: Verify npm dist-tags and provenance
         run: >-
