@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/component-dts",
   "type": "module",
-  "version": "0.2.0-rc.7",
+  "version": "0.2.0-rc.8",
   "description": "DTS generators for Zeus component manifest",
   "license": "MIT",
   "repository": {
