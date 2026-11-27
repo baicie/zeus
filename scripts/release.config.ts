@@ -96,6 +96,24 @@ export default defineReleaseConfig({
       ['pnpm', 'check:sbom'],
       ['pnpm', 'check:native-packages'],
       ['pnpm', 'check:native-binaries'],
+      /*
+       * `zeus-compiler.wasm` is a cargo artifact and `.gitignore` excludes it.
+       * `check:exports` verifies that every export target exists, and
+       * `@zeus-js/compiler-wasm` exports `./zeus-compiler.wasm` — so on a fresh
+       * checkout `pnpm build` alone leaves that gate reporting "points to
+       * missing file" for a correct export whose artifact was simply never
+       * built.
+       *
+       * This was dormant while compiler-wasm was `private: true` and
+       * `check:exports` skipped it. It became live when the package was made
+       * publishable for the Playground migration. The canary list gained the
+       * same line earlier, for the same reason.
+       *
+       * The workflow that runs this list must also have the
+       * `wasm32-unknown-unknown` target installed; a command list cannot
+       * install a toolchain.
+       */
+      ['pnpm', '--filter', '@zeus-js/compiler-wasm', 'build:wasm'],
       ['pnpm', 'build'],
       ['pnpm', 'check:runtime-interop'],
       ['pnpm', 'check:cjs'],

@@ -81,6 +81,30 @@ const output = path.join(root, 'temp/hmr-lifecycle-browser')
 const fixtureDirFor = (engine: string) =>
   path.join(root, `temp/hmr-lifecycle-fixture-${engine}`)
 
+/**
+ * One observed event in the HMR lifecycle, stamped with the revision that was
+ * current when it happened.
+ *
+ * `revision` counts source writes from the harness (`writeFile` calls), and is
+ * the frame every other event is attributed to. If a single write produces two
+ * updates, both land on the same revision — which is the whole point: the
+ * counts below prove *what* happened, and the revision column says *when*.
+ */
+interface HmrTraceEntry {
+  readonly revision: number
+  readonly at: number
+  readonly event:
+    | 'mount'
+    | 'cleanup'
+    | 'effect-create'
+    | 'effect-dispose'
+    | 'vite-before-update'
+    | 'vite-after-update'
+    | 'full-reload'
+    | 'dispose'
+  readonly detail?: string
+}
+
 declare global {
   interface Window {
     __hmr?: {
@@ -89,6 +113,13 @@ declare global {
       effectsCreated: number
       effectsDisposed: number
       clicks: number
+      /** Bumped by the harness before each source write. */
+      revision?: number
+      /** Vite's own update notifications, counted apart from mounts. */
+      beforeUpdates?: number
+      afterUpdates?: number
+      fullReloads?: number
+      trace?: HmrTraceEntry[]
       dispose?: () => void
     }
   }
@@ -123,8 +154,28 @@ const state = (globalThis.__hmr ??= {
   effectsCreated: 0,
   effectsDisposed: 0,
   clicks: 0,
+  revision: 0,
+  beforeUpdates: 0,
+  afterUpdates: 0,
+  fullReloads: 0,
+  trace: [],
 })
+
+// The trace is written by every lifecycle event, tagged with the revision the
+// harness last announced. It costs one array push per event and it is the only
+// way to tell "the page mounted twice for one write" from "the page mounted
+// once for each of two writes".
+const record = (event, detail) => {
+  state.trace.push({
+    revision: state.revision,
+    at: Math.round(performance.now()),
+    event,
+    ...(detail === undefined ? {} : { detail }),
+  })
+}
+
 state.mounts += 1
+record('mount')
 
 const [count, setCount] = createSignal(0)
 
@@ -137,15 +188,16 @@ const dispose = render(() => {
   ${
     options.skipCleanup
       ? '// negative test: no cleanup at all, so the live count stays above zero'
-      : 'onCleanup(() => { state.rootCleanups += 1 })'
+      : "onCleanup(() => { state.rootCleanups += 1; record('cleanup') })"
   }
   createEffect(() => {
     state.effectsCreated += 1
+    record('effect-create')
     count()
     ${
       options.skipCleanup
         ? '// no effect cleanup either'
-        : 'onCleanup(() => { state.effectsDisposed += 1 })'
+        : "onCleanup(() => { state.effectsDisposed += 1; record('effect-dispose') })"
     }
   })
   return (
@@ -178,7 +230,20 @@ state.dispose = () => {
 if (import.meta.hot) {
   import.meta.hot.accept()
   import.meta.hot.dispose(() => {
+    record('dispose')
     dispose()
+  })
+  // Vite's payloads are counted separately from mounts. A module that Vite
+  // updates once but that mounts twice is a runtime or plugin defect; two
+  // updates for one write is a watcher or plugin defect. Without these two
+  // counters the mount count alone cannot tell them apart.
+  import.meta.hot.on('vite:beforeUpdate', () => {
+    state.beforeUpdates += 1
+    record('vite-before-update')
+  })
+  import.meta.hot.on('vite:afterUpdate', () => {
+    state.afterUpdates += 1
+    record('vite-after-update')
   })
 }
 `
@@ -229,7 +294,34 @@ const counts = (tab: Page) =>
     effectsCreated: window.__hmr?.effectsCreated ?? -1,
     effectsDisposed: window.__hmr?.effectsDisposed ?? -1,
     clicks: window.__hmr?.clicks ?? -1,
+    beforeUpdates: window.__hmr?.beforeUpdates ?? -1,
+    afterUpdates: window.__hmr?.afterUpdates ?? -1,
+    revision: window.__hmr?.revision ?? -1,
   }))
+
+/**
+ * The trace, grouped by revision.
+ *
+ * Grouping is what makes a failure actionable: a revision with two `mount`
+ * entries and one `vite-before-update` is a runtime defect, while two entries
+ * of both is a watcher or plugin defect. Printed only on failure.
+ */
+const traceByRevision = (tab: Page) =>
+  tab.evaluate(() => {
+    const groups: Record<string, string[]> = {}
+    for (const entry of window.__hmr?.trace ?? []) {
+      const key = String(entry.revision)
+      ;(groups[key] ??= []).push(
+        `${entry.event}@${entry.at}${entry.detail ? `(${entry.detail})` : ''}`,
+      )
+    }
+    return groups
+  })
+
+const formatTrace = (groups: Record<string, string[]>) =>
+  Object.entries(groups)
+    .map(([revision, events]) => `  rev ${revision}: ${events.join(', ')}`)
+    .join('\n')
 
 /** Waits until Vite's watcher has picked up one engine's fixture directory. */
 async function waitForWatcherReady(
@@ -397,10 +489,19 @@ async function runForEngine(
           error: error instanceof Error ? error.message : String(error),
         })
         await fs.mkdir(output, { recursive: true })
+        const slug = name.replace(/\W+/g, '-')
         await tab.screenshot({
-          path: path.join(output, `${name.replace(/\W+/g, '-')}.png`),
+          path: path.join(output, `${slug}.png`),
           fullPage: true,
         })
+        // The trace belongs next to the screenshot: a mount-count failure
+        // without the per-revision event log cannot be attributed to a layer,
+        // and the report outlives this process.
+        const trace = await traceByRevision(tab)
+        await fs.writeFile(
+          path.join(output, `${engine}-${slug}-trace.json`),
+          `${JSON.stringify({ counters: await counts(tab), trace }, null, 2)}\n`,
+        )
       }
     }
 
@@ -415,12 +516,81 @@ async function runForEngine(
      * below reports the mount count actually reached — a module that never
      * reloads looks different from one that reloads slowly.
      */
+    /**
+     * Replaces a file through a same-directory rename.
+     *
+     * `fs.writeFile` truncates and then writes. On Linux, chokidar can report
+     * that as two `change` events — one for the truncation, one for the write —
+     * and Vite then sends two HMR updates for one logical edit. The page is
+     * correct throughout: it mounts, and disposes the previous root, once per
+     * update. What breaks is the harness's mapping from "one write" to "one
+     * update", and the mount count ends up one higher than the loop expects.
+     *
+     * A rename over an existing path is a single filesystem event on every
+     * platform this runs on, so one logical edit becomes one update. This is a
+     * change to how the harness edits, not to what it asserts: `mounts === 11`
+     * stays exact.
+     */
+    const writeAtomically = async (target: string, source: string) => {
+      const staging = `${target}.${engine}.staging`
+      await fs.writeFile(staging, source)
+      await fs.rename(staging, target)
+    }
+
+    /**
+     * Waits until the page has settled at `expectedUpdates` Vite updates and
+     * no further update arrives for `quietMs`.
+     *
+     * Returns the update count that was observed, so the caller can tell a
+     * duplicated watcher event from a queued one instead of guessing.
+     */
+    const settleUpdates = async (
+      target: Page,
+      expectedUpdates: number,
+      quietMs = 400,
+    ): Promise<number> => {
+      let last = -1
+      let quietSince = 0
+      const deadline = Date.now() + 60_000
+      while (Date.now() < deadline) {
+        const current = await target.evaluate(
+          () => window.__hmr?.beforeUpdates ?? 0,
+        )
+        if (current >= expectedUpdates && current === last) {
+          if (Date.now() - quietSince >= quietMs) return current
+        } else {
+          quietSince = Date.now()
+        }
+        last = current
+        await new Promise(resolve => setTimeout(resolve, 50))
+      }
+      return last
+    }
+
+    /**
+     * Writes a new module, waits for the page to report a new mount, and
+     * requires that the write produced exactly one Vite update.
+     *
+     * `revision` is bumped in the page *before* the file is written, so every
+     * lifecycle event the write causes is attributed to it. That attribution is
+     * the difference between the two failure modes this check has actually
+     * seen: an extra mount on the same revision (one write, two updates) versus
+     * a mount on a later revision (the harness wrote more than it thought).
+     *
+     * The update-count assertion is deliberately strict. A duplicated update is
+     * a watcher or plugin defect and must be reported as one; the answer to it
+     * is never a wider mount range.
+     */
     const updateOn = async (
       target: Page,
       source: string,
       expectedMounts: number,
+      expectedRevision: number,
     ) => {
-      await fs.writeFile(fixturePath, source)
+      await target.evaluate(revision => {
+        if (window.__hmr) window.__hmr.revision = revision
+      }, expectedRevision)
+      await writeAtomically(fixturePath, source)
       try {
         await target.waitForFunction(
           mounts => (window.__hmr?.mounts ?? 0) >= mounts,
@@ -440,10 +610,20 @@ async function runForEngine(
             ` Original: ${error instanceof Error ? error.message : String(error)}`,
         )
       }
+      // Revision N must produce update N, counted from the initial load.
+      const updates = await settleUpdates(target, expectedRevision)
+      if (updates > expectedRevision) {
+        throw new Error(
+          `the watcher delivered ${updates} update(s) for ${expectedRevision} ` +
+            `source write(s): one edit became more than one update, so the extra ` +
+            `mount is the watcher's, not the runtime's. Traces:\n` +
+            formatTrace(await traceByRevision(target)),
+        )
+      }
     }
 
-    const update = (source: string, expectedMounts: number) =>
-      updateOn(tab, source, expectedMounts)
+    const update = (source: string, expectedMounts: number, revision: number) =>
+      updateOn(tab, source, expectedMounts, revision)
 
     tab.on('console', message => {
       if (process.env.ZEUS_HMR_DEBUG) {
@@ -483,14 +663,11 @@ async function runForEngine(
           await update(
             fixtureSource(`value${index}`, `note${index}`),
             index + 1,
+            index,
           )
-          // A moment of quiet between writes. Two `writeFile` calls close
-          // together are one change as far as the watcher is concerned, which
-          // would make the page mount fewer times than this loop expects — a
-          // coalescing artefact of the test, not a framework defect. The wait
-          // above already proves this update landed; this only keeps the next
-          // one from being merged into it.
-          await tab.waitForTimeout(200)
+          // `updateOn` already waited for this write's single update to
+          // arrive and for the update stream to go quiet, so the next write
+          // cannot coalesce with this one.
 
           // Interact mid-stream. A signal written while the module graph is
           // still settling must be counted by the live tree only, and the next
@@ -504,10 +681,29 @@ async function runForEngine(
             )
           }
         }
+        // One settle window after the last update, so `vite:afterUpdate` and
+        // any coalesced trailing update land before the counters are read. This
+        // is not slack in the assertion: the assertion below requires the two
+        // update counters to agree with each other, and both are read here.
+        await tab.waitForTimeout(500)
         const current = await counts(tab)
+        // Vite's update stream and the page's mount counter are both facts,
+        // and they must agree: one update per mount beyond the initial one. A
+        // disagreement names the layer instead of leaving "wrong mount count"
+        // to be guessed at.
+        const updates = current.beforeUpdates
+        if (updates > 0 && updates !== current.mounts - 1) {
+          throw new Error(
+            `Vite announced ${updates} update(s) but the page mounted ` +
+              `${current.mounts} time(s); the two must differ by exactly the ` +
+              `initial mount. Traces:\n${formatTrace(await traceByRevision(tab))}`,
+          )
+        }
         if (current.mounts !== 11) {
           throw new Error(
-            `expected eleven mounts after ten updates, got ${JSON.stringify(current)}`,
+            `expected eleven mounts after ten updates, got ${JSON.stringify(current)}. ` +
+              `Vite announced ${current.beforeUpdates} update(s) for ${current.revision + 1} ` +
+              `source write(s). Traces:\n${formatTrace(await traceByRevision(tab))}`,
           )
         }
         // `cleanups` is the root-level counter, so it must be exactly one per
@@ -517,13 +713,15 @@ async function runForEngine(
         // this one.
         if (current.cleanups !== 10) {
           throw new Error(
-            `each update must dispose exactly one previous root, got ${JSON.stringify(current)}`,
+            `each update must dispose exactly one previous root, got ${JSON.stringify(current)}. ` +
+              `Traces:\n${formatTrace(await traceByRevision(tab))}`,
           )
         }
         if (current.effects !== 1) {
           throw new Error(
             `ten updates, one with a click in flight, must leave one live ` +
-              `effect, got ${JSON.stringify(current)}`,
+              `effect, got ${JSON.stringify(current)}. ` +
+              `Traces:\n${formatTrace(await traceByRevision(tab))}`,
           )
         }
         const text = String(await tab.textContent('#inc'))
@@ -609,7 +807,7 @@ async function runForEngine(
         // A fresh page has no module graph to be coalesced into: it loads
         // whatever is on disk now, and the single update below is then the only
         // HMR event in flight.
-        await fs.writeFile(fixturePath, INITIAL)
+        await writeAtomically(fixturePath, INITIAL)
         // Let the watcher finish with that write before the page exists, so its
         // rebuild cannot arrive after the page and count as an update.
         await new Promise(resolve => setTimeout(resolve, 500))
@@ -629,6 +827,7 @@ async function runForEngine(
             page,
             fixtureSource('skipped', 'note', { skipCleanup: true }),
             2,
+            1,
           )
           const beforeDispose = await counts(page)
           await page.evaluate(() => window.__hmr?.dispose?.())
