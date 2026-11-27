@@ -10,7 +10,7 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
-    "@zeus-js/zeus": "0.2.0-rc.7"
+    "@zeus-js/zeus": "0.2.0-rc.8"
   },
   "devDependencies": {
     "@zeus-js/vite-plugin": "0.0.6",

@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/output-icons",
   "type": "module",
-  "version": "0.2.0-rc.7",
+  "version": "0.2.0-rc.8",
   "description": "No-runtime icon output plugin for Zeus component compiler host",
   "license": "MIT",
   "repository": {

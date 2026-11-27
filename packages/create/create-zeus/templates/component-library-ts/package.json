@@ -11,12 +11,12 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@zeus-js/output-react-wrapper": "0.2.0-rc.7",
-    "@zeus-js/output-vue-wrapper": "0.2.0-rc.7",
-    "@zeus-js/runtime-dom": "0.2.0-rc.7",
-    "@zeus-js/web-c": "0.2.0-rc.7",
-    "@zeus-js/web-c-runtime": "0.2.0-rc.7",
-    "@zeus-js/zeus": "0.2.0-rc.7",
+    "@zeus-js/output-react-wrapper": "0.2.0-rc.8",
+    "@zeus-js/output-vue-wrapper": "0.2.0-rc.8",
+    "@zeus-js/runtime-dom": "0.2.0-rc.8",
+    "@zeus-js/web-c": "0.2.0-rc.8",
+    "@zeus-js/web-c-runtime": "0.2.0-rc.8",
+    "@zeus-js/zeus": "0.2.0-rc.8",
     "react": "^19.2.7",
     "vue": "^3.5.41"
   },
