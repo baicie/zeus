@@ -430,7 +430,13 @@ jobs:
         run: pnpm check:docs
       - name: Compiler playground snapshots
         run: pnpm playground:check
+      # Same claim as `packed-consumers` makes: a template pin that is not on
+      # the registry yet is covered by `create-zeus-candidates`, which builds it
+      # from candidate tarballs. This job has no UI checkout, so it cannot be
+      # the gate that covers it.
       - name: Quick Start smoke
+        env:
+          ZEUS_CREATE_DEFER_TO_CANDIDATE: '1'
         run: pnpm check:quick-start
       - name: Preserve first-use journey report
         if: always()
@@ -972,6 +978,10 @@ jobs:
       # with no pairing record, which is every non-release commit.
       - name: Resolve the paired UI ref
         id: ui-ref
+        # `bash`, not the runner default: the matrix runs on Windows, where the
+        # default shell is PowerShell and `$(...)` / `>> "$GITHUB_OUTPUT"` are
+        # parse errors rather than commands.
+        shell: bash
         run: |
           version=$(node -p "require('./packages/core/zeus/package.json').version")
           file="meta/release/pairing/v${version}.json"

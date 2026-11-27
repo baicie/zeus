@@ -25,6 +25,7 @@ import {
   applyCandidateManifest,
   assertCandidateInputsBuilt,
   assertCurrentNativeBinary,
+  addPeerEdges,
   collectWorkspaceClosure,
   discoverWorkspacePackages,
   templateOutputs,
@@ -291,32 +292,13 @@ try {
     }
     const applied = applyCandidateManifest(manifest, candidates)
 
-    /*
-     * A peer declared by a candidate package is not reachable through the
-     * template's own `pnpm.overrides`: the template never declares it, and an
-     * override only rewrites edges that exist in the graph.
-     *
-     * `@zeus-web/button` peers on `@zeus-js/zeus`, which at this point in the
-     * release is deliberately unpublished. Without a concrete edge the install
-     * reaches for it on the registry and fails with ERR_PNPM_NO_MATCHING_VERSION
-     * — the template then looks broken for a dependency it does not name.
-     * Declaring the candidate as a direct dependency gives the peer something
-     * to resolve to, and the tarball spec makes it the candidate, not the
-     * registry.
-     */
-    const peerEdges = [...candidatePeers.entries()].filter(
-      ([name]) =>
-        candidates.has(name) &&
-        !applied.manifest.dependencies?.[name] &&
-        !applied.manifest.devDependencies?.[name],
+    const withPeers = addPeerEdges(
+      applied.manifest,
+      candidates,
+      candidatePeers.keys(),
     )
-    if (peerEdges.length > 0) {
-      applied.manifest.dependencies = {
-        ...(applied.manifest.dependencies ?? {}),
-        ...Object.fromEntries(
-          peerEdges.map(([name]) => [name, candidates.get(name)!]),
-        ),
-      }
+    if (withPeers !== applied.manifest) {
+      applied.manifest.dependencies = withPeers.dependencies
     }
 
     fs.writeFileSync(

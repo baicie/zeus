@@ -5,5 +5,24 @@
   "uiVersion": "0.2.0-rc.7",
   "verifiedAt": "2026-11-27T00:00:00.000Z",
   "firstPublish": [],
-  "note": "rc.7 is rc.6 rebuilt on the tree that fixes the create-zeus template. rc.6 was abandoned before publishing anything: no package, no dist-tag change. Its release run was refused twice, for two different reasons, and neither was the latest-tag exemption. First, ci-evidence: the tag commit's CI run had been cancelled by the concurrency group because a documentation commit was pushed to main after the tag. That was fixed by re-running CI on the tag commit, and the re-run authorised. Second, check:create-zeus-candidate: webc-consumer-ts pinned @zeus-web/button at 0.1.0-beta.34 while the paired UI tree is at the release version. Every RC before rc.6 was a bootstrap record with uiCommit null, so no paired UI tree was ever checked and the rule had never run against that template; rc.6 was the first genuine pair. The template is fixed on main (bccf9fd8), but the tag points at a tree that predates the fix, and the release authorisation binds its evidence to the tag commit. Moving a pushed tag would weaken the one property tag protection exists to provide, so rc.6 is abandoned rather than moved. firstPublish is empty: all 32 fixed packages have been published before, so npm will not re-bind latest for any of them. Both Core and UI are at 0.2.0-rc.7 because check:release-pairing requires the pair to be one version; zeus-ui moved 170 pins and 46 package versions from rc.6 to rc.7 on branch release/0.2.0-rc.7. That branch's lockfile cannot resolve until rc.7 is on the registry; check:ui-pairing verifies the pins, not the lockfile."
+  "note": "rc.7 is rc.6 rebuilt on the tree that fixes the create-zeus template. rc.6 was abandoned before publishing anything: no package, no dist-tag change. Its release run was refused twice, for two different reasons, and neither was the latest-tag exemption. First, ci-evidence: the tag commit's CI run had been cancelled by the concurrency group because a documentation commit was pushed to main after the tag. That was fixed by re-running CI on the tag commit, and the re-run authorised. Second, check:create-zeus-candidate: webc-consumer-ts pinned @zeus-web/button at 0.1.0-beta.34 while the paired UI tree is at the release version. Every RC before rc.6 was a bootstrap record with uiCommit null, so no paired UI tree was ever checked and the rule had never run against that template; rc.6 was the first genuine pair. The template is fixed on main (bccf9fd8), but the tag points at a tree that predates the fix, and the release authorisation binds its evidence to the tag commit. Moving a pushed tag would weaken the one property tag protection exists to provide, so rc.6 is abandoned rather than moved. firstPublish is empty: all 32 fixed packages have been published before, so npm will not re-bind latest for any of them. Both Core and UI are at 0.2.0-rc.7 because check:release-pairing requires the pair to be one version; zeus-ui moved 170 pins and 46 package versions from rc.6 to rc.7 on branch release/0.2.0-rc.7. That branch's lockfile cannot resolve until rc.7 is on the registry; check:ui-pairing verifies the pins, not the lockfile.",
+  "states": {
+    "CANDIDATE_VERIFIED": {
+      "at": "2026-11-27",
+      "evidence": {
+        "candidateReport": "temp/create-zeus-candidate/report.json",
+        "coreVersion": "0.2.0-rc.7",
+        "uiVersion": "0.2.0-rc.7",
+        "uiCommit": "86af416831a4b6f1aae94a41548a03ef3fc62ab5",
+        "templates": 6,
+        "templatesPassed": 6,
+        "note": "Every template installed from candidate tarballs built from the paired UI commit, with --require-pin-match; the pins name rc.7, which is not on the registry, so this is the only gate that can verify the pair before it publishes."
+      }
+    },
+    "CORE_PUBLISHED": null,
+    "UI_PUBLISHED": null,
+    "SCAFFOLD_REGISTRY_VERIFIED": null,
+    "PAIR_ACCEPTED": null
+  },
+  "stateNote": "A state is recorded only when its evidence exists. null means \"not reached\", not \"unknown\". Partial publication records what actually published under the reached state and names the blocker; it is never rounded up to PAIR_ACCEPTED."
 }

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import {
   CANDIDATE_TEMPLATES,
+  addPeerEdges,
   applyCandidateManifest,
   collectWorkspaceClosure,
   discoverWorkspacePackages,
@@ -140,6 +141,61 @@ describe('create-zeus candidate matrix', () => {
         '@zeus-js/signal': 'file:/tmp/signal.tgz',
       },
     })
+  })
+
+  /*
+   * A peer is the one edge an override cannot reach. `@zeus-web/button` peers
+   * on `@zeus-js/zeus`, and that version is unpublished while the candidates
+   * are being verified — without a concrete edge the install asks the registry
+   * for it and the template looks broken for a dependency it never declared.
+   */
+  it('adds a candidate edge for a peer the template does not declare', () => {
+    const candidates = new Map([['@zeus-js/zeus', 'file:/tmp/zeus.tgz']])
+
+    const result = addPeerEdges(
+      { dependencies: { '@zeus-web/button': '0.2.0-rc.7' } },
+      candidates,
+      ['@zeus-js/zeus'],
+    )
+
+    expect(result.dependencies).toEqual({
+      '@zeus-web/button': '0.2.0-rc.7',
+      '@zeus-js/zeus': 'file:/tmp/zeus.tgz',
+    })
+  })
+
+  it('leaves a peer the template already declares exactly as declared', () => {
+    const candidates = new Map([['@zeus-js/zeus', 'file:/tmp/zeus.tgz']])
+
+    const result = addPeerEdges(
+      { dependencies: { '@zeus-js/zeus': '0.2.0-rc.7' } },
+      candidates,
+      ['@zeus-js/zeus'],
+    )
+
+    expect(result.dependencies).toEqual({ '@zeus-js/zeus': '0.2.0-rc.7' })
+  })
+
+  it('does not add a peer the release is not building', () => {
+    const candidates = new Map([['@zeus-js/zeus', 'file:/tmp/zeus.tgz']])
+
+    const result = addPeerEdges(
+      { dependencies: { '@zeus-web/button': '0.2.0-rc.7' } },
+      candidates,
+      ['react'],
+    )
+
+    /* `toStrictEqual`, not `toEqual`: the mutation this guards against adds a
+     * key with an `undefined` value, which `toEqual` treats as absent. */
+    expect(result.dependencies).toStrictEqual({
+      '@zeus-web/button': '0.2.0-rc.7',
+    })
+  })
+
+  it('returns the same manifest when there is nothing to add', () => {
+    const manifest = { dependencies: { react: '^19.0.0' } }
+
+    expect(addPeerEdges(manifest, new Map(), [])).toBe(manifest)
   })
 
   it('reports every direct pin that differs from the candidate map', () => {

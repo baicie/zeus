@@ -181,20 +181,6 @@ export function templatePinMismatches(
  * version pins while the install resolves every copy to the same tarball.
  * (npm refuses this shape with EOVERRIDE; the gate uses pnpm deliberately.)
  *
- * ## Peers are a separate edge
- *
- * An override rewrites an edge that already exists. A *peer* is not resolved
- * by the package that declares it — pnpm looks for a satisfying version in the
- * dependent's own graph — so an override on the peer's name does not point it
- * at a candidate tarball.
- *
- * That matters for the one template this gate exists for: `@zeus-web/button`
- * declares `@zeus-js/zeus` as a peer, and without an explicit edge npm resolves
- * `@zeus-js/zeus@<rc>` from the registry, where by construction it is not
- * published. Adding the candidate as a direct dependency gives the peer a
- * version it can satisfy, from the tarball, without weakening anything: the
- * template's own declared pins are untouched.
- *
  * Returns a new manifest; the input is not mutated.
  */
 export function applyCandidateManifest(
@@ -222,24 +208,45 @@ export function applyCandidateManifest(
   }
   next.pnpm = { ...existingPnpm, overrides }
 
-  /*
-   * Give every peer a concrete edge to the candidate tarball.
-   *
-   * Only names that are already candidates are added, so this cannot pull in a
-   * package the release is not building; and only peers that the manifest does
-   * not already declare, so a template's own choice is never overwritten.
-   */
-  const peers = Object.keys(next.peerDependencies ?? {}).filter(
-    name => candidates.has(name) && !(next.dependencies ?? {})[name],
-  )
-  if (peers.length > 0) {
-    next.dependencies = {
-      ...(next.dependencies ?? {}),
-      ...Object.fromEntries(peers.map(name => [name, candidates.get(name)!])),
-    }
-  }
-
   return { manifest: next, direct, overrides }
+}
+
+/**
+ * Gives a template a concrete edge to every peer its candidates declare.
+ *
+ * An override rewrites an edge that already exists. A *peer* is resolved by the
+ * dependent, not by the package that declares it, and the template never names
+ * it — so `pnpm.overrides` cannot point it anywhere.
+ *
+ * `@zeus-web/button` peers on `@zeus-js/zeus`, which at candidate time is
+ * deliberately unpublished. Without an edge the install asks the registry for
+ * it and fails with ERR_PNPM_NO_MATCHING_VERSION, and the template is blamed for
+ * a dependency it never declared. Adding the candidate as a direct dependency
+ * gives the peer a version it can satisfy — from the tarball, not the registry —
+ * and leaves every pin the template does declare untouched.
+ *
+ * Only peers that are themselves candidates are added, so this cannot pull in a
+ * package the release is not building.
+ */
+export function addPeerEdges(
+  manifest: PackageManifest,
+  candidates: ReadonlyMap<string, string>,
+  peerNames: Iterable<string>,
+): PackageManifest {
+  const missing = [...peerNames].filter(
+    name =>
+      candidates.has(name) &&
+      !manifest.dependencies?.[name] &&
+      !manifest.devDependencies?.[name],
+  )
+  if (missing.length === 0) return manifest
+  return {
+    ...manifest,
+    dependencies: {
+      ...(manifest.dependencies ?? {}),
+      ...Object.fromEntries(missing.map(name => [name, candidates.get(name)!])),
+    },
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

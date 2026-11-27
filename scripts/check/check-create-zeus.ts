@@ -145,8 +145,21 @@ export async function checkCreateZeus(): Promise<void> {
           })
           continue
         }
+        /*
+         * `--registry`, explicitly.
+         *
+         * The deferral decision above asked `registry` whether the pin is
+         * published. Without this flag npm reads its own configuration chain
+         * instead — a user `.npmrc`, a mirror, an env var — so the check can
+         * decide "published" from one registry and then install from another.
+         * A workstation with a lagging mirror measured exactly that: the pin
+         * was absent from the mirror, present on npmjs, and the failure read as
+         * a template defect.
+         */
         run(projectRoot, 'npm', [
           'install',
+          '--registry',
+          registry,
           '--ignore-scripts',
           '--no-audit',
           '--no-fund',

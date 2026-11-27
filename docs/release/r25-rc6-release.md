@@ -460,7 +460,37 @@ pnpm exec tsx scripts/release/create-zeus-versions.ts --ui-version 0.2.0-rc.6
 | zeus-ui                     | 46 个包版本 + 170 处 pin → rc.7，分支 `release/0.2.0-rc.7` |
 | 配对记录                    | `meta/release/pairing/v0.2.0-rc.7.json`                    |
 
-### 13.4 验证结果
+### 13.4 联合候选验收（CANDIDATE_VERIFIED）
+
+在发布任何东西之前，Core rc.7 与 UI rc.7 的联合候选验收已经跑通：
+
+| 步骤          | 命令                                                                                                                               | 结果                       |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| UI 配对校验   | `check:ui-pairing --ui-root temp/zeus-ui --core-version 0.2.0-rc.7 --ui-commit 86af4168… --ui-version 0.2.0-rc.7 --require-commit` | PASS                       |
+| Core 候选打包 | `check:create-zeus-candidate:prepare --ui-root temp/zeus-ui`                                                                       | 33 个候选包，带 sha256     |
+| UI 依赖安装   | 在 `temp/zeus-ui` 用 Core 候选覆盖                                                                                                 | 成功                       |
+| UI 候选构建   | `build.ts button`                                                                                                                  | 成功                       |
+| 模板联合验收  | `check:create-zeus-candidate --require-pin-match`                                                                                  | **passed: true，6/6 模板** |
+
+报告 `temp/create-zeus-candidate/report.json` 记录 `coreVersion: 0.2.0-rc.7`、
+`uiVersion: 0.2.0-rc.7`，六个模板全部从候选 tarball 安装、typecheck、build 通过，
+包括此前从未在真实配对下验证过的 `webc-consumer-ts`。
+
+跑通这次验收本身发现了三个门禁缺陷（见 13.5），这是「先做联合候选验收」
+这一步的直接价值：它们只会在真配对下暴露。
+
+### 13.5 候选门禁的三个缺陷
+
+| #   | 缺陷                                   | 影响                                                                                                                                                                               | 修复                                                                           |
+| --- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| 1   | 候选安装没有 `--ignore-workspace`      | 当 `TMPDIR` 位于某个 workspace 内时，pnpm 向上使用该 workspace 的锁文件，忽略 `pnpm.overrides`，去 registry 找一个按设计不存在的版本。CI 的 `/tmp` 在 workspace 外，所以一直没暴露 | 加上 `--ignore-workspace`                                                      |
+| 2   | 候选包声明的 **peer** 没有连到候选的边 | `@zeus-web/button` 把 `@zeus-js/zeus` 声明为 peer；override 只改写已存在的边，而模板从未声明它，于是去 registry 找未发布版本并失败                                                 | 收集候选包声明的 peer，为模板补一条指向候选 tarball 的依赖边，不改模板自身 pin |
+| 3   | 报告没有 `coreVersion`                 | 一份证明「某个 Core 与某个 UI 能一起工作」的证据只写了一半                                                                                                                         | 补上 `coreVersion`                                                             |
+
+第 1 个缺陷特别值得记下：它只在**工作站的临时目录位于仓库内**时出现，
+CI 永远不会复现。这类缺陷只能靠本机跑真配对验收发现。
+
+### 13.6 验证结果
 
 | 检查                                                         | 结果                                                                         |
 | ------------------------------------------------------------ | ---------------------------------------------------------------------------- |
