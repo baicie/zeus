@@ -434,12 +434,15 @@ attempt 2 的 success，规则成立。释放路径没有触碰任何门禁代�
 
 ### 13.4 验证结果
 
-| 检查                                     | 结果 |
-| ---------------------------------------- | ---- |
-| `check:latest-tags --version 0.2.0-rc.7` | 待填 |
-| `check:structure`                        | 待填 |
-| `check:package-versions`                 | 待填 |
-| `check`（tsc）                           | 待填 |
-| `test-unit`                              | 待填 |
-| Core main CI                             | 待填 |
-| Release run                              | 待填 |
+| 检查                                                         | 结果                                                                         |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `check:latest-tags --version 0.2.0-rc.7`                     | `ACCEPTED_HISTORICAL (16 historical, 0 first-publish, 0 refused, 0 unknown)` |
+| `check:structure`                                            | PASS（6 领域 / 38 包）                                                       |
+| `check:package-versions`                                     | PASS（`0.2.0-rc.7` 全对齐）                                                  |
+| `check`（tsc）                                               | PASS                                                                         |
+| `check:release-pairing`（Core）                              | PASS                                                                         |
+| `check:create-zeus-versions --ui-version 0.2.0-rc.7`         | PASS                                                                         |
+| `check:release-pairing` / `check:release-channel`（zeus-ui） | PASS（rc, static）                                                           |
+| `test-unit`                                                  | 待填                                                                         |
+| Core main CI                                                 | 待填                                                                         |
+| Release run                                                  | 待填                                                                         |
