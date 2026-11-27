@@ -751,3 +751,16 @@ Template dependencies have no published match:
 | `UI_PUBLISHED`               | 进行中       | zeus-ui PR #166              |
 | `SCAFFOLD_REGISTRY_VERIFIED` | 待 UI 发布后 | `check:create-zeus-registry` |
 | `PAIR_ACCEPTED`              | 待全部完成   | —                            |
+
+### 16.4 zeus-ui 切版本时漏掉的一处
+
+zeus-ui 的 `pnpm version:packages` 改写所有 `package.json`，但
+`packages/registry/registry.json` 自带一个 `version` 字段，工具不认识它。
+于是 package 已经是 `0.2.0-rc.8`，registry 清单还写着 `0.1.0-beta.35`，
+`registry-package.spec.ts` 在 Linux 与 Windows 上同时失败。
+
+这不是测试苛刻——`registry.json` 是**提交进仓库的产物**，`generate:components`
+只维护 `items`、从不碰 `version`，所以它必须跟着版本线手工移动。这是版本工具
+的一个覆盖缺口，本轮以手工修正处理，未改工具（改动面越大，风险越高）。
+
+记录在此，供后续把 `registry.json` 纳入 `version:packages` 时参考。
