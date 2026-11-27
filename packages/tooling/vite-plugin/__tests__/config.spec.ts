@@ -102,12 +102,24 @@ function writeSignalPackage(signalRoot: string) {
     'package.json',
     JSON.stringify({
       name: '@zeus-js/signal',
+      /*
+       * `require`, not `import`.
+       *
+       * `resolveRuntimeEntry` resolves through `createRequire`, so the export
+       * condition it asks for is `require`. A fixture that declares only
+       * `import` resolves to nothing, the resolver returns undefined, and the
+       * aliases the test is about are never produced — which is how this test
+       * passed here and failed on CI, where the repository's own installed
+       * package had covered for the fixture.
+       */
       exports: {
-        '.': { import: './dist/signal.esm-bundler.js' },
-        './internal': { import: './dist/internal.js' },
+        '.': { require: './dist/signal.cjs' },
+        './internal': { require: './dist/internal.cjs' },
       },
     }),
   )
+  writeFixtureFile(signalRoot, 'dist/signal.cjs')
+  writeFixtureFile(signalRoot, 'dist/internal.cjs')
   writeFixtureFile(signalRoot, 'dist/signal.esm-bundler.js')
   writeFixtureFile(signalRoot, 'dist/internal.js')
 }
