@@ -603,3 +603,14 @@ Node 与 Vite 都会遵守它，于是候选项目里 `@zeus-js/signal` 从**仓
 | Web Components / DOM 精确更新 | 3 引擎全过                              |
 | devtools GC                   | 1 次强制回收后仅保留图数据              |
 | 联合候选验收                  | 6/6 模板，probe 全部 passed             |
+
+### 14.6 关于黄金基线
+
+**本次修复没有刷新任何黄金 fixture。** `crates/zeus_compiler/tests/golden.rs` 的 45 个
+fixture 未被触碰，`ZEUS_UPDATE_GOLDEN=1` 未使用。
+
+理由：缺陷在打包层（模块身份），不在编译语义层。编译器输出的 DOM 操作与绑定没有
+变化，所以黄金快照本就不该变——如果它们变了，那说明改动越界了。
+
+新增的断言全部是**运行时行为**断言，放在 `check-packed-interop.mjs` 与
+`config.spec.ts` 里，用真实的包安装与真实的 Vite 配置验证，不依赖任何快照。
