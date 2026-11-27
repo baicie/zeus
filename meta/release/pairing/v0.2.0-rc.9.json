@@ -1,0 +1,17 @@
+{
+  "schema": "zeus.release-pairing/v1",
+  "coreVersion": "0.2.0-rc.9",
+  "uiCommit": "62f75be750d05bcccdde5fdf8ec94bc8590da4de",
+  "uiVersion": "0.2.0-rc.9",
+  "verifiedAt": "2026-11-27T00:00:00.000Z",
+  "firstPublish": [],
+  "note": "rc.9 exists for one reason: the UI commit moved without its content changing. rc.8's pairing record named 01b0778a, the tip of the zeus-ui release branch; merging that branch squashed four commits into one and produced 62f75be7, so the UI release refused with 'Core record at v0.2.0-rc.8 names UI commit 01b0778a..., but this release is 62f75be7'. A squash merge rewrites the commit identity, which is exactly what the pairing contract treats as immutable. The tree is identical; only its hash is new. rc.9 is rc.8's code with the pairing record naming the commit that actually exists on zeus-ui's main. Nothing was published for the UI, and Core rc.8's packages stay as published — the release skips versions that already exist. firstPublish is empty: all 32 fixed packages have been published before.",
+  "states": {
+    "CANDIDATE_VERIFIED": null,
+    "CORE_PUBLISHED": null,
+    "UI_PUBLISHED": null,
+    "SCAFFOLD_REGISTRY_VERIFIED": null,
+    "PAIR_ACCEPTED": null
+  },
+  "stateNote": "A state is recorded only when its evidence exists. null means \"not reached\", not \"unknown\". Partial publication records what actually published under the reached state and names the blocker; it is never rounded up to PAIR_ACCEPTED."
+}

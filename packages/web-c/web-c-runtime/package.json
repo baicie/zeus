@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/web-c-runtime",
   "type": "module",
-  "version": "0.2.0-rc.8",
+  "version": "0.2.0-rc.9",
   "description": "Zeus Web-C lazy-loading runtime",
   "license": "MIT",
   "repository": {

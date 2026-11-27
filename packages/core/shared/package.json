@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/shared",
   "type": "module",
-  "version": "0.2.0-rc.8",
+  "version": "0.2.0-rc.9",
   "description": "internal utils shared across @zeus-js packages",
   "license": "MIT",
   "repository": {
