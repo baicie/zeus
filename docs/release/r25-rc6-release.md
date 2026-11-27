@@ -1,8 +1,12 @@
-# rc.6 发布记录
+# rc.6 → rc.7 发布记录
 
 时间：2026-11-27
-基线：`9353ed74`（main）+ `release/0.2.0-rc.6` 分支
+基线：`9353ed74`（main）+ `release/0.2.0-rc.6` / `release/0.2.0-rc.7` 分支
 registry：`https://registry.npmjs.org`
+
+> **结论先行**：rc.6 **没有发布**。它在两次不同的门禁上失败，第二次暴露的是
+> tag 树里一个陈旧的模板 pin。tag 不移动，改用 **rc.7** 从修复后的树重发。
+> 本文第 12 节记录两次失败与根因，第 13 节记录 rc.7。
 
 ---
 
@@ -392,3 +396,50 @@ re-run 保留原 `event: push` 与原 `head_sha: 7cc5f31d`，只把 `run_attempt
 
 attempt 2 成功后，`ci-evidence` 取该 workflow 上 attempt 最大的 run，读到的是
 attempt 2 的 success，规则成立。释放路径没有触碰任何门禁代码。
+
+---
+
+## 13. rc.7：从修复后的树重发
+
+### 13.1 为什么换版本号而不是移动 tag
+
+`v0.2.0-rc.6` 指向 `7cc5f31d`，而模板修复在其后的 `bccf9fd8`。发布授权
+（`authorize-release.ts`）把 `ci-evidence` 与树内容都绑定在 tag 提交上：
+
+- `readCoreVersions(root)` 读的是 CI checkout 的工作树，即 `GITHUB_SHA`（tag 提交）；
+- `ci-evidence` 只接受 `head_sha === workflowSha` 的 run。
+
+所以让 rc.6 通过的唯一方式是让 tag 指向含修复的提交。删除并重建一个已推送的 tag
+会削弱 tag 保护所提供的那一条性质，而 rc.6 没有发布任何东西——没有半成品需要救。
+用新版本号是代价更小的选择。
+
+### 13.2 事实核对：rc.6 没有留下任何东西
+
+| 检查项                           | 结果                                                                             |
+| -------------------------------- | -------------------------------------------------------------------------------- |
+| registry 上是否存在 `0.2.0-rc.6` | 不存在（zeus / signal / runtime-dom / compiler-native / i18n / router 逐个查过） |
+| `@zeus-js/zeus` 的 `rc` dist-tag | 仍指 `0.2.0-rc.5`                                                                |
+| `latest`                         | 仍指 `0.1.0`                                                                     |
+
+### 13.3 rc.7 的改动面
+
+| 对象                        | 改动                                                       |
+| --------------------------- | ---------------------------------------------------------- |
+| Core 固定组（32 包 + 模板） | `0.2.0-rc.6` → `0.2.0-rc.7`                                |
+| `Cargo.lock`                | 由 `cargo metadata` 重算，非手改                           |
+| `compiler-native/index.js`  | 由 `sync-native-loader.ts` 重新生成                        |
+| `docs/api/packages.md`      | 由 `write:package-table` 重新生成                          |
+| zeus-ui                     | 46 个包版本 + 170 处 pin → rc.7，分支 `release/0.2.0-rc.7` |
+| 配对记录                    | `meta/release/pairing/v0.2.0-rc.7.json`                    |
+
+### 13.4 验证结果
+
+| 检查                                     | 结果 |
+| ---------------------------------------- | ---- |
+| `check:latest-tags --version 0.2.0-rc.7` | 待填 |
+| `check:structure`                        | 待填 |
+| `check:package-versions`                 | 待填 |
+| `check`（tsc）                           | 待填 |
+| `test-unit`                              | 待填 |
+| Core main CI                             | 待填 |
+| Release run                              | 待填 |
