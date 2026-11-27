@@ -89,6 +89,29 @@ function writeNestedRuntimePackages(
   if (runtimeSSRRoot) writeRuntimePackage(runtimeSSRRoot, 'runtime-ssr')
 }
 
+/**
+ * A signal package with the two entries the plugin aliases together.
+ *
+ * The root specifier is a re-export of `./internal`, which is what the real
+ * package does and what makes the two specifiers name one module. The fixture
+ * has to carry both files, because the alias points at `dist/internal.js`.
+ */
+function writeSignalPackage(signalRoot: string) {
+  writeFixtureFile(
+    signalRoot,
+    'package.json',
+    JSON.stringify({
+      name: '@zeus-js/signal',
+      exports: {
+        '.': { import: './dist/signal.esm-bundler.js' },
+        './internal': { import: './dist/internal.js' },
+      },
+    }),
+  )
+  writeFixtureFile(signalRoot, 'dist/signal.esm-bundler.js')
+  writeFixtureFile(signalRoot, 'dist/internal.js')
+}
+
 function writeRuntimePackage(runtimeRoot: string, name: string) {
   writeFixtureFile(
     runtimeRoot,
@@ -123,6 +146,7 @@ function createNestedRuntimeProject() {
   temporaryRoots.push(root)
 
   writeNestedRuntimePackages(zeusRoot, runtimeRoot, runtimeSSRRoot)
+  writeSignalPackage(path.join(root, 'node_modules/@zeus-js/signal'))
 
   return {
     root,
