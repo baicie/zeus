@@ -19,7 +19,19 @@
         "note": "Every template installed from candidate tarballs built from the paired UI commit, with --require-pin-match; a failed load probe now fails the template and the run."
       }
     },
-    "CORE_PUBLISHED": null,
+    "CORE_PUBLISHED": {
+      "at": "2026-11-27",
+      "releaseRun": "46005757777",
+      "evidence": {
+        "packages": 32,
+        "exactVersion": 32,
+        "rcTag": 32,
+        "latestBaselineHold": true,
+        "tarballIntegrity": true,
+        "provenance": "32 SLSA bundles, subject digests match registry integrity",
+        "platformBinaries": "7/7"
+      }
+    },
     "UI_PUBLISHED": null,
     "SCAFFOLD_REGISTRY_VERIFIED": null,
     "PAIR_ACCEPTED": null

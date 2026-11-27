@@ -504,7 +504,8 @@ CI 永远不会复现。这类缺陷只能靠本机跑真配对验收发现。
 | `SCAFFOLD_REGISTRY_VERIFIED` | 未达成                      | —                                                                              |
 | `PAIR_ACCEPTED`              | 未达成                      | —                                                                              |
 
-记录位置：`meta/release/pairing/v0.2.0-rc.7.json` 的 `states` 字段，复用现有
+记录位置：`meta/release/pairing/v0.2.0-rc.8.json` 的 `states` 字段（rc.7 已被 rc.8
+取代，其记录保留为历史），复用现有
 配对记录，不另建生命周期。
 
 ### 13.7 验证结果
@@ -649,3 +650,104 @@ fixture 未被触碰，`ZEUS_UPDATE_GOLDEN=1` 未使用。
 
 教训：当一个测试依赖外部解析器来构造输入时，它测的是「解析器此刻给出什么」，
 而不是「被测代码是否正确地用了这个输入」。前者随环境漂移，后者才是契约。
+
+---
+
+## 15. rc.8：门禁位置错误的修正
+
+### 15.1 rc.7 为什么也发不出去
+
+rc.7 的 Release 在 `Release precheck` 失败，错误来自我在这轮新加的一个步骤：
+
+```
+> pnpm check:template-dependencies
+Error: Template dependencies have no published match:
+  - webc-consumer-ts: @zeus-web/button@0.2.0-rc.7
+```
+
+这个门禁问的是「脚手架发布的 pin 现在能不能从 registry 装上」。对开发分支，
+这是正确的问题；对**成对发布**，它是错误的问题——Core 与 UI 分属两条发布线，
+UI 必然晚于 Core。Core precheck 时，模板的 `@zeus-web/*` pin 指向的版本**按设计
+还不存在**。门禁阻断的，恰好是发布本身要创造的条件。
+
+### 15.2 修正
+
+问题被移到它能够被回答的地方：
+
+| 阶段              | 门禁                                              | 问的问题                               |
+| ----------------- | ------------------------------------------------- | -------------------------------------- |
+| 普通 CI           | `check:template-dependencies`                     | 开发分支不应发布一个装不上的脚手架     |
+| Release（发布前） | `check:create-zeus-candidate --require-pin-match` | 用真实候选 tarball 验证尚未发布的组合  |
+| Release（发布后） | `check:create-zeus-registry`                      | 从 registry 装全部模板并跑三浏览器验收 |
+
+`check:template-dependencies` 与 `check:create-zeus` 共用同一个声明语义
+（`ZEUS_CREATE_DEFER_TO_CANDIDATE=1`）：声明候选门禁会覆盖，则按名记录为
+deferred；不声明则失败。**deferred 不是 PASS**。
+
+### 15.3 与 rc.6 的区别
+
+|                | rc.6                                   | rc.7                              |
+| -------------- | -------------------------------------- | --------------------------------- |
+| 失败点         | 模板 pin 陈旧（产品缺陷）+ P0 引擎缺陷 | precheck 门禁位置错误（流程缺陷） |
+| 是否发布任何包 | 否                                     | 否                                |
+| 处理           | 弃用，改 rc.7                          | 弃用，改 rc.8                     |
+
+两次都选择移动版本号而不是移动 tag：tag 一旦是发布证据的锚点，移动它就等于
+改写「哪个树通过了验证」这个事实。
+
+### 15.4 rc.8 的验收
+
+| 项目                                                   | 结果                           |
+| ------------------------------------------------------ | ------------------------------ |
+| `check:ui-pairing`（Core rc.8 + UI rc.8 @ `01b0778a`） | PASS                           |
+| 联合候选验收 `--require-pin-match`                     | `passed: true`，6/6 模板       |
+| 浏览器 probe                                           | 5/5 有 probe 的模板全部 passed |
+| `check:structure` / `check:package-versions`           | PASS（38 包 / rc.8 全对齐）    |
+
+---
+
+## 16. 发布结果（实测）
+
+### 16.1 rc.8 已发布并通过完整性核对
+
+Release run `46005757777`，tag `v0.2.0-rc.8` → `c508b035`。
+
+| 核对项                           | 结果                                        |
+| -------------------------------- | ------------------------------------------- |
+| 32 包精确版本 = `0.2.0-rc.8`     | 32/32                                       |
+| `rc` dist-tag 指向 `0.2.0-rc.8`  | 32/32                                       |
+| `latest` 预发布集合 = 基线 16 条 | 16/16，无新增偏差                           |
+| tarball integrity（sha512）      | 全部记录                                    |
+| SLSA provenance                  | 32 个 bundle，subject 摘要与 integrity 一致 |
+| 7 个平台二进制                   | 7/7                                         |
+| `latest` 是否被污染              | 否，仍指 `0.1.0`                            |
+
+**核对脚本自身有一个缺陷**：它把 registry 的 `integrity`（`sha512-<base64>`）与
+provenance subject 的 `sha512`（hex）当作同一编码比较，于是 32 个包同时「失败」，
+而它们其实是同一个摘要。修正后全部一致。这类误报比漏报更危险——它会让一次
+正确的发布看起来是坏的。
+
+### 16.2 Core 先发、UI 后发是设计而非缺陷
+
+Core 发布后的 Registry 门禁（`check:create-zeus-registry`）失败：
+
+```
+Template dependencies have no published match:
+  - webc-consumer-ts: @zeus-web/button@0.2.0-rc.8
+```
+
+这不是回归。`@zeus-web/*` 属于 UI 的发布线，按顺序必然晚于 Core。门禁在这里
+正确报告了「脚手架目前还装不上」，而它转绿的条件就是 UI 发布完成。
+
+这个门禁存在的意义正在于此：它把「Core 发了但 UI 没发」这个状态**明确记录为
+未完成**，而不是让一次 Core 发布看起来像一次完整的配对发布。
+
+### 16.3 状态推进
+
+| 状态                         | 值           | 证据                         |
+| ---------------------------- | ------------ | ---------------------------- |
+| `CANDIDATE_VERIFIED`         | 已达成       | 联合候选验收 6/6，probe 全过 |
+| `CORE_PUBLISHED`             | **已达成**   | 上表六项核对                 |
+| `UI_PUBLISHED`               | 进行中       | zeus-ui PR #166              |
+| `SCAFFOLD_REGISTRY_VERIFIED` | 待 UI 发布后 | `check:create-zeus-registry` |
+| `PAIR_ACCEPTED`              | 待全部完成   | —                            |
