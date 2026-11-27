@@ -961,11 +961,36 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # The ref comes from the pairing record for the version this tree is
+      # cutting, when there is one.
+      #
+      # It used to be `vars.ZEUS_UI_REF || 'main'`, which silently meant "the
+      # UI repository's current main" — a moving target that is usually a
+      # different version line from Core's. The candidate matrix then built a
+      # UI from one line against a Core from another and reported the result as
+      # evidence about the tree under test. `main` stays the fallback for a tree
+      # with no pairing record, which is every non-release commit.
+      - name: Resolve the paired UI ref
+        id: ui-ref
+        run: |
+          version=$(node -p "require('./packages/core/zeus/package.json').version")
+          file="meta/release/pairing/v${version}.json"
+          if [ -f "$file" ]; then
+            commit=$(node -p "String(require('./$file').uiCommit ?? '')")
+            if [ -n "$commit" ] && [ "$commit" != "null" ]; then
+              echo "ref=$commit" >> "$GITHUB_OUTPUT"
+              echo "the pairing record names UI commit $commit"
+              exit 0
+            fi
+          fi
+          echo "ref=${{ vars.ZEUS_UI_REF || 'main' }}" >> "$GITHUB_OUTPUT"
+          echo "no paired UI commit for $version; falling back to ${{ vars.ZEUS_UI_REF || 'main' }}"
+
       - name: Checkout paired UI candidate
         uses: actions/checkout@v5
         with:
           repository: baicie/zeus-ui
-          ref: ${{ vars.ZEUS_UI_REF || 'main' }}
+          ref: ${{ steps.ui-ref.outputs.ref }}
           path: temp/zeus-ui
           fetch-depth: 1
 
