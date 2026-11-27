@@ -495,13 +495,13 @@ CI 永远不会复现。这类缺陷只能靠本机跑真配对验收发现。
 状态只在其证据存在时才记录，`null` 表示「尚未到达」而不是「未知」。部分发布
 只记录实际发布了什么、还剩什么阻塞，绝不向上取整成 `PAIR_ACCEPTED`。
 
-| 状态                         | 值         | 证据                                                       |
-| ---------------------------- | ---------- | ---------------------------------------------------------- |
-| `CANDIDATE_VERIFIED`         | **已达成** | 联合候选验收 `passed: true`，Core rc.7 + UI rc.7，6/6 模板 |
-| `CORE_PUBLISHED`             | 未达成     | —                                                          |
-| `UI_PUBLISHED`               | 未达成     | —                                                          |
-| `SCAFFOLD_REGISTRY_VERIFIED` | 未达成     | —                                                          |
-| `PAIR_ACCEPTED`              | 未达成     | —                                                          |
+| 状态                         | 值                          | 证据                                                                           |
+| ---------------------------- | --------------------------- | ------------------------------------------------------------------------------ |
+| `CANDIDATE_VERIFIED`         | **已达成**（P0 修复后重跑） | 联合候选验收 `passed: true`，Core rc.7 + UI rc.7，6/6 模板且 probe 全部 passed |
+| `CORE_PUBLISHED`             | 未达成                      | —                                                                              |
+| `UI_PUBLISHED`               | 未达成                      | —                                                                              |
+| `SCAFFOLD_REGISTRY_VERIFIED` | 未达成                      | —                                                                              |
+| `PAIR_ACCEPTED`              | 未达成                      | —                                                                              |
 
 记录位置：`meta/release/pairing/v0.2.0-rc.7.json` 的 `states` 字段，复用现有
 配对记录，不另建生命周期。
