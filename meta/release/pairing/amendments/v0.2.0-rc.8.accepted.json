@@ -1,0 +1,73 @@
+{
+  "schema": "zeus.pairing-acceptance/v1",
+  "releaseTag": "v0.2.0-rc.8",
+  "coreVersion": "0.2.0-rc.8",
+  "coreCommit": "c508b035b0bad86d0a587755c36778937608a1ee",
+  "amendment": {
+    "tag": "pair-amendment/v0.2.0-rc.8",
+    "commit": "a2ad24710875db4970170fa012a5f2afa4e03229",
+    "file": "meta/release/pairing/amendments/v0.2.0-rc.8.json"
+  },
+  "ui": {
+    "version": "0.2.0-rc.8",
+    "commit": "56ae16497e242dc93e09cdd25598af5c787fb1da",
+    "tree": "16cb7aec82fa7a23940358d0f1ee509afa591ff7",
+    "lockfileSha256": "fb4651a35d3e91cc5591dca8abd374ffc961e54da3fff49abb74cdf071f0a26a"
+  },
+  "publish": {
+    "workflowRun": 46125975434,
+    "repository": "baicie/zeus-ui",
+    "packages": 46,
+    "verified": 46,
+    "propagationPending": 0,
+    "registryUnavailable": 0,
+    "contractMismatch": 0,
+    "latestPolluted": 0,
+    "slsaCommit": "56ae16497e242dc93e09cdd25598af5c787fb1da"
+  },
+  "states": {
+    "CORE_PUBLISHED": {
+      "at": "2026-11-27",
+      "releaseRun": "46005757777",
+      "evidence": {
+        "packages": 32,
+        "exactVersion": 32,
+        "rcTag": 32,
+        "platformBinaries": 7,
+        "provenance": "32 SLSA bundles"
+      }
+    },
+    "UI_PUBLISHED": {
+      "at": "2026-11-28",
+      "evidence": {
+        "workflowRun": 46125975434,
+        "packages": 46,
+        "verified": 46,
+        "latestHeld": true,
+        "preservedInTag": "pair-amendment/v0.2.0-rc.8",
+        "installedProbe": "@zeus-web/button 0.2.0-rc.8 pulled 42 packages, every @zeus-js/* resolved to 0.2.0-rc.8"
+      }
+    },
+    "SCAFFOLD_REGISTRY_VERIFIED": {
+      "at": "2026-11-28",
+      "evidence": {
+        "templates": 6,
+        "templateDependencies": "all published: @zeus-js/zeus, vite-plugin, output-react-wrapper, output-vue-wrapper, runtime-dom, web-c, web-c-runtime, @zeus-web/button",
+        "build": "built in 57ms with published artifacts",
+        "browserRender": "chromium, 0 page errors, 89 chars rendered",
+        "note": "run locally at rc.8's own tree. npm 10 on this machine does not install optional platform packages (npm/cli#4828), so the native binary was placed explicitly before the build; the compiler, runtime and vite plugin all came from the registry at their published versions."
+      }
+    },
+    "PAIR_ACCEPTED": {
+      "at": "2026-11-28",
+      "evidence": {
+        "coreCommit": "c508b035b0bad86d0a587755c36778937608a1ee",
+        "uiCommit": "56ae16497e242dc93e09cdd25598af5c787fb1da",
+        "publishRun": 46125975434,
+        "amendmentTag": "pair-amendment/v0.2.0-rc.8",
+        "installedProbe": "@zeus-web/button 0.2.0-rc.8 + 41 transitive, all rc.8"
+      }
+    }
+  },
+  "note": "The states inside the tagged record at v0.2.0-rc.8 are permanent and describe the release as cut: UI_PUBLISHED, SCAFFOLD_REGISTRY_VERIFIED and PAIR_ACCEPTED were null there because the UI had not shipped. This file records what actually happened afterwards. It is deliberately a separate file in a separate protected tag, so the original record is never rewritten to say something it did not say at the time."
+}
