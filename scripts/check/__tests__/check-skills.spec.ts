@@ -8,9 +8,14 @@
  * negative cases are the point — a check that only ever sees a clean tree
  * would have passed that commit too.
  */
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 import { describe, expect, it } from 'vitest'
 
 import {
+  CLAUDE_SKILLS_DIR,
   checkClaudeLinks,
   checkLockEntries,
   checkSkillDocuments,
@@ -19,6 +24,11 @@ import {
   readLockSkills,
   runAllChecks,
 } from '../check-skills.ts'
+
+const root = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../..',
+)
 
 describe('the real tree satisfies the skills contract', () => {
   it('reports no findings', () => {
@@ -221,5 +231,23 @@ describe('Claude Code must be able to reach every skill', () => {
       ['tdd'],
     )
     expect(findings).toEqual([])
+  })
+})
+
+/*
+ * Finder writes `.DS_Store` into any directory a developer browses, and it is
+ * gitignored. The real tree must pass with one present: a check that fails
+ * because someone opened the folder is a check people learn to ignore.
+ */
+describe('filesystem noise under .claude/skills is not a skill entry', () => {
+  it('passes on the real tree with a .DS_Store present', () => {
+    const file = path.join(root, CLAUDE_SKILLS_DIR, '.DS_Store')
+    const existed = fs.existsSync(file)
+    if (!existed) fs.writeFileSync(file, '')
+    try {
+      expect(runAllChecks()).toEqual([])
+    } finally {
+      if (!existed) fs.rmSync(file, { force: true })
+    }
   })
 })

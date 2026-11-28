@@ -296,6 +296,16 @@ export function checkClaudeLinks(
 // CLI
 // ---------------------------------------------------------------------------
 
+/**
+ * Paths that are filesystem noise rather than skill entries.
+ *
+ * `.DS_Store` is the one that actually shows up: Finder writes it into any
+ * directory a developer browses, and it is gitignored. Reporting it as a
+ * skill with no canonical directory would make this check fail on a correct
+ * tree purely because someone opened the folder in Finder.
+ */
+const IGNORED_ENTRY = /^(\.DS_Store|Thumbs\.db|desktop\.ini)$/i
+
 function listDirectories(relative: string): string[] {
   const absolute = path.join(root, relative)
   if (!fs.existsSync(absolute)) return []
@@ -312,6 +322,10 @@ function listDirectories(relative: string): string[] {
  * A real directory counts: it is a second copy of a skill, which is the state
  * this layout exists to prevent. Filtering to symlinks here would make it
  * invisible to the check and let the duplicate pass.
+ *
+ * Files are kept for the same reason — a `.md` copied in place of a link is
+ * still an entry that does not resolve to the canonical directory — but
+ * filesystem noise is dropped so a Finder visit cannot fail the gate.
  */
 function listClaudeEntries(relative: string): string[] {
   const absolute = path.join(root, relative)
@@ -319,6 +333,7 @@ function listClaudeEntries(relative: string): string[] {
   return fs
     .readdirSync(absolute, { withFileTypes: true })
     .map(entry => entry.name)
+    .filter(name => !IGNORED_ENTRY.test(name))
     .sort()
 }
 
