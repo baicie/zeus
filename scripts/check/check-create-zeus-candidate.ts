@@ -145,7 +145,28 @@ try {
   }
 
   const coreCandidates = new Map<string, string>()
-  if (options.candidates) {
+  if (options.coreFromRegistry) {
+    /*
+     * Nothing to pack and nothing to override: the template's own pins already
+     * name the published version, and the install resolves them from the
+     * registry exactly as a user's would.
+     *
+     * This is only valid when the version really is published. `assertPublished`
+     * below asks the registry rather than assuming it, because "I passed a flag"
+     * is not evidence that npm has the packages.
+     */
+    /*
+     * `coreCandidateNames` includes `@zeus-js/vite-plugin`, which releases on
+     * its own version line and is never at the Core version. Asserting it at
+     * `candidateCoreVersion` asked the registry for a version that by design
+     * does not exist.
+     */
+    await assertCorePublished(
+      coreCandidateNames.filter(name => name !== '@zeus-js/vite-plugin'),
+      candidateCoreVersion!,
+      registry,
+    )
+  } else if (options.candidates) {
     const candidateFile = path.resolve(root, options.candidates)
     const document = JSON.parse(fs.readFileSync(candidateFile, 'utf8')) as {
       schema?: string
@@ -522,6 +543,35 @@ try {
   }
 }
 
+/**
+ * Fails unless every Core package the templates need is on the registry at the
+ * expected version.
+ *
+ * Reuses `readPublishedVersions`, which already distinguishes the two failures
+ * that matter here: a 404 means "not published" and is a refusal, while any
+ * other status or a network error means "could not ask" and is also a refusal.
+ * Treating the second as the first would let a flaky registry pass a gate whose
+ * entire job is to prove the artifacts exist.
+ */
+async function assertCorePublished(
+  names: readonly string[],
+  version: string,
+  registry: string,
+): Promise<void> {
+  const { readPublishedVersions } =
+    await import('./check-template-dependencies')
+  const missing: string[] = []
+  for (const name of names) {
+    const published = await readPublishedVersions(name, registry)
+    if (!published.includes(version)) missing.push(`${name}@${version}`)
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `--core-from-registry requires every Core package to be published, and these are not:\n${missing.join('\n')}`,
+    )
+  }
+}
+
 function parseOptions(args: string[]): {
   uiRoot?: string
   registry?: string
@@ -529,6 +579,7 @@ function parseOptions(args: string[]): {
   candidates?: string
   requirePinMatch?: boolean
   keepWork?: boolean
+  coreFromRegistry?: boolean
 } {
   const { values } = parseArgs({
     args,
@@ -539,6 +590,17 @@ function parseOptions(args: string[]): {
       candidates: { type: 'string' },
       'require-pin-match': { type: 'boolean', default: false },
       'keep-work': { type: 'boolean', default: false },
+      /*
+       * Resolve Core from the registry instead of packing it from this
+       * workspace.
+       *
+       * The candidate gate normally proves that a Core tree *about to be
+       * published* works with a UI tree about to be published. Once Core is
+       * published, the honest thing to verify the UI against is the artifact
+       * users will actually install — not a fresh build of the same commit,
+       * which could differ if the build is not reproducible.
+       */
+      'core-from-registry': { type: 'boolean', default: false },
     },
   })
   return {
@@ -548,6 +610,7 @@ function parseOptions(args: string[]): {
     ...(values.candidates ? { candidates: values.candidates } : {}),
     requirePinMatch: values['require-pin-match'] === true,
     keepWork: values['keep-work'] === true,
+    coreFromRegistry: values['core-from-registry'] === true,
   }
 }
 
