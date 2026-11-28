@@ -209,6 +209,60 @@ async function main(): Promise<void> {
         run('pnpm', ['release:version-packages', version])
       },
     )
+    /*
+     * Templates are not workspace packages, so `release:version-packages`
+     * leaves them naming the previous version.
+     *
+     * This is the defect that kept the canary red for eight consecutive main
+     * pushes. The rewrite set the group to the canary version, the precheck
+     * ran `check:create-zeus`, and `webc-consumer-ts` still pinned
+     * `@zeus-web/button@<the unreleased Core version>` — so the gate failed
+     * asking the registry for a version that could not exist yet. Nothing in
+     * the log said the pins had not been rewritten; it read as a missing
+     * publish.
+     *
+     * `syncCreateZeusVersions` already exists and already knows the rule:
+     * `@zeus-js/*` follows Core, `@zeus-web/*` follows the paired UI, and
+     * `@zeus-js/vite-plugin` keeps its own line. It was wired into precheck as
+     * `--check`, which is why the stale pin was detected, but nothing rewrote
+     * it on the canary path. Checking a derived file without regenerating it
+     * after a rewrite is a gate arguing with its own caller.
+     */
+    /*
+     * The `@zeus-web/*` half of the template pins cannot follow the canary
+     * version, because there is no canary UI.
+     *
+     * UI ships from a separate repository on its own train. The version that
+     * exists is whatever that repository last published, and the honest thing
+     * for a canary to test against is the published one: the canary asks "does
+     * the tree I am about to publish still work with the UI users have?", not
+     * "does it work with a UI that does not exist yet".
+     *
+     * `webc-consumer-ts` pins `@zeus-web/button`, and installing it is the only
+     * step in `check:create-zeus` that touches the registry. Left pointing at
+     * the unreleased Core version it asked the registry for a version that
+     * cannot exist, so the gate failed on every main push — eight in a row —
+     * with a message that reads like a missing publish.
+     *
+     * Resolved rather than hardcoded: `rc` first, then `latest`, so promoting a
+     * new UI does not require editing this file. A registry that cannot answer
+     * is a failure, not a skip.
+     */
+    const uiVersion = resolvePublishedUiVersion()
+    recorder.run(
+      'template-pins',
+      `align template pins to ${version} (UI ${uiVersion})`,
+      () => {
+        run('pnpm', [
+          'exec',
+          'tsx',
+          'scripts/release/create-zeus-versions.ts',
+          '--ui-version',
+          uiVersion,
+        ])
+      },
+    )
+
     recorder.run('install-lockfile', 'pnpm install --lockfile-only', () => {
       run('pnpm', ['install', '--lockfile-only'])
     })
@@ -346,6 +400,38 @@ function assertStagedCanaryContract(version: string): void {
   throw new Error(
     `The staged tree does not match ${version}; \`release:version-packages\` left it half-written:\n${detail}`,
   )
+}
+
+/**
+ * The UI version a canary builds against.
+ *
+ * Read from the registry rather than passed in: the canary runs on a Core push
+ * and nothing in this repository knows which UI the maintainers last published.
+ * `rc` before `latest` — `rc` is the line a paired Core is expected to work
+ * with, and `latest` on this scope still points at a beta.
+ */
+export function resolvePublishedUiVersion(
+  query: (args: readonly string[]) => string = args => {
+    const result = spawnSync('npm', args, { encoding: 'utf8' })
+    if (result.status !== 0) {
+      throw new Error(
+        `npm ${args.join(' ')} failed: ${(result.stderr ?? '').trim() || `exit ${String(result.status)}`}`,
+      )
+    }
+    return result.stdout
+  },
+  packageName = '@zeus-web/button',
+): string {
+  const tags = JSON.parse(
+    query(['view', packageName, 'dist-tags', '--json']),
+  ) as Record<string, string>
+  const version = tags.rc ?? tags.latest
+  if (!version || !semver.valid(version)) {
+    throw new Error(
+      `${packageName} has no rc or latest dist-tag on the registry; a canary needs a published UI to verify against`,
+    )
+  }
+  return version
 }
 
 export function assertCanaryEnvironment(

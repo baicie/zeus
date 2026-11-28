@@ -4,6 +4,7 @@ import {
   parseCanaryOptions,
   publishCanaryPackages,
   publishCanaryPhases,
+  resolvePublishedUiVersion,
 } from '../release-canary'
 
 const version = '0.1.1-canary.20260814.300.1.b919e736'
@@ -283,5 +284,72 @@ describe('Canary dry-run-only contract', () => {
 
     const publishEnvironment = getPublishEnvironment(false, source)
     expect(publishEnvironment.NODE_AUTH_TOKEN).toBe('test-node-token')
+  })
+})
+
+describe('the UI version a canary verifies against', () => {
+  it('prefers the rc tag', () => {
+    /*
+     * `rc` is the line a paired Core is expected to work with. `latest` on the
+     * @zeus-web scope still points at a beta, so preferring it would have the
+     * canary silently test against a year-old UI.
+     */
+    expect(
+      resolvePublishedUiVersion(() =>
+        JSON.stringify({ latest: '0.1.0-beta.0', rc: '0.2.0-rc.8' }),
+      ),
+    ).toBe('0.2.0-rc.8')
+  })
+
+  it('falls back to latest when there is no rc', () => {
+    expect(
+      resolvePublishedUiVersion(() =>
+        JSON.stringify({ latest: '0.1.0-beta.35' }),
+      ),
+    ).toBe('0.1.0-beta.35')
+  })
+
+  it('refuses when the registry answers with neither', () => {
+    expect(() =>
+      resolvePublishedUiVersion(() =>
+        JSON.stringify({ beta: '0.1.0-beta.35' }),
+      ),
+    ).toThrow(/no rc or latest dist-tag/)
+  })
+
+  it('refuses a dist-tag that is not a version', () => {
+    expect(() =>
+      resolvePublishedUiVersion(() =>
+        JSON.stringify({ rc: 'latest', latest: '0.1.0' }),
+      ),
+    ).toThrow(/no rc or latest dist-tag/)
+  })
+
+  it('fails rather than skipping when the registry cannot be asked', () => {
+    /*
+     * "No UI is published" and "I could not ask" lead to different decisions.
+     * Treating the second as the first is how a canary reports a compatibility
+     * result it never obtained.
+     */
+    expect(() =>
+      resolvePublishedUiVersion(() => {
+        throw new Error('npm view failed: EAI_AGAIN')
+      }),
+    ).toThrow(/EAI_AGAIN/)
+  })
+})
+
+describe('the canary cannot silently test against nothing', () => {
+  it('does not fall back to the repository Core version when the UI is unknown', () => {
+    /*
+     * The defect this whole change closes: with no UI version the template sync
+     * left `@zeus-web/button` at the unreleased Core version, and the only
+     * signal was a registry ETARGET several minutes later. The resolution now
+     * throws at the point where the value is missing, so the run names the
+     * real problem.
+     */
+    expect(() => resolvePublishedUiVersion(() => '{}')).toThrow(
+      /a canary needs a published UI to verify against/,
+    )
   })
 })
