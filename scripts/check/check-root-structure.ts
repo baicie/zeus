@@ -36,6 +36,7 @@ export interface Finding {
 
 /** Root directories a contributor may create without asking. */
 export const ALLOWED_ROOT_DIRECTORIES = [
+  '.agents',
   '.changeset',
   '.claude',
   '.github',
@@ -51,7 +52,6 @@ export const ALLOWED_ROOT_DIRECTORIES = [
   'node_modules',
   'packages',
   'scripts',
-  'skills',
   'target',
   'temp',
 ] as const
@@ -66,6 +66,8 @@ export const PINNED_ROOT_DIRECTORIES: Readonly<Record<string, string>> = {
   meta: 'write-pair-attestation.ts reads the pairing record through the GitHub contents API by path, and check-golden-components.ts resolves meta/contracts by path',
   deploy: 'deployment-layout.ts enforces it as a path-safety prefix',
   crates: 'Cargo.toml workspace members and both Dockerfiles',
+  '.agents':
+    'skills-lock.json records sources against .agents/skills/, and check-skills.ts verifies that .claude/skills links into it',
 }
 
 /** Files that must not be committed at the root. */

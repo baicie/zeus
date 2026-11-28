@@ -13,6 +13,7 @@
     "check": "tsc --incremental --noEmit",
     "check:structure": "tsx scripts/check/check-structure.ts",
     "check:root": "tsx scripts/check/check-root-structure.ts",
+    "check:skills": "tsx scripts/check/check-skills.ts",
     "check:branch": "tsx scripts/check/check-branch-name.ts",
     "check:cjs": "tsx scripts/check/check-package-cjs.ts && tsx scripts/check/check-compiler-cjs.ts",
     "check:runtime-interop": "tsx scripts/check/check-runtime-signal-interop.ts",

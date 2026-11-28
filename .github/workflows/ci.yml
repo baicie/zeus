@@ -258,6 +258,16 @@ jobs:
       - name: Root structure
         run: pnpm check:root
 
+      # The agent skills: `.agents/skills/` is the canonical copy every tool
+      # reads (`npx skills` installs there), and `.claude/skills/<name>` links
+      # into it because Claude Code reads only the latter. This pair was broken
+      # once — the skills were moved to a root `skills/` that no agent reads,
+      # and every one of them silently stopped loading. A skill that is present
+      # but unlinked, or a lock entry that names a directory that is gone, is
+      # reported here rather than discovered by an agent that cannot see it.
+      - name: Agent skills
+        run: pnpm check:skills
+
       # Key parity, ICU syntax and placeholder sets across every
       # `locales/en.*` + `locales/zh-CN.*` pair. A missing translation, a
       # Chinese message that drops `{count}`, or an unparseable plural all
