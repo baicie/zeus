@@ -115,9 +115,17 @@ describe('Playwright installation is uniform where the same tests run', () => {
   })
 
   it('leaves workflows that do not run the unit suite alone', () => {
-    // Asserted so the exemption above is visible: these two install a
-    // different set on purpose, and a future edit that adds `test-unit` to
-    // either of them must move it into UNIT_SUITE_WORKFLOWS.
+    /*
+     * The invariant is the conditional, not the existence of an example.
+     *
+     * This used to assert `withDivergentInstall.length > 0` — that at least one
+     * workflow installs a partial browser set. `host-deployment-prepare` and
+     * `host-deployment-stage2` were that example, and the deployment handover
+     * moved them to zeus-ecosystem. Demanding a non-empty set afterwards would
+     * mean the migration broke an assertion that describes correct behaviour
+     * for the remaining workflows, so the claim is now what it always meant:
+     * *if* a workflow installs a partial set, it must not run the unit suite.
+     */
     const exempt = workflowNames().filter(
       name => !(UNIT_SUITE_WORKFLOWS as readonly string[]).includes(name),
     )
@@ -126,7 +134,6 @@ describe('Playwright installation is uniform where the same tests run', () => {
         command => !/chromium firefox webkit/.test(command),
       ),
     )
-    expect(withDivergentInstall.length).toBeGreaterThan(0)
     for (const name of withDivergentInstall) {
       expect(
         workflow(name),
