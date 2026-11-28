@@ -64,7 +64,17 @@ export const ALLOWED_ROOT_DIRECTORIES = [
  */
 export const PINNED_ROOT_DIRECTORIES: Readonly<Record<string, string>> = {
   meta: 'write-pair-attestation.ts reads the pairing record through the GitHub contents API by path, and check-golden-components.ts resolves meta/contracts by path',
-  deploy: 'deployment-layout.ts enforces it as a path-safety prefix',
+  /*
+   * `deploy` used to be pinned because `deployment-layout.ts` enforced it as a
+   * path-safety prefix. Both the directory and that script moved to
+   * zeus-ecosystem in the deployment handover, so the reason is gone and
+   * keeping the entry would pin a directory this repository no longer has — a
+   * gate that fails for having been obeyed.
+   *
+   * The path-safety check still exists; it lives in
+   * `zeus-ecosystem/scripts/deployment/layout.mjs` as
+   * `TRUSTED_DEPLOYMENT_ROOT`, pinned to that repository's `infra/deployment/`.
+   */
   crates: 'Cargo.toml workspace members and both Dockerfiles',
 }
 

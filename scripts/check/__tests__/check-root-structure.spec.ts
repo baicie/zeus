@@ -86,7 +86,13 @@ describe('a pinned directory may not silently disappear', () => {
     ).toEqual([])
   })
 
-  it.each(['meta', 'deploy', 'crates'])(
+  /*
+   * `deploy` was the third entry until the deployment handover moved it, the
+   * script that enforced it, and its consumers to zeus-ecosystem together.
+   * The param list is derived from the same constant the rule reads, so the
+   * cases cannot drift from the rule they describe.
+   */
+  it.each(Object.keys(PINNED_ROOT_DIRECTORIES))(
     'names %s and says what depends on it',
     directory => {
       const findings = checkPinnedDirectories(

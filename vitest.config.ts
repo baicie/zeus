@@ -17,6 +17,20 @@ const testProjects = [
       // above is kept because its fixture asserts package behaviour.
       'scripts/**/*.{test,spec}.{ts,tsx}',
     ],
+    /*
+     * 20s, not the 5s default.
+     *
+     * A large part of this suite is not unit-shaped: specs read the real
+     * repository tree, compile a module through the native compiler, spawn the
+     * CLI, or start a server. Each costs 1-3s alone; run beside three hundred
+     * other files they have crossed 5s and failed as timeouts. A timeout is a
+     * measurement of the scheduler, and the failure it produces names no
+     * assertion — which is how a real regression gets dismissed as flake and
+     * rerun until green.
+     *
+     * 20s is still short enough that a genuine hang fails the run.
+     */
+    testTimeout: 20_000,
   },
   {
     name: 'bench',

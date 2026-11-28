@@ -663,8 +663,13 @@ check:release-worktree --verify
 同时记录 `commit`（Core）与 `uiCommit`（Zeus UI）：WebC Studio、Native Lab 与
 Admin 必须绑定 Core commit，AI Workbench 必须绑定 UI commit。Linux/Windows 验证和
 发布审批绑定 Core commit。缺失证据显示为 `not_run`，格式错误或过期证据显示为
-`fail`。发布前仍需满足真实的跨平台、部署和审批条件，并运行
-`check:deployment-acceptance` 做真实 HTTP/浏览器验收。
+`fail`。发布前仍需满足真实的跨平台、部署和审批条件。
+
+**部署验收不在本仓库。** 产品部署（Admin、AI Workbench、AI Host、Playground）
+的拓扑、事务、回滚、线上业务验收与镜像交付归 `baicie/zeus-ecosystem`；Core 只负责
+npm 发布。原先的 `check:deployment-acceptance`、`deploy:stage1`、`deploy:stage2`、
+`deploy/` 目录与两个 `host-deployment-*` workflow 已迁出，见
+[`docs/release/r26-deployment-handover.md`](./release/r26-deployment-handover.md)。
 
 ### 6.2 Canary 预检（发布通道分离）
 
