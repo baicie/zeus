@@ -3,10 +3,18 @@
 Reusable procedure documents for coding agents. One directory per skill, each
 with a `SKILL.md` carrying `name` and `description` frontmatter.
 
-These live at the repository root rather than under a tool-specific directory
-(`.claude/skills/`, `.cursor/rules/`) because they are meant to be read by any
-agent working in this repository. A skill placed in a vendor directory is
-invisible to every other tool.
+These live in `.agents/skills/`, the location the `npx skills` CLI treats as
+canonical and symlinks out from. Cursor, Codex, Gemini CLI and GitHub Copilot
+read it directly. Claude Code does not: it reads `.claude/skills/`, so each
+skill here has a symlink at `.claude/skills/<name>` pointing back into this
+directory. `pnpm check:skills` verifies that pair.
+
+A previous revision put these at the repository root in `skills/`, on the
+argument that a vendor directory hides a skill from other tools. That was
+backwards: no agent reads a root `skills/` (OpenClaw is the only one that does),
+so every skill here stopped loading in Claude Code for two days. The root
+`skills/` layout is a *publishing* shape — what `npx skills` scans when
+discovering skills in someone else's repository — not a local install.
 
 ## What is here
 
