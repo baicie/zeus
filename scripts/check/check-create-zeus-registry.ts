@@ -253,12 +253,37 @@ function fixtureEnvironment(): NodeJS.ProcessEnv {
   return env
 }
 
+/**
+ * Where a fixture's own copy of a package resolves to.
+ *
+ * ## Why not `require.resolve`
+ *
+ * `@zeus-web/*` packages are ESM-only: their `exports` map carries `import`
+ * and `types`, and no `require` condition. `require.resolve` therefore throws
+ * `ERR_PACKAGE_PATH_NOT_EXPORTED` for a package that installed perfectly —
+ * which is what happened here, and it read as a broken install rather than as
+ * a resolver asking a question the package does not answer.
+ *
+ * `import.meta.resolve` is the ESM resolver. It honours the `import`
+ * condition, and it returns a URL, so the file path is decoded from it. The
+ * script that runs is `--input-type=module`, because the bare `-e` form is
+ * CommonJS and does not expose `import.meta`.
+ *
+ * Resolution still happens with `cwd` set to the fixture, so the answer is the
+ * fixture's own installation and never the workspace's.
+ */
 function resolveFixturePackage(project: string, name: string): string {
-  return execFileSync(
+  const url = execFileSync(
     process.execPath,
-    ['-e', 'process.stdout.write(require.resolve(process.argv[1]))', name],
+    [
+      '--input-type=module',
+      '-e',
+      'process.stdout.write(import.meta.resolve(process.argv[1]))',
+      name,
+    ],
     { cwd: project, env: fixtureEnvironment(), encoding: 'utf8' },
   )
+  return fileURLToPath(url)
 }
 
 async function freePort(): Promise<number> {
