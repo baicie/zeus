@@ -81,7 +81,7 @@ describe('template acceptance', () => {
       VERSION,
       UI_COMMIT,
       candidate([{ template: 'basic-ts', passed: true, pinMatch: true }], {
-        coreFromRegistry: true,
+        coreSource: 'registry',
       }),
     )
     expect(fromRegistry.coreSource).toBe('registry')
@@ -89,9 +89,24 @@ describe('template acceptance', () => {
     const fromWorkspace = templateAcceptance(
       VERSION,
       UI_COMMIT,
-      candidate([{ template: 'basic-ts', passed: true, pinMatch: true }]),
+      candidate([{ template: 'basic-ts', passed: true, pinMatch: true }], {
+        coreSource: 'workspace',
+      }),
     )
     expect(fromWorkspace.coreSource).toBe('workspace')
+
+    /*
+     * A report that does not say is `unknown`, not a guess. An earlier version
+     * inferred `workspace` from the presence of `coreVersion`, which labelled
+     * a registry-backed acceptance as a workspace build — the one distinction
+     * the field exists to record.
+     */
+    const silent = templateAcceptance(
+      VERSION,
+      UI_COMMIT,
+      candidate([{ template: 'basic-ts', passed: true, pinMatch: true }]),
+    )
+    expect(silent.coreSource).toBe('unknown')
   })
 })
 

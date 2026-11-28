@@ -50,7 +50,15 @@ export interface CandidateReportLike {
   readonly passed?: boolean
   readonly coreVersion?: string
   readonly uiVersion?: string
-  readonly coreFromRegistry?: boolean
+  /**
+   * Where the Core artifacts came from.
+   *
+   * `registry` means the candidate was verified against the published Core —
+   * the artifact a user installs — rather than a fresh build of the same tree.
+   * The distinction is the difference between "this will work" and "this tree
+   * works", so it is recorded rather than inferred.
+   */
+  readonly coreSource?: string
   readonly templates?: ReadonlyArray<{
     readonly template?: string
     readonly passed?: boolean
@@ -122,9 +130,9 @@ export function templateAcceptance(
     passed: templates.length,
     coreVersion: candidate.coreVersion ?? null,
     coreSource:
-      candidate.coreFromRegistry === true
+      candidate.coreSource === 'registry'
         ? 'registry'
-        : candidate.coreVersion
+        : candidate.coreSource === 'workspace'
           ? 'workspace'
           : 'unknown',
     verifiedAt: new Date().toISOString(),

@@ -526,6 +526,17 @@ try {
          * had verified a pair named only half of it.
          */
         coreVersion: candidateCoreVersion,
+        /*
+         * Where the Core came from.
+         *
+         * A report built from this workspace's packages and one built from the
+         * registry's published artifacts are different claims: the first says
+         * "the tree about to be published works", the second says "the
+         * artifact users install works". The downstream evidence reader has to
+         * tell them apart, and inferring it from the presence of a field is a
+         * guess — so the source is recorded.
+         */
+        coreSource: options.coreFromRegistry ? 'registry' : 'workspace',
         ...(uiRoot ? { uiRoot, uiVersion: candidateUiVersion } : {}),
         candidatePackages: candidateCounts,
         templates: templateResults,
