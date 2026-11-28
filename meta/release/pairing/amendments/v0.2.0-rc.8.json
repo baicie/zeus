@@ -1,0 +1,34 @@
+{
+  "schema": "zeus.pairing-amendment/v2",
+  "releaseTag": "v0.2.0-rc.8",
+  "coreVersion": "0.2.0-rc.8",
+  "coreCommit": "c508b035b0bad86d0a587755c36778937608a1ee",
+  "uiVersion": "0.2.0-rc.8",
+  "originalPairing": {
+    "uiCommit": "01b0778a9cab1e5c5265e98ea51412750cb69c3f",
+    "recordSha256": "c5a10cc3c83e64ea829733bf2115e1ec6927581aadf019d7e79d78c10829bc40"
+  },
+  "replacement": {
+    "uiCommit": "56ae16497e242dc93e09cdd25598af5c787fb1da",
+    "uiTree": "16cb7aec82fa7a23940358d0f1ee509afa591ff7",
+    "lockfileSha256": "fb4651a35d3e91cc5591dca8abd374ffc961e54da3fff49abb74cdf071f0a26a"
+  },
+  "authorization": {
+    "releasedBy": "baicie",
+    "releasedAt": "2026-11-28T08:24:59.167Z",
+    "changeReference": "baicie/zeus#421"
+  },
+  "evidence": {
+    "bundleSha256": "ffed8f60926f752ec4c2909e0fb8bbad84bfdae5246dc6bc4e04ad96a01ef372",
+    "bundlePath": "meta/release/evidence/v0.2.0-rc.8/bundle.json",
+    "reports": {
+      "core-registry-report": "5cc39d7fd7156fb36854db6a2ab3a969f35eff5025ed000fc8f930ce7834ffad",
+      "ui-candidate-report": "99bcad51e863c33e259a42cf352d40c9d4e534dc02a3b30f830d5bf51dd4b367",
+      "template-acceptance": "6e0f0e3bb245cf6a797f2f0b370e0447a5b5c3a9b8d431ffcf202cca7c6863be",
+      "browser-acceptance": "e19a91f43929b3f489464ba6a89a68eab99a3168c8adee6edaf4e03e2b3515a0",
+      "ui-registry-preflight": "2866a3f38941a233919c898eb796e1b2fcba4a0cb7e0b04fd3861ee2939a7f2f"
+    }
+  },
+  "reason": "The candidate named by meta/release/pairing/v0.2.0-rc.8.json was never published, and 56ae16497e242dc93e09cdd25598af5c787fb1da is the tree that will ship.",
+  "verifiedAt": "2026-11-28T08:24:59.173Z"
+}
